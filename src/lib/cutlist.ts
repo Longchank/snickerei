@@ -245,6 +245,8 @@ export interface Offer {
   supplier: string
   url?: string
   name?: string
+  /** When the supplier price was collected (ISO) */
+  fetchedAt?: string
 }
 
 /** Cheapest price for one stock board/sheet, across all suppliers. */
@@ -264,7 +266,7 @@ export function stockPrice(profileId: string, length: number, width: number | nu
       price = e.price
     }
     if (price !== null && (!best || price < best.price))
-      best = { price, supplier: e.supplier, url: e.url, name: e.name }
+      best = { price, supplier: e.supplier, url: e.url, name: e.name, fetchedAt: e.fetchedAt }
   }
   return best
 }
@@ -386,6 +388,18 @@ export function purchasePlan(parts: Part[], prices: PriceEntry[], kerf: number):
       }
     })
     .sort((a, b) => a.profile.kind.localeCompare(b.profile.kind) || a.profile.id.localeCompare(b.profile.id))
+}
+
+/** Each supplier used in a plan with the oldest collection date of its prices. */
+export function priceDates(plan: PlanRow[]): { supplier: string; fetchedAt: string }[] {
+  const oldest = new Map<string, string>()
+  for (const r of plan)
+    for (const i of r.items) {
+      const o = i.offer
+      if (o?.fetchedAt && (!oldest.has(o.supplier) || o.fetchedAt < oldest.get(o.supplier)!))
+        oldest.set(o.supplier, o.fetchedAt)
+    }
+  return [...oldest].map(([supplier, fetchedAt]) => ({ supplier, fetchedAt }))
 }
 
 export function totalCost(plan: PlanRow[]): number | null {

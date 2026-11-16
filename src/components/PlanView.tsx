@@ -1,7 +1,7 @@
 import { CATEGORY_NAMES } from '../lib/catalog'
 import type { CutRow, PlanItem, PlanRow } from '../lib/cutlist'
-import { totalCost } from '../lib/cutlist'
-import { formatKr, formatM } from '../lib/format'
+import { priceDates, totalCost } from '../lib/cutlist'
+import { ageInDays, formatAge, formatDate, formatKr, formatM, STALE_DAYS } from '../lib/format'
 import { BoardBar, SheetDiagram } from './Diagrams'
 
 export function CutTable({ rows }: { rows: CutRow[] }) {
@@ -53,6 +53,24 @@ export function PurchaseList({ plan, expanded = false }: { plan: PlanRow[]; expa
         <span>Totalt</span>
         <strong>{total === null ? 'Pris saknas för vissa material' : formatKr(total)}</strong>
       </div>
+      <PriceAge plan={plan} />
+    </>
+  )
+}
+
+/** When the shop prices in this plan were collected; flagged when old. */
+export function PriceAge({ plan }: { plan: PlanRow[] }) {
+  return (
+    <>
+      {priceDates(plan).map(({ supplier, fetchedAt }) => {
+        const stale = ageInDays(fetchedAt) > STALE_DAYS
+        return (
+          <p key={supplier} className={stale ? 'warn' : 'price-age'}>
+            Webbpriser från {supplier} hämtade {formatDate(fetchedAt)} ({formatAge(fetchedAt)}).
+            {stale ? ' Priserna kan ha ändrats — kontrollera i butiken.' : ' Priset i butik kan skilja sig.'}
+          </p>
+        )
+      })}
     </>
   )
 }

@@ -100,3 +100,22 @@ describe('packCuts with prices', () => {
     expect(boards[0].length).toBe(3000)
   })
 })
+
+describe('price age', () => {
+  it('formats the age in Swedish', async () => {
+    const { formatAge, ageInDays } = await import('./format')
+    const now = new Date('2026-11-20T10:00:00')
+    expect(formatAge('2026-11-20T04:00:00', now)).toBe('idag')
+    expect(formatAge('2026-11-19T23:00:00', now)).toBe('igår')
+    expect(formatAge('2026-11-16T04:17:00', now)).toBe('för 4 dagar sedan')
+    expect(ageInDays('2026-10-01T00:00:00', now)).toBe(50)
+  })
+
+  it('reports each supplier with its oldest price date', async () => {
+    const { priceDates } = await import('./cutlist')
+    const older = { ...file, fetchedAt: '2026-11-01T00:00:00Z' }
+    const prices = [...supplierEntries(older).filter((e) => e.profileId === 'plywood-18'), ...supplierEntries(file)]
+    const plan = purchasePlan([part('konstruktion-45x70', 2400), part('plywood-18', 800, 600)], prices, 3)
+    expect(priceDates(plan)).toEqual([{ supplier: 'Bauhaus', fetchedAt: '2026-11-01T00:00:00Z' }])
+  })
+})

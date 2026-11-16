@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { CATEGORY_NAMES, EXAMPLE_PRICES, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
-import { formatKr } from '../lib/format'
+import { ageInDays, formatAge, formatDate, formatKr, STALE_DAYS } from '../lib/format'
 import { supplierEntries } from '../lib/prices'
 import { useStore } from '../lib/store'
 import type { PriceEntry, Profile, ProfileCategory } from '../lib/types'
@@ -38,9 +38,9 @@ export function PriceList() {
             onChange={(e) => setSupplierEnabled(file.supplier, e.target.checked)}
           />
           <span>
-            Använd priser från {file.supplier}{' '}
-            <span className="muted small">
-              (webbpriser hämtade {new Date(file.fetchedAt).toLocaleDateString('sv-SE')})
+            Använd priser från {file.supplier}
+            <span className={`small age ${ageInDays(file.fetchedAt) > STALE_DAYS ? 'stale' : 'muted'}`}>
+              Webbpriser hämtade {formatDate(file.fetchedAt)} ({formatAge(file.fetchedAt)}) · uppdateras varje måndag
             </span>
           </span>
         </label>

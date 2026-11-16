@@ -23,6 +23,9 @@ comments in English).
   köpvillkor/GDPR/cookies (checked 2026-11-16). Stay polite: one request at
   a time, 2 s apart, ~16 requests per run. The deploy workflow runs it on
   every build and weekly; failure keeps the committed file.
+  On-demand fetching from the browser is impossible (bauhaus.se sends no
+  CORS headers); the owner chose (2026-11-16) to keep the weekly fetch and
+  show each price's age instead (`PriceAge`, warning after `STALE_DAYS`=14).
   **Hornbach is not scraped**: it serves a bot-protection "Client
   Challenge" even for robots.txt — do not try to get around it.
   Precedence per profile: own "Egen" price → supplier prices (cheapest

@@ -693,3 +693,17 @@ td {
 .app.mobile .price-own .number-field input {
   width: 64px;
 }
+
+/* How old the shop prices are */
+.price-age {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 4px 2px;
+}
+.check .age {
+  display: block;
+}
+.age.stale {
+  color: var(--warn);
+  font-weight: 600;
+}
