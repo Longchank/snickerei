@@ -37,6 +37,22 @@ comments in English).
 - Stack: React + TS + Vite, react-three-fiber/drei, Zustand (persisted to
   localStorage). No backend: supplier prices are static JSON built in CI.
 
+## Workflow (owner, 2026-11-16)
+
+- **Push directly to `main`** — no pull requests needed. Fetch first and
+  only fast-forward; never force-push `main`. A push to `main` triggers the
+  GitHub Pages deploy (and a price fetch).
+
+## Later / parked ideas
+
+- **"Hämta senaste pris" button via a tiny Cloudflare Worker** (parked
+  2026-11-16): the browser can't read bauhaus.se (no CORS), so a Worker
+  would fetch only the category pages for the project's sizes on demand.
+  Works for Bauhaus only — Hornbach's bot challenge blocks servers too, and
+  we don't get around it. For Hornbach, options are a "Visa på Hornbach"
+  search link (user reads the price and enters it as "Eget pris") or asking
+  Hornbach for a partner feed/API.
+
 ## Model conventions
 
 - All lengths in **millimetres**, scene units are mm too.

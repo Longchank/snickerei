@@ -57,6 +57,8 @@ state. Ingen backend än.
 
 ## Planerat
 
+- Knapp "Hämta senaste pris" via en liten Cloudflare Worker (bara Bauhaus).
+- "Visa på Hornbach"-länk för att själv slå upp och skriva in priset.
 - Fler bygghandlare (Byggmax, Beijer, XL-Bygg, K-Rauta …) — kolla varje
   sajts villkor och robots.txt först.
 - Fiberriktning på skivor (låsa rotation i skärschemat).
