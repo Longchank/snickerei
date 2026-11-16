@@ -3,19 +3,31 @@
 En webblösning som skapar 3D-modeller och såglistor, samt har inbyggd prislista.
 Byggd för hobbysnickare.
 
-## Vad finns nu (v0.1)
+## Vad finns nu (v0.2)
 
-- **Fri 3D-modellering med låsta virkesdimensioner** — lägg till brädor ur
-  katalogen (konstruktionsvirke, hyvlat, tryckimpregnerat, läkt). En 45x70 är
-  alltid 45x70; bara längden kan ändras.
-- Flytta med pilarna i 3D-vyn (fäster mot 1–100 mm), rotera i 90°-steg,
-  duplicera, ångra/gör om.
-- **Såglista** — alla delar grupperade per dimension och längd.
-- **Inköpslista** — räknar ut vilka saluförda längder som behöver köpas,
-  med snittbredd för sågklingan, kapschema och spill.
-- **Prislista** — egna priser per löpmeter. Exempelpriser (inte riktiga) visas
-  tills prishämtning från bygghandlare finns.
-- Projektet sparas automatiskt i webbläsaren; exportera/importera som JSON.
+Byggd för mobilen först — fungerar även på dator.
+
+- **Fri 3D-modellering med låsta mått**
+  - **Virke** (konstruktionsvirke, hyvlat, tryckimpregnerat, läkt): en 45x70
+    är alltid 45x70, bara längden kan ändras.
+  - **Skivor** (plywood, MDF, OSB): tjockleken är låst, längd och bredd är fria.
+- Flytta med pilarna i 3D-vyn eller med −/+-knappar. Delar **fäster mot
+  varandra** (kant mot kant, i liv) och mot ett rutnät på 1–100 mm.
+- **Mått i 3D-vyn** för markerad del, eller totalmått när inget är markerat.
+- Rotera i 90°-steg, duplicera, ångra/gör om, "visa hela modellen".
+- **Såglista** och **inköpslista**: vilka längder/skivor som ska köpas, med
+  snittbredd, kapschema för virke och skärschema för skivor.
+- **Skriv ut / spara PDF**: projektbild, såglista, inköpslista och scheman.
+- **Prislista**: egna priser (kr/lm för virke, kr/skiva för skivor).
+  Exempelpriser (inte riktiga) visas tills prishämtning finns.
+- Sparas automatiskt i webbläsaren; exportera/importera projektfil (JSON).
+- Kan läggas till på hemskärmen och öppnas som en app.
+
+## Publicering
+
+GitHub Actions bygger och publicerar till GitHub Pages vid varje push till
+`main` (`.github/workflows/deploy.yml`). Engångsinställning: repots
+**Settings → Pages → Source: GitHub Actions**.
 
 ## Kom igång
 
@@ -36,6 +48,5 @@ state. Ingen backend än.
 - Prishämtning (scraping) från bygghandlare — kräver en liten backend
   (webbläsaren kan inte hämta andra sajter direkt p.g.a. CORS). Kolla varje
   sajts villkor och robots.txt först.
-- Skivmaterial (plywood, MDF, OSB) — fast tjocklek, fri bredd/längd.
-- Fäst mot andra delars ytor och kanter, måttsättning i 3D-vyn.
-- Utskrift/PDF av såg- och inköpslista.
+- Fiberriktning på skivor (låsa rotation i skärschemat).
+- Mäta avstånd mellan två valfria punkter.

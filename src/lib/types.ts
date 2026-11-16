@@ -1,21 +1,34 @@
 /** All lengths are in millimetres. */
 
-export type ProfileCategory = 'konstruktion' | 'hyvlat' | 'tryckimpregnerat' | 'lakt'
+export type ProfileCategory =
+  | 'konstruktion'
+  | 'hyvlat'
+  | 'tryckimpregnerat'
+  | 'lakt'
+  | 'plywood'
+  | 'mdf'
+  | 'osb'
 
 /**
- * A lumber profile: a fixed cross-section. A part made from a profile can only
- * change length — a 45x70 is always 45x70.
+ * A material a part is made from.
+ * - 'board': lumber with a fixed cross-section. Only length can change — a
+ *   45x70 is always 45x70.
+ * - 'sheet': sheet goods (plywood, MDF, OSB) with a fixed thickness. Length
+ *   and width are free, up to the stock sheet size.
  */
 export interface Profile {
   id: string
   name: string
+  kind: 'board' | 'sheet'
   category: ProfileCategory
-  /** Smaller cross-section dimension, e.g. 45 in 45x70 */
+  /** Smaller cross-section dimension, e.g. 45 in 45x70; sheet thickness */
   thickness: number
-  /** Larger cross-section dimension, e.g. 70 in 45x70 */
+  /** Board: larger cross-section dimension (70 in 45x70). Sheet: default width of a new part */
   width: number
-  /** Lengths the board is sold in */
+  /** Boards: lengths the board is sold in */
   stockLengths: number[]
+  /** Sheets: [length, width] of the sheets sold */
+  stockSheets: [number, number][]
   color: string
 }
 
@@ -33,6 +46,8 @@ export interface Part {
   name: string
   profileId: string
   length: number
+  /** Sheets only: the part's width. Boards always use the profile width. */
+  width?: number
   position: Vec3
   rotation: QuarterTurns
 }
@@ -43,15 +58,18 @@ export interface Project {
 }
 
 /**
- * One price observation. Written by hand ("egen") or by a supplier scraper.
- * Either a price per running metre ('lm') or per piece at a given length ('st').
+ * One price observation. Written by hand ("Egen") or by a supplier scraper.
+ * - 'lm': per running metre (boards)
+ * - 'st': per piece; for boards at `length`, for sheets at `length` x `width`
+ *   (or any stock size when omitted)
+ * - 'm2': per square metre (sheets)
  */
 export interface PriceEntry {
   profileId: string
   supplier: string
-  unit: 'lm' | 'st'
-  /** Required when unit is 'st' */
+  unit: 'lm' | 'st' | 'm2'
   length?: number
+  width?: number
   /** SEK incl. VAT */
   price: number
   url?: string
@@ -63,4 +81,8 @@ export interface Settings {
   snap: number
   /** Saw blade width, mm */
   kerf: number
+  /** Show dimension lines in the 3D view */
+  showDimensions: boolean
+  /** Snap to other parts' faces while moving */
+  snapToParts: boolean
 }

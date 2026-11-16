@@ -28,9 +28,12 @@ interface State {
   newProject: () => void
   loadProject: (project: Project) => void
   setSettings: (patch: Partial<Settings>) => void
-  setOwnPrice: (profileId: string, pricePerMetre: number | null) => void
+  /** kr per running metre for boards, kr per sheet for sheets */
+  setOwnPrice: (profileId: string, price: number | null) => void
   setUseExamplePrices: (v: boolean) => void
 }
+
+const DEFAULT_SETTINGS: Settings = { snap: 5, kerf: 3, showDimensions: true, snapToParts: true }
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -49,7 +52,7 @@ export const useStore = create<State>()(
       return {
         project: { name: 'Nytt projekt', parts: [] },
         selectedId: null,
-        settings: { snap: 5, kerf: 3 },
+        settings: DEFAULT_SETTINGS,
         ownPrices: [],
         useExamplePrices: true,
         past: [],
@@ -64,7 +67,8 @@ export const useStore = create<State>()(
             id: uid(),
             name: `${prof.name} #${parts.filter((p) => p.profileId === profileId).length + 1}`,
             profileId,
-            length: 1000,
+            length: prof.kind === 'sheet' ? 800 : 1000,
+            ...(prof.kind === 'sheet' ? { width: prof.width } : {}),
             position: [0, 0, front + 100],
             rotation: [0, 0, 0],
           }
@@ -131,7 +135,7 @@ export const useStore = create<State>()(
             ownPrices: [
               ...s.ownPrices.filter((e) => e.profileId !== profileId),
               ...(price !== null && price > 0
-                ? [{ profileId, supplier: 'Egen', unit: 'lm' as const, price }]
+                ? [{ profileId, supplier: 'Egen', unit: getProfile(profileId).kind === 'sheet' ? ('st' as const) : ('lm' as const), price }]
                 : []),
             ],
           })),
@@ -142,6 +146,11 @@ export const useStore = create<State>()(
     {
       name: 'snickerei',
       version: 1,
+      // Settings added in later versions get their defaults
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>
+        return { ...current, ...p, settings: { ...DEFAULT_SETTINGS, ...p.settings } }
+      },
       // Undo history and selection are session-only
       partialize: (s) => ({
         project: s.project,

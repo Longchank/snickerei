@@ -1,4 +1,4 @@
-import { CATEGORY_NAMES, EXAMPLE_PRICES, PROFILES } from '../lib/catalog'
+import { CATEGORY_NAMES, EXAMPLE_PRICES, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
 import type { ProfileCategory } from '../lib/types'
 import { NumberField } from './NumberField'
@@ -12,14 +12,16 @@ export function PriceList() {
   return (
     <div className="lists">
       <p className="hint">
-        Priser i kr per löpmeter. Automatisk hämtning från bygghandlare kommer — tills dess kan du skriva in egna
-        priser. Ett eget pris ersätter exempelpriset.
+        Virke i kr per löpmeter, skivor i kr per hel skiva. Automatisk hämtning från bygghandlare kommer — tills dess
+        kan du skriva in egna priser. Ett eget pris ersätter exempelpriset.
       </p>
       <label className="check">
         <input type="checkbox" checked={useExamplePrices} onChange={(e) => setUseExamplePrices(e.target.checked)} />
         Använd exempelpriser där eget pris saknas
       </label>
-      {(Object.keys(CATEGORY_NAMES) as ProfileCategory[]).map((cat) => (
+      {(Object.keys(CATEGORY_NAMES) as ProfileCategory[]).map((cat) => {
+        const sheet = SHEET_CATEGORIES.includes(cat)
+        return (
         <section key={cat}>
           <h3>{CATEGORY_NAMES[cat]}</h3>
           <table>
@@ -27,7 +29,7 @@ export function PriceList() {
               <tr>
                 <th>Dim.</th>
                 <th className="num">Exempel</th>
-                <th className="num">Eget kr/lm</th>
+                <th className="num">Eget {sheet ? 'kr/skiva' : 'kr/lm'}</th>
               </tr>
             </thead>
             <tbody>
@@ -36,8 +38,8 @@ export function PriceList() {
                 const ex = EXAMPLE_PRICES.find((e) => e.profileId === p.id)
                 return (
                   <tr key={p.id}>
-                    <td>{p.name}</td>
-                    <td className="num muted">{ex ? ex.price.toFixed(2) : '–'}</td>
+                    <td>{shortName(p)}</td>
+                    <td className="num muted">{ex ? (sheet ? ex.price.toFixed(0) : ex.price.toFixed(2)) : '–'}</td>
                     <td className="num">
                       <PriceInput value={own?.price} onCommit={(v) => setOwnPrice(p.id, v)} />
                     </td>
@@ -47,7 +49,8 @@ export function PriceList() {
             </tbody>
           </table>
         </section>
-      ))}
+        )
+      })}
     </div>
   )
 }

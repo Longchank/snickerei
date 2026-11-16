@@ -4,7 +4,7 @@ import type { Part, QuarterTurns, Vec3 } from './types'
 
 export function partSize(part: Part): Vec3 {
   const prof = getProfile(part.profileId)
-  return [part.length, prof.thickness, prof.width]
+  return [part.length, prof.thickness, prof.kind === 'sheet' ? (part.width ?? prof.width) : prof.width]
 }
 
 export function eulerOf(rot: QuarterTurns): Euler {
@@ -59,4 +59,48 @@ export function rotatePart(part: Part, axis: 0 | 1 | 2): Part {
 
 export function round(v: number, step = 0.5): number {
   return Math.round(v / step) * step || 0
+}
+
+export interface AxisBox {
+  min: Vec3
+  max: Vec3
+}
+
+/**
+ * Snap a moving box to nearby parts: for each active axis, if one of its faces
+ * is within `threshold` of a face of a neighbouring part (touching or flush),
+ * return the offset that lines them up. Only parts within `reach` of the
+ * moving box count, so far-away parts don't pull it around.
+ */
+export function snapOffset(
+  box: AxisBox,
+  others: AxisBox[],
+  axes: [boolean, boolean, boolean],
+  threshold: number,
+  reach = 300,
+): Vec3 {
+  const near = others.filter((o) =>
+    [0, 1, 2].every((i) => o.min[i] - reach <= box.max[i] && o.max[i] + reach >= box.min[i]),
+  )
+  return [0, 1, 2].map((i) => {
+    if (!axes[i]) return 0
+    let best = 0
+    let bestDist = threshold
+    for (const o of near) {
+      for (const target of [o.min[i], o.max[i]]) {
+        for (const edge of [box.min[i], box.max[i]]) {
+          const d = target - edge
+          if (Math.abs(d) < bestDist) {
+            bestDist = Math.abs(d)
+            best = d
+          }
+        }
+      }
+    }
+    return best
+  }) as Vec3
+}
+
+export function toAxisBox(box: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } }): AxisBox {
+  return { min: [box.min.x, box.min.y, box.min.z], max: [box.max.x, box.max.y, box.max.z] }
 }
