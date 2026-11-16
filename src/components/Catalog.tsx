@@ -1,6 +1,6 @@
 import { CATEGORY_NAMES, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
-import type { ProfileCategory } from '../lib/types'
+import type { Part, ProfileCategory } from '../lib/types'
 
 const BOARD_CATEGORIES = (Object.keys(CATEGORY_NAMES) as ProfileCategory[]).filter(
   (c) => !SHEET_CATEGORIES.includes(c),
@@ -24,10 +24,6 @@ function Category({ cat }: { cat: ProfileCategory }) {
 }
 
 export function Catalog() {
-  const parts = useStore((s) => s.project.parts)
-  const selectedId = useStore((s) => s.selectedId)
-  const select = useStore((s) => s.select)
-
   return (
     <div className="catalog">
       <h2>Virke</h2>
@@ -40,24 +36,62 @@ export function Catalog() {
       {SHEET_CATEGORIES.map((cat) => (
         <Category key={cat} cat={cat} />
       ))}
-
-      <h2>Delar ({parts.length})</h2>
-      {parts.length === 0 ? (
-        <p className="hint">Inga delar än.</p>
-      ) : (
-        <ul className="part-list">
-          {parts.map((p) => (
-            <li key={p.id}>
-              <button className={p.id === selectedId ? 'active' : ''} onClick={() => select(p.id)}>
-                <span>{p.name}</span>
-                <span className="muted">
-                  {p.width === undefined ? p.length : `${p.length}×${p.width}`} mm
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <PartList />
     </div>
+  )
+}
+
+/** All parts, grouped. Tapping a group selects it; tapping a part selects only that part. */
+export function PartList() {
+  const parts = useStore((s) => s.project.parts)
+  const groups = useStore((s) => s.project.groups)
+  const selection = useStore((s) => s.selection)
+  const select = useStore((s) => s.select)
+  const tapPart = useStore((s) => s.tapPart)
+  const multiSelect = useStore((s) => s.multiSelect)
+  const selected = new Set(selection)
+
+  const item = (p: Part) => (
+    <li key={p.id}>
+      <button
+        className={selected.has(p.id) ? 'active' : ''}
+        onClick={(e) => {
+          if (multiSelect || e.shiftKey || e.ctrlKey || e.metaKey) {
+            // Toggle just this part, even inside a group
+            select(selected.has(p.id) ? selection.filter((x) => x !== p.id) : [...selection, p.id])
+          } else select([p.id])
+        }}
+      >
+        <span>
+          {p.name}
+          {p.notches?.length ? <span className="muted small"> · {p.notches.length} urtag</span> : null}
+        </span>
+        <span className="muted">{p.width === undefined ? p.length : `${p.length}×${p.width}`} mm</span>
+      </button>
+    </li>
+  )
+
+  return (
+    <>
+      <h2>Delar ({parts.length})</h2>
+      {parts.length === 0 && <p className="hint">Inga delar än.</p>}
+      {groups.map((g) => {
+        const members = parts.filter((p) => p.groupId === g.id)
+        const all = members.every((p) => selected.has(p.id))
+        return (
+          <div key={g.id} className="part-group">
+            <button
+              className={`group-head ${all ? 'active' : ''}`}
+              onClick={() => members[0] && tapPart(members[0].id, multiSelect)}
+            >
+              <span>▾ {g.name}</span>
+              <span className="muted small">{members.length} delar</span>
+            </button>
+            <ul className="part-list">{members.map(item)}</ul>
+          </div>
+        )
+      })}
+      <ul className="part-list">{parts.filter((p) => !p.groupId).map(item)}</ul>
+    </>
   )
 }

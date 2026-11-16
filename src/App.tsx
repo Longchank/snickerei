@@ -36,26 +36,28 @@ export function App() {
   const [sheetOpen, setSheetOpen] = useState(true)
   const [snapshot, setSnapshot] = useState<string | null>(null)
   const [capturing, setCapturing] = useState(false)
-  const selectedId = useStore((s) => s.selectedId)
+  const selection = useStore((s) => s.selection)
+  const selectionKey = selection.join(',')
   useKeyboardShortcuts()
   useEffect(() => {
     loadSupplierPrices()
   }, [])
 
   // Selecting or adding a part shows its properties
+  // (except while picking several parts, so the list stays open)
   useEffect(() => {
-    if (selectedId) {
+    if (selectionKey && !useStore.getState().multiSelect) {
       setTab('del')
       setSheetOpen(true)
     }
-  }, [selectedId])
+  }, [selectionKey])
 
   // 'Lägg till' lives in the left column on desktop
   const activeTab: Tab = !mobile && tab === 'lagg' ? 'del' : tab
 
   const print = async () => {
     // Clean view for the snapshot: nothing selected, no overlays, whole model in frame
-    useStore.getState().select(null)
+    useStore.getState().clearSelection()
     setCapturing(true)
     fitView()
     await nextFrame()
@@ -148,16 +150,19 @@ function useKeyboardShortcuts() {
         e.preventDefault()
         s.redo()
       } else if (e.key === 'Escape') {
-        s.select(null)
-      } else if (s.selectedId) {
+        s.clearSelection()
+      } else if (s.selection.length) {
         if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault()
-          s.removePart(s.selectedId)
+          s.removeSelection()
         } else if (mod && key === 'd') {
           e.preventDefault()
-          s.duplicatePart(s.selectedId)
+          s.duplicateSelection()
+        } else if (mod && key === 'g') {
+          e.preventDefault()
+          s.groupSelection('Grupp')
         } else if (!mod && key === 'r') {
-          s.rotate(s.selectedId, 1)
+          s.rotateSelection(1)
         }
       }
     }

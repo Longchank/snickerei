@@ -16,12 +16,17 @@ export function CutTable({ rows }: { rows: CutRow[] }) {
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={`${r.profile.id}-${r.length}-${r.width}`} title={r.names.join(', ')}>
+          <tr key={`${r.profile.id}-${r.length}-${r.width}-${r.notes.join()}`} title={r.names.join(', ')}>
             <td>
               {r.profile.name}
               <div className="muted small">
                 {r.profile.kind === 'sheet' ? 'Skiva' : CATEGORY_NAMES[r.profile.category]}
               </div>
+              {r.notes.map((n, i) => (
+                <div key={i} className="cut-note small">
+                  ✂ {n}
+                </div>
+              ))}
             </td>
             <td className="num">{r.width === undefined ? r.length : `${r.length} × ${r.width}`}</td>
             <td className="num">{r.count}</td>

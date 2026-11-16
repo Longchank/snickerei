@@ -1,12 +1,14 @@
 import { Edges, GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { PerspectiveCamera, Vector3 } from 'three'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { BoxGeometry, BufferGeometry, Object3D, PerspectiveCamera, Vector3 } from 'three'
 import type { Group } from 'three'
+import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getProfile } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, snapOffset, toAxisBox, type AxisBox } from '../lib/geometry'
+import { overlapsOf, unionBox } from '../lib/joints'
 import { useStore } from '../lib/store'
-import type { Part, Vec3 } from '../lib/types'
+import type { Notch, Part, Vec3 } from '../lib/types'
 
 /** The WebGL canvas, for snapshots in the printout. */
 export const canvasRef: { current: HTMLCanvasElement | null } = { current: null }
@@ -19,27 +21,53 @@ const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: co
 
 type Register = (id: string, g: Group | null) => void
 
+const evaluator = new Evaluator()
+evaluator.attributes = ['position', 'normal']
+
+/** Box geometry in part-local coordinates (0..L, 0..T, 0..W), with notches cut out. */
+function partGeometry(size: Vec3, notches: Notch[] | undefined): BufferGeometry {
+  const box = new BoxGeometry(...size).translate(size[0] / 2, size[1] / 2, size[2] / 2)
+  if (!notches?.length) return box
+  let result = new Brush(box)
+  for (const n of notches) {
+    // Grow the cutter a little past the part's faces so the cut is clean
+    const min = n.min.map((v) => (v <= 0.01 ? v - 1 : v))
+    const max = n.max.map((v, i) => (v >= size[i] - 0.01 ? v + 1 : v))
+    const dims = [0, 1, 2].map((i) => max[i] - min[i]) as Vec3
+    const cutter = new Brush(
+      new BoxGeometry(...dims).translate(min[0] + dims[0] / 2, min[1] + dims[1] / 2, min[2] + dims[2] / 2),
+    )
+    result = evaluator.evaluate(result, cutter, SUBTRACTION)
+  }
+  return result.geometry
+}
+
 function PartMesh({ part, selected, register }: { part: Part; selected: boolean; register: Register }) {
-  const select = useStore((s) => s.select)
+  const tapPart = useStore((s) => s.tapPart)
+  const multiSelect = useStore((s) => s.multiSelect)
   const ref = useRef<Group>(null)
   useEffect(() => {
     register(part.id, ref.current)
     return () => register(part.id, null)
   }, [part.id, register])
   const prof = getProfile(part.profileId)
-  const [l, t, w] = partSize(part)
+  const size = partSize(part)
+  const key = `${size.join('x')}|${JSON.stringify(part.notches ?? [])}`
+  const geometry = useMemo(() => partGeometry(size, part.notches), [key])
+  useEffect(() => () => geometry.dispose(), [geometry])
   const rotation = useMemo(() => eulerOf(part.rotation), [part.rotation])
   const [hover, setHover] = useState(false)
 
   return (
     <group ref={ref} position={part.position} rotation={rotation}>
       <mesh
-        position={[l / 2, t / 2, w / 2]}
+        geometry={geometry}
         castShadow
         receiveShadow
         onClick={(e) => {
           e.stopPropagation()
-          select(part.id)
+          const ne = e.nativeEvent
+          tapPart(part.id, multiSelect || ne.shiftKey || ne.ctrlKey || ne.metaKey)
         }}
         onPointerOver={(e) => {
           e.stopPropagation()
@@ -47,7 +75,6 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         }}
         onPointerOut={() => setHover(false)}
       >
-        <boxGeometry args={[l, t, w]} />
         <meshStandardMaterial
           color={prof.color}
           emissive={selected ? '#3b82f6' : hover && !isTouch ? '#555' : '#000'}
@@ -57,6 +84,18 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         <Edges color={selected ? '#1d4ed8' : '#6b4f2a'} />
       </mesh>
     </group>
+  )
+}
+
+/** Red see-through box where the selected part collides with another. */
+function OverlapBox({ box }: { box: AxisBox }) {
+  const size = [0, 1, 2].map((i) => box.max[i] - box.min[i]) as Vec3
+  const centre = [0, 1, 2].map((i) => (box.min[i] + box.max[i]) / 2) as Vec3
+  return (
+    <mesh position={centre} renderOrder={2}>
+      <boxGeometry args={size} />
+      <meshBasicMaterial color="#ef4444" transparent opacity={0.45} depthTest={false} />
+    </mesh>
   )
 }
 
@@ -86,45 +125,50 @@ function Dimensions({ box, offset }: { box: AxisBox; offset: number }) {
   )
 }
 
-function unionBox(boxes: AxisBox[]): AxisBox | null {
-  if (!boxes.length) return null
-  return {
-    min: [0, 1, 2].map((i) => Math.min(...boxes.map((b) => b.min[i]))) as Vec3,
-    max: [0, 1, 2].map((i) => Math.max(...boxes.map((b) => b.max[i]))) as Vec3,
-  }
-}
-
 function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<number>; capturing: boolean }) {
   const parts = useStore((s) => s.project.parts)
-  const selectedId = useStore((s) => s.selectedId)
+  const selection = useStore((s) => s.selection)
   const { snap, showDimensions, snapToParts } = useStore((s) => s.settings)
-  const updatePart = useStore((s) => s.updatePart)
+  const moveSelection = useStore((s) => s.moveSelection)
   const camera = useThree((s) => s.camera)
   const controls = useThree((s) => s.controls) as unknown as { target: Vector3; update: () => void } | null
 
   const groups = useRef(new Map<string, Group>())
-  // Bumped when parts mount/unmount so the gizmo can find a freshly added part
-  const [, setVersion] = useState(0)
   const register = useCallback<Register>((id, g) => {
     if (g) groups.current.set(id, g)
     else groups.current.delete(id)
-    setVersion((n) => n + 1)
   }, [])
   // drei's ref is three's TransformControls; `axis` is the handle being dragged ('X', 'XY', 'XYZ'…)
   const tc = useRef<{ axis: string | null }>(null)
-  /** Position of the selected part while it's being dragged */
-  const [livePos, setLivePos] = useState<Vec3 | null>(null)
-  useEffect(() => setLivePos(null), [selectedId, parts])
 
-  const selected = parts.find((p) => p.id === selectedId)
-  const selectedGroup = selectedId ? groups.current.get(selectedId) : undefined
+  const selected = useMemo(() => {
+    const ids = new Set(selection)
+    return parts.filter((p) => ids.has(p.id))
+  }, [parts, selection])
   const boxes = useMemo(() => new Map(parts.map((p) => [p.id, toAxisBox(partBox(p))])), [parts])
-  const others = useMemo(() => parts.filter((p) => p.id !== selectedId).map((p) => boxes.get(p.id)!), [parts, boxes, selectedId])
+  const selBox = useMemo(() => unionBox(selected), [selected])
+  const others = useMemo(() => {
+    const ids = new Set(selection)
+    return parts.filter((p) => !ids.has(p.id)).map((p) => boxes.get(p.id)!)
+  }, [parts, boxes, selection])
+  const overlaps = useMemo(
+    () => (selected.length === 1 ? overlapsOf(selected[0], parts).map((o) => o.box) : []),
+    [selected, parts],
+  )
+
+  // The gizmo moves this invisible pivot (at the selection's min corner); the
+  // parts follow it while dragging and are committed on release.
+  const pivot = useMemo(() => new Object3D(), [])
+  const [delta, setDelta] = useState<Vec3 | null>(null)
+  useEffect(() => {
+    if (selBox) pivot.position.set(...selBox.min)
+    setDelta(null)
+  }, [selBox, pivot])
 
   // Fit the model in view on request, and once at start-up
   useEffect(() => {
     const fit = () => {
-      const box = unionBox([...boxes.values()])
+      const box = unionBox(parts)
       if (!box || !controls || !(camera instanceof PerspectiveCamera)) return
       const center = new Vector3(...box.min).add(new Vector3(...box.max)).multiplyScalar(0.5)
       const radius = new Vector3(...box.max).sub(new Vector3(...box.min)).length() / 2 + 150
@@ -137,7 +181,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     }
     window.addEventListener(FIT_EVENT, fit)
     return () => window.removeEventListener(FIT_EVENT, fit)
-  }, [boxes, camera, controls])
+  }, [parts, camera, controls])
   // Only a project that was already there when the app opened gets auto-fitted
   const fitOnStart = useRef(parts.length > 0)
   useEffect(() => {
@@ -148,25 +192,31 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   }, [controls])
 
   const onDrag = () => {
-    if (!selected || !selectedGroup) return
-    const pos = selectedGroup.position
+    if (!selBox) return
+    const pos = pivot.position
     if (snapToParts) {
       const axis = tc.current?.axis ?? ''
-      const box = toAxisBox(partBox({ ...selected, position: [pos.x, pos.y, pos.z] }))
+      const d0 = [pos.x - selBox.min[0], pos.y - selBox.min[1], pos.z - selBox.min[2]]
+      const moved: AxisBox = {
+        min: [0, 1, 2].map((i) => selBox.min[i] + d0[i]) as Vec3,
+        max: [0, 1, 2].map((i) => selBox.max[i] + d0[i]) as Vec3,
+      }
       // Snap distance grows as you zoom out, so it feels the same on screen
       const dist = controls ? controls.target.distanceTo(camera.position) : 3000
       const threshold = Math.min(150, Math.max(5, dist * (isTouch ? 0.02 : 0.012)))
-      const d = snapOffset(box, others, [axis.includes('X'), axis.includes('Y'), axis.includes('Z')], threshold)
-      pos.set(pos.x + d[0], pos.y + d[1], pos.z + d[2])
+      const s = snapOffset(moved, others, [axis.includes('X'), axis.includes('Y'), axis.includes('Z')], threshold)
+      pos.set(pos.x + s[0], pos.y + s[1], pos.z + s[2])
     }
-    setLivePos([pos.x, pos.y, pos.z])
+    const d: Vec3 = [pos.x - selBox.min[0], pos.y - selBox.min[1], pos.z - selBox.min[2]]
+    for (const p of selected) groups.current.get(p.id)?.position.set(p.position[0] + d[0], p.position[1] + d[1], p.position[2] + d[2])
+    setDelta(d)
   }
 
-  const dimBox: AxisBox | null = selected
-    ? livePos
-      ? toAxisBox(partBox({ ...selected, position: livePos }))
-      : boxes.get(selected.id)!
-    : unionBox([...boxes.values()])
+  const dimBox: AxisBox | null = selBox
+    ? delta
+      ? { min: [0, 1, 2].map((i) => selBox.min[i] + delta[i]) as Vec3, max: [0, 1, 2].map((i) => selBox.max[i] + delta[i]) as Vec3 }
+      : selBox
+    : unionBox(parts)
 
   return (
     <>
@@ -177,13 +227,15 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       </directionalLight>
 
       {parts.map((p) => (
-        <PartMesh key={p.id} part={p} selected={p.id === selectedId} register={register} />
+        <PartMesh key={p.id} part={p} selected={selection.includes(p.id)} register={register} />
       ))}
+      {!capturing && !delta && overlaps.map((b, i) => <OverlapBox key={i} box={b} />)}
 
-      {selectedGroup && selectedId && (
+      <primitive object={pivot} />
+      {selBox && (
         <TransformControls
           ref={tc as never}
-          object={selectedGroup}
+          object={pivot}
           mode="translate"
           translationSnap={snap}
           size={isTouch ? 1.5 : 0.8}
@@ -191,13 +243,14 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
           onMouseDown={() => (lastDrag.current = Infinity)}
           onMouseUp={() => {
             lastDrag.current = Date.now()
-            const pos = selectedGroup.position
-            updatePart(selectedId, { position: [round(pos.x), round(pos.y), round(pos.z)] })
+            const d = [0, 1, 2].map((i) => round(pivot.position.getComponent(i) - selBox.min[i])) as Vec3
+            if (d.some((v) => v !== 0)) moveSelection(d)
+            else setDelta(null)
           }}
         />
       )}
 
-      {showDimensions && !capturing && dimBox && <Dimensions box={dimBox} offset={selected ? 60 : 120} />}
+      {showDimensions && !capturing && dimBox && <Dimensions box={dimBox} offset={selBox ? 60 : 120} />}
 
       <Grid
         args={[20000, 20000]}
@@ -224,14 +277,27 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
 }
 
 export function Viewport({ capturing = false }: { capturing?: boolean }) {
-  const select = useStore((s) => s.select)
+  const clearSelection = useStore((s) => s.clearSelection)
+  const multiSelect = useStore((s) => s.multiSelect)
+  const setMultiSelect = useStore((s) => s.setMultiSelect)
+  const count = useStore((s) => s.selection.length)
   const lastDrag = useRef(0)
 
   return (
     <>
-    <button className="fit-button icon" onClick={fitView} title="Visa hela modellen" aria-label="Visa hela modellen">
-      ⤢
-    </button>
+    <div className="view-buttons">
+      <button className="icon" onClick={fitView} title="Visa hela modellen" aria-label="Visa hela modellen">
+        ⤢
+      </button>
+      <button
+        className={`multi-toggle ${multiSelect ? 'on' : ''}`}
+        aria-pressed={multiSelect}
+        onClick={() => setMultiSelect(!multiSelect)}
+        title="Tryck på delar för att markera flera"
+      >
+        {multiSelect ? '☑' : '☐'} Flera{count > 1 ? ` (${count})` : ''}
+      </button>
+    </div>
     <Canvas
       shadows
       gl={{ preserveDrawingBuffer: true }}
@@ -239,7 +305,7 @@ export function Viewport({ capturing = false }: { capturing?: boolean }) {
       onCreated={({ gl }) => (canvasRef.current = gl.domElement)}
       onPointerMissed={(e) => {
         // The move gizmo isn't a raycast target, so a drag on it ends in a "missed" click
-        if (e.type === 'click' && Date.now() - lastDrag.current > 200) select(null)
+        if (e.type === 'click' && Date.now() - lastDrag.current > 200) clearSelection()
       }}
     >
       <Scene lastDrag={lastDrag} capturing={capturing} />

@@ -536,16 +536,38 @@ td {
   justify-content: flex-end;
 }
 
-.fit-button {
+.view-buttons {
   position: absolute;
   top: 10px;
   right: 10px;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.view-buttons button {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
-.mobile .fit-button {
+.mobile .view-buttons .icon {
   width: 44px;
   height: 44px;
+}
+.multi-toggle {
+  height: 36px;
+  font-weight: 500;
+}
+.mobile .multi-toggle {
+  height: 44px;
+  padding: 0 12px;
+}
+.multi-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.multi-toggle.on:hover:not(:disabled) {
+  background: #1d4ed8;
 }
 
 /* Dimension labels in the 3D view */
@@ -706,4 +728,89 @@ td {
 .age.stale {
   color: var(--warn);
   font-weight: 600;
+}
+
+/* Groups in the parts list */
+.part-group {
+  margin-bottom: 4px;
+}
+.group-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  padding: 6px 8px;
+  text-align: left;
+}
+.group-head.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.part-group .part-list {
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  margin-left: 8px;
+}
+.selection-count {
+  flex: 1;
+  align-self: center;
+}
+.group-form {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 14px;
+}
+.group-form input {
+  flex: 1;
+}
+.group-actions {
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0 14px;
+}
+button.link.inline {
+  padding: 0;
+  color: var(--accent);
+  font-size: inherit;
+}
+
+/* Joints */
+.joints {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+.overlap {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 6px 10px 10px;
+  margin-bottom: 8px;
+}
+.overlap p {
+  margin: 4px 0 8px;
+}
+.overlap-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #ef4444;
+  opacity: 0.7;
+  vertical-align: -1px;
+}
+.notch {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0ec;
+}
+
+.cut-note {
+  color: #9a3412;
+  margin-top: 2px;
 }

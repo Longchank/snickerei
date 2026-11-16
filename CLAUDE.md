@@ -68,6 +68,16 @@ comments in English).
 - Boards: `packCuts` tries each stock length as bin size with first-fit and
   a subset-sum "best fill", then gives each board its cheapest fitting
   length; keeps the cheapest total (without prices: least timber).
+- Selection is `selection: string[]`; a tap in 3D selects the part's whole
+  group (`tapPart`), the parts list selects single parts. One gizmo moves
+  an invisible pivot at the selection's min corner; parts follow live and
+  are committed with `moveSelection`. Groups (`project.groups`,
+  `part.groupId`) with <2 parts are pruned automatically.
+- Joints (`src/lib/joints.ts`): `part.notches` are boxes in part-local
+  coords, rendered with three-bvh-csg. *Kapa mot* changes length (and
+  position at the start end); *Urtag*/*Halvt i halvt* add notches and
+  don't change cut length. Overlaps fully cleared by notches aren't
+  reported. Parts with different notches are separate cut-list rows.
 - Snapping while dragging: grid via TransformControls `translationSnap`,
   then `snapOffset` pulls faces to nearby parts' faces on the dragged axis.
 - Printing: `window.print()` with a print-only `PrintReport`; the 3D

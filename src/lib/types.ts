@@ -50,11 +50,31 @@ export interface Part {
   width?: number
   position: Vec3
   rotation: QuarterTurns
+  /** Assembly this part belongs to */
+  groupId?: string
+  /** Material removed from the part (joints), in the part's local coordinates */
+  notches?: Notch[]
+}
+
+/** An axis-aligned box cut out of a part, in its local coordinates (0..L, 0..T, 0..W). */
+export interface Notch {
+  min: Vec3
+  max: Vec3
+  kind: 'urtag' | 'halvt'
+  /** Name of the part this joint is with, for the cut list */
+  withName?: string
+}
+
+/** A named assembly of parts, e.g. "Ben" or "Sits". */
+export interface Group {
+  id: string
+  name: string
 }
 
 export interface Project {
   name: string
   parts: Part[]
+  groups: Group[]
 }
 
 /**

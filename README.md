@@ -3,7 +3,7 @@
 En webblösning som skapar 3D-modeller och såglistor, samt har inbyggd prislista.
 Byggd för hobbysnickare.
 
-## Vad finns nu (v0.3)
+## Vad finns nu (v0.4)
 
 Byggd för mobilen först — fungerar även på dator.
 
@@ -15,6 +15,12 @@ Byggd för mobilen först — fungerar även på dator.
   varandra** (kant mot kant, i liv) och mot ett rutnät på 1–100 mm.
 - **Mått i 3D-vyn** för markerad del, eller totalmått när inget är markerat.
 - Rotera i 90°-steg, duplicera, ångra/gör om, "visa hela modellen".
+- **Markera flera** ("Flera" i 3D-vyn, eller Shift/Ctrl+klick) och flytta,
+  rotera, duplicera eller ta bort dem tillsammans.
+- **Grupper** (t.ex. "Ben", "Sits"): ett tryck markerar hela gruppen.
+- **Fogar** när delar går in i varandra: *Kapa mot* (stumt, kortar
+  kaplängden), *Urtag* och *Halvt i halvt*. Urtagen syns i 3D och står
+  med mått i såglistan och utskriften.
 - **Såglista** och **inköpslista**: vilka längder/skivor som ska köpas, med
   snittbredd, kapschema för virke och skärschema för skivor.
 - **Skriv ut / spara PDF**: projektbild, såglista, inköpslista och scheman.

@@ -1,4 +1,5 @@
 import { getProfile } from './catalog'
+import { describeNotch } from './joints'
 import type { Part, PriceEntry, Profile } from './types'
 
 export interface CutRow {
@@ -8,6 +9,8 @@ export interface CutRow {
   width?: number
   count: number
   names: string[]
+  /** Machining after cutting to length (joints), from one of the identical parts */
+  notes: string[]
 }
 
 const partWidth = (part: Part, prof: Profile) => (prof.kind === 'sheet' ? (part.width ?? prof.width) : undefined)
@@ -18,10 +21,12 @@ export function cutList(parts: Part[]): CutRow[] {
   for (const part of parts) {
     const profile = getProfile(part.profileId)
     const width = partWidth(part, profile)
-    const key = `${part.profileId}|${part.length}|${width ?? ''}`
+    // Parts with different joints are different pieces in the workshop
+    const notches = (part.notches ?? []).map((n) => `${n.min}|${n.max}`).sort().join(';')
+    const key = `${part.profileId}|${part.length}|${width ?? ''}|${notches}`
     let row = rows.get(key)
     if (!row) {
-      row = { profile, length: part.length, width, count: 0, names: [] }
+      row = { profile, length: part.length, width, count: 0, names: [], notes: (part.notches ?? []).map((n) => describeNotch(part, n)) }
       rows.set(key, row)
     }
     row.count++
