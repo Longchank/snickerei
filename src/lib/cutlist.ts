@@ -1,4 +1,5 @@
 import { getProfile } from './catalog'
+import { describeCuts } from './cuts'
 import { describeNotch } from './joints'
 import type { Part, PriceEntry, Profile } from './types'
 
@@ -15,18 +16,45 @@ export interface CutRow {
 
 const partWidth = (part: Part, prof: Profile) => (prof.kind === 'sheet' ? (part.width ?? prof.width) : undefined)
 
+/**
+ * The pieces to cut from stock: both halves of a ripped board (French cleat)
+ * come from one piece, so only the first half found counts.
+ */
+export function stockPieces(parts: Part[]): Part[] {
+  const seen = new Set<string>()
+  return parts.filter((p) => {
+    if (!p.rip) return true
+    if (seen.has(p.rip.id)) return false
+    seen.add(p.rip.id)
+    return true
+  })
+}
+
+function ripNote(part: Part, parts: Part[]): string | null {
+  if (!part.rip) return null
+  const angle = String(part.rip.angle).replace('.', ',')
+  const both = parts.filter((p) => p.rip?.id === part.rip!.id).length === 2
+  return both
+    ? `Klyvs på längden i ${angle}° till två delar (fransk list)`
+    : `Klyvs på längden i ${angle}°, ena halvan används`
+}
+
 /** Parts grouped by material and size, largest first. */
 export function cutList(parts: Part[]): CutRow[] {
   const rows = new Map<string, CutRow>()
-  for (const part of parts) {
+  for (const part of stockPieces(parts)) {
     const profile = getProfile(part.profileId)
     const width = partWidth(part, profile)
-    // Parts with different joints are different pieces in the workshop
-    const notches = (part.notches ?? []).map((n) => `${n.min}|${n.max}`).sort().join(';')
-    const key = `${part.profileId}|${part.length}|${width ?? ''}|${notches}`
+    // Parts with different joints and cuts are different pieces in the workshop
+    const notes = [
+      ...describeCuts(part),
+      ...(part.notches ?? []).map((n) => describeNotch(part, n)),
+      ...[ripNote(part, parts)].filter((n): n is string => n !== null),
+    ]
+    const key = `${part.profileId}|${part.length}|${width ?? ''}|${notes.join(';')}`
     let row = rows.get(key)
     if (!row) {
-      row = { profile, length: part.length, width, count: 0, names: [], notes: (part.notches ?? []).map((n) => describeNotch(part, n)) }
+      row = { profile, length: part.length, width, count: 0, names: [], notes }
       rows.set(key, row)
     }
     row.count++
@@ -348,7 +376,7 @@ function summarize(
 
 export function purchasePlan(parts: Part[], prices: PriceEntry[], kerf: number): PlanRow[] {
   const byProfile = new Map<string, Part[]>()
-  for (const p of parts) byProfile.set(p.profileId, [...(byProfile.get(p.profileId) ?? []), p])
+  for (const p of stockPieces(parts)) byProfile.set(p.profileId, [...(byProfile.get(p.profileId) ?? []), p])
 
   return [...byProfile.entries()]
     .map(([profileId, ps]): PlanRow => {

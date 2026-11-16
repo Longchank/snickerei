@@ -3,9 +3,10 @@ import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
 import { partBox, rotatePart } from './geometry'
-import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, trimAgainst, unionBox } from './joints'
+import { miterCorner, ripPart } from './cuts'
+import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, toLocalBox, trimAgainst, unionBox } from './joints'
 import { mergePrices, supplierEntries } from './prices'
-import type { Group, Part, PriceEntry, Project, Settings, SupplierPriceFile, Vec3 } from './types'
+import type { EndCut, Group, Part, PriceEntry, Project, Settings, SupplierPriceFile, Vec3 } from './types'
 
 const HISTORY_LIMIT = 100
 
@@ -52,6 +53,11 @@ interface State {
   notchWith: (partId: string, otherId: string) => void
   halfLapWith: (partId: string, otherId: string) => void
   removeNotch: (partId: string, index: number) => void
+  /** Angled end cut; end 0 = start, 1 = end; null = square */
+  setEndCut: (partId: string, end: 0 | 1, cut: EndCut | null) => void
+  miterWith: (partId: string, otherId: string) => void
+  /** Rip the part lengthwise at an angle into two (French cleat) */
+  frenchCleat: (partId: string, angle: number) => void
 
   undo: () => void
   redo: () => void
@@ -255,6 +261,30 @@ export const useStore = create<State>()(
               return { ...p, notches: notches.length ? notches : undefined }
             }),
           ),
+
+        setEndCut: (partId, end, cut) =>
+          editParts((ps) =>
+            ps.map((p) => {
+              if (p.id !== partId) return p
+              const ends = [...(p.ends ?? [null, null])] as [EndCut | null, EndCut | null]
+              ends[end] = cut && cut.angle ? cut : null
+              return { ...p, ends: ends.some(Boolean) ? ends : undefined }
+            }),
+          ),
+        miterWith: (partId, otherId) =>
+          joint(partId, otherId, (a, b) => {
+            const box = overlapBox(a, b)
+            return box ? miterCorner(a, b, box, toLocalBox) : null
+          }),
+        frenchCleat: (partId, angle) => {
+          const part = get().project.parts.find((p) => p.id === partId)
+          if (!part || part.rip) return
+          const halves = ripPart(part, angle, get().settings.kerf, uid)
+          editParts(
+            (ps) => ps.flatMap((p) => (p.id === partId ? halves : [p])),
+            [halves[0].id],
+          )
+        },
 
         undo: () =>
           set((s) => {

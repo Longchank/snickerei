@@ -814,3 +814,57 @@ button.link.inline {
   color: #9a3412;
   margin-top: 2px;
 }
+
+/* End cuts and rips */
+.ends {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+.end-row {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 6px 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.end-label {
+  color: var(--muted);
+}
+.end-angle {
+  grid-column: 2;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.end-row > .end-angle:only-of-type,
+.end-row > .end-label + .end-angle {
+  grid-column: 2;
+}
+.end-angle .number-field input {
+  width: 64px;
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  width: fit-content;
+}
+.segmented button {
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
+  padding: 6px 12px;
+}
+.segmented button:last-child {
+  border-right: none;
+}
+.segmented button.on {
+  background: var(--accent);
+  color: #fff;
+}
+.app.mobile .segmented button {
+  padding: 9px 14px;
+}

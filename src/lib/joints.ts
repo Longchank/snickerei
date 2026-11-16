@@ -1,6 +1,7 @@
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
 import { eulerOf, partBox, partSize, round, rotatePart, toAxisBox, type AxisBox } from './geometry'
 import { getProfile } from './catalog'
+import { isCutAway } from './cuts'
 import type { Notch, Part, Vec3 } from './types'
 
 const EPS = 0.5
@@ -59,15 +60,17 @@ export function overlapsOf(part: Part, parts: Part[]): Overlap[] {
   const result: Overlap[] = []
   for (const other of parts) {
     if (other.id === part.id) continue
+    // The two halves of a ripped board fit together by design
+    if (part.rip && other.rip?.id === part.rip.id) continue
     const box = intersect(mine, toAxisBox(partBox(other)))
     if (box && !isResolved(box, [part, other])) result.push({ other, box })
   }
   return result
 }
 
-/** True if every sample point of the world box lies inside a notch of one of the parts. */
+/** True if every sample point of the world box is cut away from one of the parts. */
 function isResolved(world: AxisBox, parts: Part[]): boolean {
-  const notched = parts.filter((p) => p.notches?.length)
+  const notched = parts.filter((p) => p.notches?.length || p.ends?.some((e) => e?.angle) || p.rip)
   if (!notched.length) return false
   const inverse = notched.map((p) => ({ p, m: partMatrix(p).invert() }))
   const f = [0.02, 0.25, 0.5, 0.75, 0.98]
@@ -82,7 +85,10 @@ function isResolved(world: AxisBox, parts: Part[]): boolean {
         const inside = inverse.some(({ p, m }) => {
           const l = pt.clone().applyMatrix4(m)
           const v = [l.x, l.y, l.z]
-          return p.notches!.some((n) => [0, 1, 2].every((i) => v[i] >= n.min[i] - EPS && v[i] <= n.max[i] + EPS))
+          return (
+            isCutAway(p, v as Vec3, true) ||
+            (p.notches ?? []).some((n) => [0, 1, 2].every((i) => v[i] >= n.min[i] - EPS && v[i] <= n.max[i] + EPS))
+          )
         })
         if (!inside) return false
       }

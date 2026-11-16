@@ -54,6 +54,33 @@ export interface Part {
   groupId?: string
   /** Material removed from the part (joints), in the part's local coordinates */
   notches?: Notch[]
+  /** Angled cuts at the start (x = 0) and end (x = length); null/absent = square */
+  ends?: [EndCut | null, EndCut | null]
+  /** This part is one half of a board ripped lengthwise at an angle (French cleat) */
+  rip?: Rip
+}
+
+/**
+ * An angled end cut. The part's length is measured on the long side.
+ * - 'face': miter seen on the wide face (cut through the thickness), like a picture frame
+ * - 'edge': bevel seen on the edge (cut through the width)
+ * angle: degrees from square; the sign picks which side keeps the long point
+ * (positive: the long point is on the side at local z = 0 / y = 0).
+ */
+export interface EndCut {
+  plane: 'face' | 'edge'
+  angle: number
+}
+
+/** One of two pieces from ripping a part lengthwise at an angle through its thickness. */
+export interface Rip {
+  /** Shared by both halves */
+  id: string
+  half: 0 | 1
+  /** Degrees from square to the face; 45 for a French cleat */
+  angle: number
+  /** Saw blade width when ripped */
+  kerf: number
 }
 
 /** An axis-aligned box cut out of a part, in its local coordinates (0..L, 0..T, 0..W). */

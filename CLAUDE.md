@@ -78,6 +78,16 @@ comments in English).
   position at the start end); *Urtag*/*Halvt i halvt* add notches and
   don't change cut length. Overlaps fully cleared by notches aren't
   reported. Parts with different notches are separate cut-list rows.
+- Angled cuts (`src/lib/cuts.ts`): `part.ends` = [start, end] end cuts,
+  plane 'face' (miter, across z) or 'edge' (bevel, across y); signed angle
+  picks the long-point side; length is measured on the long side.
+  `part.rip` = one half of a lengthwise angled rip (French cleat); both
+  halves share `rip.id`, keep the original size/position, and count once
+  in the cut list and shopping list (`stockPieces`). Overlaps inside
+  cut-away regions (incl. points on the cut line) count as resolved, so a
+  mitered corner or a cleat pair doesn't show as a collision.
+- Position fields show the selection's bounding-box min corner, not the
+  part's internal origin.
 - Snapping while dragging: grid via TransformControls `translationSnap`,
   then `snapOffset` pulls faces to nearby parts' faces on the dragged axis.
 - Printing: `window.print()` with a print-only `PrintReport`; the 3D

@@ -1,14 +1,15 @@
 import { Edges, GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { BoxGeometry, BufferGeometry, Object3D, PerspectiveCamera, Vector3 } from 'three'
+import { BoxGeometry, BufferGeometry, ExtrudeGeometry, Matrix4, Object3D, PerspectiveCamera, Shape, Vector2, Vector3 } from 'three'
 import type { Group } from 'three'
 import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getProfile } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, snapOffset, toAxisBox, type AxisBox } from '../lib/geometry'
+import { cutters, type Cutter } from '../lib/cuts'
 import { overlapsOf, unionBox } from '../lib/joints'
 import { useStore } from '../lib/store'
-import type { Notch, Part, Vec3 } from '../lib/types'
+import type { Part, Vec3 } from '../lib/types'
 
 /** The WebGL canvas, for snapshots in the printout. */
 export const canvasRef: { current: HTMLCanvasElement | null } = { current: null }
@@ -24,12 +25,23 @@ type Register = (id: string, g: Group | null) => void
 const evaluator = new Evaluator()
 evaluator.attributes = ['position', 'normal']
 
-/** Box geometry in part-local coordinates (0..L, 0..T, 0..W), with notches cut out. */
-function partGeometry(size: Vec3, notches: Notch[] | undefined): BufferGeometry {
+/** Map a cutter's 2-D outline into part-local space: (u, v) → plane axes, extruded along the third. */
+const BASIS: Record<Cutter['basis'], (size: Vec3) => { m: Matrix4; depth: number }> = {
+  // u = x, v = z, extruded towards -y (right-handed)
+  xz: (s) => ({ m: new Matrix4().makeBasis(new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, -1, 0)).setPosition(0, s[1] + 5, 0), depth: s[1] + 10 }),
+  // u = x, v = y, extruded along z
+  xy: (s) => ({ m: new Matrix4().setPosition(0, 0, -5), depth: s[2] + 10 }),
+  // u = y, v = z, extruded along x
+  yz: (s) => ({ m: new Matrix4().makeBasis(new Vector3(0, 1, 0), new Vector3(0, 0, 1), new Vector3(1, 0, 0)).setPosition(-5, 0, 0), depth: s[0] + 10 }),
+}
+
+/** The part's geometry in local coordinates (0..L, 0..T, 0..W), with notches, angled ends and rips cut away. */
+function partGeometry(part: Part, size: Vec3): BufferGeometry {
   const box = new BoxGeometry(...size).translate(size[0] / 2, size[1] / 2, size[2] / 2)
-  if (!notches?.length) return box
+  const cuts = cutters(part)
+  if (!part.notches?.length && !cuts.length) return box
   let result = new Brush(box)
-  for (const n of notches) {
+  for (const n of part.notches ?? []) {
     // Grow the cutter a little past the part's faces so the cut is clean
     const min = n.min.map((v) => (v <= 0.01 ? v - 1 : v))
     const max = n.max.map((v, i) => (v >= size[i] - 0.01 ? v + 1 : v))
@@ -38,6 +50,12 @@ function partGeometry(size: Vec3, notches: Notch[] | undefined): BufferGeometry 
       new BoxGeometry(...dims).translate(min[0] + dims[0] / 2, min[1] + dims[1] / 2, min[2] + dims[2] / 2),
     )
     result = evaluator.evaluate(result, cutter, SUBTRACTION)
+  }
+  for (const c of cuts) {
+    const { m, depth } = BASIS[c.basis](size)
+    const shape = new Shape(c.points.map(([u, v]) => new Vector2(u, v)))
+    const geo = new ExtrudeGeometry(shape, { depth, bevelEnabled: false }).applyMatrix4(m)
+    result = evaluator.evaluate(result, new Brush(geo), SUBTRACTION)
   }
   return result.geometry
 }
@@ -52,8 +70,8 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
   }, [part.id, register])
   const prof = getProfile(part.profileId)
   const size = partSize(part)
-  const key = `${size.join('x')}|${JSON.stringify(part.notches ?? [])}`
-  const geometry = useMemo(() => partGeometry(size, part.notches), [key])
+  const key = `${size.join('x')}|${JSON.stringify([part.notches, part.ends, part.rip])}`
+  const geometry = useMemo(() => partGeometry(part, size), [key])
   useEffect(() => () => geometry.dispose(), [geometry])
   const rotation = useMemo(() => eulerOf(part.rotation), [part.rotation])
   const [hover, setHover] = useState(false)

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { getProfile } from '../lib/catalog'
-import { describeNotch, overlapsOf, trimAgainst, unionBox } from '../lib/joints'
+import { miterCorner } from '../lib/cuts'
+import type { AxisBox } from '../lib/geometry'
+import { describeNotch, overlapsOf, toLocalBox, trimAgainst, unionBox } from '../lib/joints'
 import { useSelectedParts, useStore } from '../lib/store'
-import type { Part, Vec3 } from '../lib/types'
+import type { EndCut, Part, Vec3 } from '../lib/types'
 import { NumberField } from './NumberField'
 
 const AXES = ['X', 'Y', 'Z'] as const
@@ -101,7 +103,7 @@ function SinglePart({ part }: { part: Part }) {
     <div className="inspector">
       <div className="inspector-head">
         <input
-          key={part.id}
+          key={`${part.id}|${part.name}`}
           className="part-name"
           aria-label="Namn"
           defaultValue={part.name}
@@ -150,6 +152,8 @@ function SinglePart({ part }: { part: Part }) {
 
       <Placement parts={[part]} />
       <Actions />
+      <Ends part={part} />
+      <Rip part={part} />
       <Joints part={part} />
       <Shortcuts />
     </div>
@@ -163,6 +167,7 @@ function Joints({ part }: { part: Part }) {
   const notchWith = useStore((s) => s.notchWith)
   const halfLapWith = useStore((s) => s.halfLapWith)
   const removeNotch = useStore((s) => s.removeNotch)
+  const miterWith = useStore((s) => s.miterWith)
   const overlaps = useMemo(() => overlapsOf(part, parts), [part, parts])
 
   if (!overlaps.length && !part.notches?.length) return null
@@ -192,6 +197,13 @@ function Joints({ part }: { part: Part }) {
               <button onClick={() => halfLapWith(part.id, other.id)} title="Halva djupet ur varje del">
                 Halvt i halvt
               </button>
+              <button
+                onClick={() => miterWith(part.id, other.id)}
+                disabled={!canMiter(part, other, box)}
+                title="Geringa hörnet: båda delarna kapas snett så de möts i diagonalen"
+              >
+                Gering
+              </button>
             </div>
           </div>
         )
@@ -204,6 +216,90 @@ function Joints({ part }: { part: Part }) {
           </button>
         </div>
       ))}
+    </section>
+  )
+}
+
+const canMiter = (a: Part, b: Part, box: AxisBox) => miterCorner(a, b, box, toLocalBox) !== null
+
+type EndKind = 'rak' | 'face' | 'edge'
+
+/** Square, miter or bevel at each end, with an angle and which side keeps the long point. */
+function Ends({ part }: { part: Part }) {
+  const setEndCut = useStore((s) => s.setEndCut)
+  const ends = part.ends ?? [null, null]
+  return (
+    <section className="ends">
+      <h3>Ändar</h3>
+      {([0, 1] as const).map((i) => {
+        const cut = ends[i]
+        const kind: EndKind = cut?.angle ? cut.plane : 'rak'
+        const angle = Math.abs(cut?.angle ?? 45)
+        const sign = (cut?.angle ?? 1) < 0 ? -1 : 1
+        const set = (plane: EndCut['plane'], a: number, sg: number) => setEndCut(part.id, i, { plane, angle: a * sg })
+        return (
+          <div key={i} className="end-row">
+            <span className="end-label">{i === 0 ? 'Början' : 'Slutet'}</span>
+            <div className="segmented" role="group" aria-label={i === 0 ? 'Början' : 'Slutet'}>
+              {(
+                [
+                  ['rak', 'Rak'],
+                  ['face', 'Gering'],
+                  ['edge', 'Fas'],
+                ] as const
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  className={kind === k ? 'on' : ''}
+                  aria-pressed={kind === k}
+                  onClick={() => (k === 'rak' ? setEndCut(part.id, i, null) : set(k, angle, sign))}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {kind !== 'rak' && cut && (
+              <div className="end-angle">
+                <NumberField value={angle} min={0} suffix="°" onCommit={(a) => set(cut.plane, Math.min(80, a), sign)} />
+                <button onClick={() => set(cut.plane, angle, -sign)} title="Vänd vinkeln åt andra hållet">
+                  ⇅ Vänd
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+      {part.ends?.some((e) => e?.angle) && <p className="hint small">Längden mäts på långsidan.</p>}
+    </section>
+  )
+}
+
+/** Rip the part lengthwise at an angle into two pieces — a French cleat. */
+function Rip({ part }: { part: Part }) {
+  const frenchCleat = useStore((s) => s.frenchCleat)
+  const [angle, setAngle] = useState(45)
+  if (part.rip) {
+    return (
+      <section className="ends">
+        <h3>Klyvning</h3>
+        <p className="hint small">
+          Halva {part.rip.half === 0 ? 'A' : 'B'} av en bräda klyvd på längden i {part.rip.angle}° (fransk list).
+          Räknas som en bräda i såglistan.
+        </p>
+      </section>
+    )
+  }
+  return (
+    <section className="ends">
+      <h3>Klyvning</h3>
+      <div className="end-row">
+        <span className="end-label">Vinkel</span>
+        <div className="end-angle">
+          <NumberField value={angle} min={0} suffix="°" onCommit={(a) => setAngle(Math.min(75, a))} />
+          <button onClick={() => frenchCleat(part.id, angle)}>Gör fransk list</button>
+        </div>
+      </div>
+      <p className="hint small">Klyver delen på längden till två listar med sned kant (A och B).</p>
     </section>
   )
 }
@@ -229,7 +325,7 @@ function MultipleParts({ parts }: { parts: Part[] }) {
       <div className="inspector-head">
         {group ? (
           <input
-            key={group.id}
+            key={`${group.id}|${group.name}`}
             className="part-name"
             aria-label="Gruppens namn"
             defaultValue={group.name}
