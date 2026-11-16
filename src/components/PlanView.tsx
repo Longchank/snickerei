@@ -1,5 +1,5 @@
 import { CATEGORY_NAMES } from '../lib/catalog'
-import type { CutRow, PlanRow } from '../lib/cutlist'
+import type { CutRow, PlanItem, PlanRow } from '../lib/cutlist'
 import { totalCost } from '../lib/cutlist'
 import { formatKr, formatM } from '../lib/format'
 import { BoardBar, SheetDiagram } from './Diagrams'
@@ -57,10 +57,29 @@ export function PurchaseList({ plan, expanded = false }: { plan: PlanRow[]; expa
   )
 }
 
-function countBy<T>(items: T[], key: (t: T) => string): [string, number][] {
-  const m = new Map<string, number>()
-  items.forEach((t) => m.set(key(t), (m.get(key(t)) ?? 0) + 1))
-  return [...m.entries()]
+/** Shopping list lines: what to buy, price each, and a link to the product. */
+function ItemList({ items, label }: { items: PlanItem[]; label: (i: PlanItem) => string }) {
+  return (
+    <ul className="items">
+      {items.map((i) => (
+        <li key={`${i.length}x${i.width}`}>
+          <span>{label(i)}</span>
+          {i.offer && (
+            <span className="muted small">
+              {formatKr(i.offer.price)}/st ·{' '}
+              {i.offer.url ? (
+                <a href={i.offer.url} target="_blank" rel="noreferrer" title={i.offer.name}>
+                  {i.offer.supplier} ↗
+                </a>
+              ) : (
+                i.offer.supplier
+              )}
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 function Diagram({ expanded, summary, children }: { expanded: boolean; summary: string; children: React.ReactNode }) {
@@ -76,16 +95,8 @@ function BoardPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'board' }>
   const waste = r.boards.reduce((s, b) => s + b.waste, 0)
   return (
     <>
-      <ul>
-        {countBy(r.boards, (b) => String(b.length))
-          .sort(([a], [b]) => Number(b) - Number(a))
-          .map(([len, n]) => (
-            <li key={len}>
-              {n} st × {formatM(Number(len))}
-            </li>
-          ))}
-      </ul>
-      <Diagram expanded={expanded} summary={`Kapschema · spill ${formatM(waste)}${r.supplier ? ` · pris: ${r.supplier}` : ''}`}>
+      <ItemList items={r.items} label={(i) => `${i.count} st × ${formatM(i.length)}`} />
+      <Diagram expanded={expanded} summary={`Kapschema · spill ${formatM(waste)}`}>
         <ol className="boards">
           {r.boards.map((b, i) => (
             <li key={i}>
@@ -98,7 +109,7 @@ function BoardPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'board' }>
       {r.tooLong.length > 0 && (
         <p className="warn">
           {r.tooLong.length} del(ar) är längre än längsta saluförda längd (
-          {formatM(Math.max(...r.profile.stockLengths))}): {r.tooLong.join(', ')} mm
+          {formatM(r.longestStock)}): {r.tooLong.join(', ')} mm
         </p>
       )}
     </>
@@ -109,16 +120,13 @@ function SheetPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'sheet' }>
   const usage = r.sheets.length ? r.sheets.reduce((s, x) => s + x.usage, 0) / r.sheets.length : 0
   return (
     <>
-      <ul>
-        {countBy(r.sheets, (s) => `${s.length} × ${s.width}`).map(([size, n]) => (
-          <li key={size}>
-            {n} skiv{n === 1 ? 'a' : 'or'} {size} mm
-          </li>
-        ))}
-      </ul>
+      <ItemList
+        items={r.items}
+        label={(i) => `${i.count} skiv${i.count === 1 ? 'a' : 'or'} ${i.length} × ${i.width} mm`}
+      />
       <Diagram
         expanded={expanded}
-        summary={`Skärschema · utnyttjande ${Math.round(usage * 100)} %${r.supplier ? ` · pris: ${r.supplier}` : ''}`}
+        summary={`Skärschema · utnyttjande ${Math.round(usage * 100)} %`}
       >
         <div className="sheets">
           {r.sheets.map((s, i) => (
@@ -128,7 +136,7 @@ function SheetPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'sheet' }>
       </Diagram>
       {r.tooLarge.length > 0 && (
         <p className="warn">
-          {r.tooLarge.length} del(ar) är större än skivan ({r.profile.stockSheets[0].join(' × ')} mm):{' '}
+          {r.tooLarge.length} del(ar) är större än skivan ({r.sheetSize.join(' × ')} mm):{' '}
           {r.tooLarge.map((p) => p.join(' × ')).join(', ')} mm
         </p>
       )}

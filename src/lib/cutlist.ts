@@ -50,34 +50,92 @@ function used(cuts: number[], kerf: number): number {
 }
 
 /**
- * Decide which stock boards to buy for one profile: first-fit decreasing into
- * the longest stock length, then shrink each board to the shortest stock length
- * that still holds its cuts. Good enough for hobby projects; not optimal.
+ * Decide which stock boards to buy for one profile. For each stock length,
+ * pack the cuts first-fit decreasing into boards of that length, then give each
+ * board the stock length that holds its cuts at the lowest price; keep the
+ * cheapest overall result (without prices: the least timber bought). Good
+ * enough for hobby projects; not optimal.
  */
-export function packCuts(cuts: number[], stockLengths: number[], kerf: number): { boards: StockBoard[]; tooLong: number[] } {
-  const stock = [...stockLengths].sort((a, b) => a - b)
+export function packCuts(
+  cuts: number[],
+  stockLengths: number[],
+  kerf: number,
+  priceOf: (length: number) => number | null = () => null,
+): { boards: StockBoard[]; tooLong: number[] } {
+  const stock = [...new Set(stockLengths)].sort((a, b) => a - b)
   const longest = stock[stock.length - 1]
-  const boards: number[][] = []
-  const tooLong: number[] = []
+  const tooLong = cuts.filter((c) => c > longest)
+  const sorted = cuts.filter((c) => c <= longest).sort((a, b) => b - a)
+  if (!sorted.length) return { boards: [], tooLong }
 
-  for (const cut of [...cuts].sort((a, b) => b - a)) {
-    if (cut > longest) {
-      tooLong.push(cut)
-      continue
-    }
-    const fit = boards.find((b) => used([...b, cut], kerf) <= longest)
-    if (fit) fit.push(cut)
-    else boards.push([cut])
+  const pickLength = (need: number) => {
+    const fitting = stock.filter((s) => s >= need)
+    const priced = fitting
+      .map((len) => ({ len, price: priceOf(len) }))
+      .filter((x): x is { len: number; price: number } => x.price !== null)
+    return priced.length ? priced.reduce((best, x) => (x.price < best.price ? x : best)).len : fitting[0]
   }
 
-  return {
-    tooLong,
-    boards: boards.map((b) => {
+  let best: { boards: StockBoard[]; score: number } | null = null
+  const strategies = sorted.length <= 60 ? [firstFit, bestFill] : [firstFit]
+  for (const binLength of stock.filter((s) => s >= sorted[0]))
+    for (const pack of strategies) {
+    const bins = pack(sorted, binLength, kerf)
+    const boards = bins.map((b) => {
       const need = used(b, kerf)
-      const length = stock.find((s) => s >= need) ?? longest
+      const length = pickLength(need)
       return { length, cuts: b, waste: length - need }
-    }),
+    })
+    const prices = boards.map((b) => priceOf(b.length))
+    const score = prices.every((p) => p !== null)
+      ? prices.reduce((a, p) => a + p!, 0)
+      : boards.reduce((a, b) => a + b.length, 0) * 1e6
+    if (!best || score < best.score - 1e-9 || (Math.abs(score - best.score) < 1e-9 && boards.length < best.boards.length))
+      best = { boards, score }
+    }
+  return { boards: best!.boards, tooLong }
+}
+
+/** First-fit decreasing: each cut goes on the first board with room. */
+function firstFit(sorted: number[], binLength: number, kerf: number): number[][] {
+  const bins: number[][] = []
+  for (const cut of sorted) {
+    const fit = bins.find((b) => used([...b, cut], kerf) <= binLength)
+    if (fit) fit.push(cut)
+    else bins.push([cut])
   }
+  return bins
+}
+
+/**
+ * Fill one board at a time with the combination of remaining cuts that leaves
+ * the least waste (subset sum; each cut also uses one kerf).
+ */
+function bestFill(sorted: number[], binLength: number, kerf: number): number[][] {
+  const remaining = [...sorted]
+  const bins: number[][] = []
+  const cap = Math.floor(binLength + kerf)
+  while (remaining.length) {
+    // reach[w] = index of the last item used to reach total w, or -1
+    const reach = new Int32Array(cap + 1).fill(-2)
+    const prev = new Int32Array(cap + 1)
+    reach[0] = -1
+    remaining.forEach((cut, i) => {
+      const w = Math.ceil(cut + kerf)
+      for (let t = cap; t >= w; t--)
+        if (reach[t] === -2 && reach[t - w] !== -2) {
+          reach[t] = i
+          prev[t] = t - w
+        }
+    })
+    let t = cap
+    while (reach[t] === -2) t--
+    const picked = new Set<number>()
+    for (; t > 0; t = prev[t]) picked.add(reach[t])
+    bins.push(remaining.filter((_, i) => picked.has(i)))
+    for (const i of [...picked].sort((a, b) => b - a)) remaining.splice(i, 1)
+  }
+  return bins
 }
 
 // ---------------------------------------------------------------- sheets
@@ -182,33 +240,63 @@ export function packSheets(
 
 // ---------------------------------------------------------------- prices
 
+export interface Offer {
+  price: number
+  supplier: string
+  url?: string
+  name?: string
+}
+
 /** Cheapest price for one stock board/sheet, across all suppliers. */
-export function stockPrice(
-  profileId: string,
-  length: number,
-  width: number | null,
-  prices: PriceEntry[],
-): { price: number; supplier: string } | null {
-  let best: { price: number; supplier: string } | null = null
+export function stockPrice(profileId: string, length: number, width: number | null, prices: PriceEntry[]): Offer | null {
+  let best: Offer | null = null
   for (const e of prices) {
     if (e.profileId !== profileId) continue
     let price: number | null = null
-    if (e.unit === 'lm') price = (e.price * length) / 1000
-    else if (e.unit === 'm2' && width !== null) price = (e.price * length * width) / 1e6
-    else if (e.unit === 'st') {
-      const lengthOk = e.length === undefined ? width !== null : e.length === length
-      const widthOk = e.width === undefined || e.width === width
-      if (lengthOk && widthOk) price = e.price
+    if (e.unit === 'lm') {
+      if (e.length === undefined || e.length === length) price = (e.price * length) / 1000
+    } else if (e.unit === 'm2') {
+      if (width !== null) price = (e.price * length * width) / 1e6
+    } else if (e.length === undefined) {
+      // A per-piece price without a size: any sheet
+      if (width !== null) price = e.price
+    } else if (e.length === length && (e.width === undefined || e.width === width)) {
+      price = e.price
     }
-    if (price !== null && (!best || price < best.price)) best = { price, supplier: e.supplier }
+    if (price !== null && (!best || price < best.price))
+      best = { price, supplier: e.supplier, url: e.url, name: e.name }
   }
   return best
 }
 
+/** Stock sizes on offer: the sizes suppliers list, or the catalog's typical sizes. */
+export function stockOptions(profile: Profile, prices: PriceEntry[]): { lengths: number[]; sheets: [number, number][] } {
+  const own = prices.filter((e) => e.profileId === profile.id && e.length !== undefined)
+  if (profile.kind === 'sheet') {
+    const sizes = new Map<string, [number, number]>()
+    for (const e of own) if (e.width !== undefined) sizes.set(`${e.length}x${e.width}`, [e.length!, e.width])
+    return { lengths: [], sheets: sizes.size ? [...sizes.values()] : profile.stockSheets }
+  }
+  const lengths = [...new Set(own.map((e) => e.length!))]
+  return { lengths: lengths.length ? lengths : profile.stockLengths, sheets: [] }
+}
+
 // ---------------------------------------------------------------- plan
+
+/** One line of the shopping list: n pieces of one stock size. */
+export interface PlanItem {
+  length: number
+  /** Sheets only */
+  width?: number
+  count: number
+  /** Per piece, null if unknown */
+  unitPrice: number | null
+  offer: Offer | null
+}
 
 interface PlanBase {
   profile: Profile
+  items: PlanItem[]
   cost: number | null
   supplier: string | null
 }
@@ -217,13 +305,39 @@ export interface BoardPlan extends PlanBase {
   boards: StockBoard[]
   /** Cuts longer than the longest stock length */
   tooLong: number[]
+  longestStock: number
 }
 export interface SheetPlan extends PlanBase {
   kind: 'sheet'
   sheets: StockSheet[]
   tooLarge: [number, number][]
+  /** The sheet size used */
+  sheetSize: [number, number]
 }
 export type PlanRow = BoardPlan | SheetPlan
+
+function summarize(
+  profile: Profile,
+  stock: { length: number; width?: number }[],
+  prices: PriceEntry[],
+): Pick<PlanBase, 'items' | 'cost' | 'supplier'> {
+  const items = new Map<string, PlanItem>()
+  for (const s of stock) {
+    const key = `${s.length}x${s.width ?? ''}`
+    const item = items.get(key)
+    if (item) item.count++
+    else {
+      const offer = stockPrice(profile.id, s.length, s.width ?? null, prices)
+      items.set(key, { length: s.length, width: s.width, count: 1, unitPrice: offer?.price ?? null, offer })
+    }
+  }
+  const list = [...items.values()].sort((a, b) => b.length - a.length || (b.width ?? 0) - (a.width ?? 0))
+  const cost = list.every((i) => i.unitPrice !== null)
+    ? list.reduce((sum, i) => sum + i.count * i.unitPrice!, 0)
+    : null
+  const suppliers = [...new Set(list.map((i) => i.offer?.supplier).filter(Boolean))]
+  return { items: list, cost, supplier: cost !== null && suppliers.length ? suppliers.join(', ') : null }
+}
 
 export function purchasePlan(parts: Part[], prices: PriceEntry[], kerf: number): PlanRow[] {
   const byProfile = new Map<string, Part[]>()
@@ -232,31 +346,44 @@ export function purchasePlan(parts: Part[], prices: PriceEntry[], kerf: number):
   return [...byProfile.entries()]
     .map(([profileId, ps]): PlanRow => {
       const profile = getProfile(profileId)
-      const suppliers = new Set<string>()
-      let cost: number | null = 0
-      const addCost = (length: number, width: number | null) => {
-        const sp = stockPrice(profileId, length, width, prices)
-        if (!sp || cost === null) cost = null
-        else {
-          cost += sp.price
-          suppliers.add(sp.supplier)
-        }
-      }
-      const supplier = () => (suppliers.size && cost !== null ? [...suppliers].join(', ') : null)
+      const options = stockOptions(profile, prices)
 
       if (profile.kind === 'sheet') {
         const pieces = ps.map((p) => [p.length, p.width ?? profile.width] as [number, number])
-        const { sheets, tooLarge } = packSheets(pieces, profile.stockSheets, kerf)
-        sheets.forEach((s) => addCost(s.length, s.width))
-        return { kind: 'sheet', profile, sheets, tooLarge, cost, supplier: supplier() }
+        // Try each sheet size on offer and keep the cheapest result
+        // (without prices: the least sheet area bought)
+        let best: (SheetPlan & { score: [number, number] }) | null = null
+        for (const size of options.sheets) {
+          const { sheets, tooLarge } = packSheets(pieces, [size], kerf)
+          const summary = summarize(
+            profile,
+            sheets.map((s) => ({ length: s.length, width: s.width })),
+            prices,
+          )
+          const area = sheets.reduce((a, s) => a + s.length * s.width, 0)
+          const score: [number, number] = [tooLarge.length, summary.cost ?? area * 1e6]
+          if (!best || score[0] < best.score[0] || (score[0] === best.score[0] && score[1] < best.score[1]))
+            best = { kind: 'sheet', profile, sheets, tooLarge, sheetSize: size, ...summary, score }
+        }
+        const { score: _score, ...plan } = best!
+        return plan
       }
+
+      const priceOf = (length: number) => stockPrice(profileId, length, null, prices)?.price ?? null
       const { boards, tooLong } = packCuts(
         ps.map((p) => p.length),
-        profile.stockLengths,
+        options.lengths,
         kerf,
+        priceOf,
       )
-      boards.forEach((b) => addCost(b.length, null))
-      return { kind: 'board', profile, boards, tooLong, cost, supplier: supplier() }
+      return {
+        kind: 'board',
+        profile,
+        boards,
+        tooLong,
+        longestStock: Math.max(...options.lengths),
+        ...summarize(profile, boards, prices),
+      }
     })
     .sort((a, b) => a.profile.kind.localeCompare(b.profile.kind) || a.profile.id.localeCompare(b.profile.id))
 }

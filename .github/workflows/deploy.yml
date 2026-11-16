@@ -3,6 +3,9 @@ name: Publicera på GitHub Pages
 on:
   push:
     branches: [main]
+  # Fresh prices every Monday morning (Swedish time)
+  schedule:
+    - cron: '17 4 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -25,6 +28,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # Update public/prices/ from the suppliers. If a site is down or has
+      # changed, keep the price file committed in the repo and publish anyway.
+      - name: Hämta priser
+        run: npm run prices
+        continue-on-error: true
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

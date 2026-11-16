@@ -13,14 +13,26 @@ comments in English).
   3D, but a part's cross-section is fixed by its profile — a 45x70 can only
   be a 45x70. Only length (and position/rotation) is editable. Sheet goods
   (`kind: 'sheet'`) have a fixed thickness and free length/width (`part.width`).
-- **Prices are to be scraped from suppliers** (Swedish building merchants).
-  Not built yet. `PriceEntry` in `src/lib/types.ts` is the shape scraped
-  data should take (per löpmeter or per piece at a length). Until then the
-  app ships clearly-labelled fake "Exempel" prices plus hand-entered "Egen"
-  prices. Never present example prices as real. Check each site's terms and
-  robots.txt before scraping; scraping needs a server (CORS).
+- **Prices are scraped from suppliers** (Swedish building merchants).
+  **Bauhaus** done (2026-11-16): `scripts/fetch-prices.ts` +
+  `scripts/suppliers/bauhaus.ts` read category pages (robots.txt allows
+  them and `?p=` pagination; it disallows `/api/`, search and other query
+  strings) and write `public/prices/bauhaus.json` (`SupplierPriceFile`).
+  Product cards carry `data-name` / `data-price` (per piece, incl. VAT);
+  sizes are parsed from the name. Bauhaus has no website terms beyond
+  köpvillkor/GDPR/cookies (checked 2026-11-16). Stay polite: one request at
+  a time, 2 s apart, ~16 requests per run. The deploy workflow runs it on
+  every build and weekly; failure keeps the committed file.
+  **Hornbach is not scraped**: it serves a bot-protection "Client
+  Challenge" even for robots.txt — do not try to get around it.
+  Precedence per profile: own "Egen" price → supplier prices (cheapest
+  wins) → clearly-labelled fake "Exempel" prices. Never present example
+  prices as real. Supplier entries also define the stock lengths/sheet
+  sizes used for the shopping list.
+- Local runs need `NODE_USE_ENV_PROXY=1 npm run prices` in the cloud
+  container (Node's fetch ignores HTTPS_PROXY otherwise).
 - Stack: React + TS + Vite, react-three-fiber/drei, Zustand (persisted to
-  localStorage). No backend yet.
+  localStorage). No backend: supplier prices are static JSON built in CI.
 
 ## Model conventions
 
@@ -32,7 +44,11 @@ comments in English).
   (sheets); stock lengths and sheet sizes in `catalog.ts` are typical
   values, not verified per supplier.
 - Sheets are nested with a guillotine best-short-side-fit packer
-  (`packSheets`), rotation allowed, grain ignored.
+  (`packSheets`), rotation allowed, grain ignored; every sheet size on offer
+  is tried and the cheapest result kept.
+- Boards: `packCuts` tries each stock length as bin size with first-fit and
+  a subset-sum "best fill", then gives each board its cheapest fitting
+  length; keeps the cheapest total (without prices: least timber).
 - Snapping while dragging: grid via TransformControls `translationSnap`,
   then `snapOffset` pulls faces to nearby parts' faces on the dragged axis.
 - Printing: `window.print()` with a print-only `PrintReport`; the 3D

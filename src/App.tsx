@@ -6,7 +6,7 @@ import { PriceList } from './components/PriceList'
 import { PrintReport } from './components/PrintReport'
 import { Toolbar } from './components/Toolbar'
 import { canvasRef, fitView, Viewport } from './components/Viewport'
-import { useStore } from './lib/store'
+import { loadSupplierPrices, useStore } from './lib/store'
 
 type Tab = 'lagg' | 'del' | 'lista' | 'priser'
 
@@ -38,6 +38,9 @@ export function App() {
   const [capturing, setCapturing] = useState(false)
   const selectedId = useStore((s) => s.selectedId)
   useKeyboardShortcuts()
+  useEffect(() => {
+    loadSupplierPrices()
+  }, [])
 
   // Selecting or adding a part shows its properties
   useEffect(() => {

@@ -3,7 +3,7 @@
 En webblösning som skapar 3D-modeller och såglistor, samt har inbyggd prislista.
 Byggd för hobbysnickare.
 
-## Vad finns nu (v0.2)
+## Vad finns nu (v0.3)
 
 Byggd för mobilen först — fungerar även på dator.
 
@@ -18,10 +18,22 @@ Byggd för mobilen först — fungerar även på dator.
 - **Såglista** och **inköpslista**: vilka längder/skivor som ska köpas, med
   snittbredd, kapschema för virke och skärschema för skivor.
 - **Skriv ut / spara PDF**: projektbild, såglista, inköpslista och scheman.
-- **Prislista**: egna priser (kr/lm för virke, kr/skiva för skivor).
-  Exempelpriser (inte riktiga) visas tills prishämtning finns.
+- **Priser från Bauhaus** (webbpriser): inköpslistan köper de längder och
+  skivstorlekar som faktiskt säljs, väljer billigaste kombinationen och
+  länkar till produkterna. Egna priser (kr/lm, kr/skiva) går före;
+  exempelpriser (inte riktiga) används bara där inget annat pris finns.
 - Sparas automatiskt i webbläsaren; exportera/importera projektfil (JSON).
 - Kan läggas till på hemskärmen och öppnas som en app.
+
+## Priser
+
+`npm run prices` hämtar Bauhaus kategorisidor för virke och skivor (16 anrop
+med 2 s paus, bara sidor som robots.txt tillåter) och sparar
+`public/prices/bauhaus.json`. Publiceringen gör detta automatiskt, och
+dessutom varje måndag. Misslyckas hämtningen används filen som ligger i repot.
+
+Hornbach blockerar automatiska anrop (bot-skydd även på robots.txt), så
+deras priser hämtas inte.
 
 ## Publicering
 
@@ -45,8 +57,7 @@ state. Ingen backend än.
 
 ## Planerat
 
-- Prishämtning (scraping) från bygghandlare — kräver en liten backend
-  (webbläsaren kan inte hämta andra sajter direkt p.g.a. CORS). Kolla varje
+- Fler bygghandlare (Byggmax, Beijer, XL-Bygg, K-Rauta …) — kolla varje
   sajts villkor och robots.txt först.
 - Fiberriktning på skivor (låsa rotation i skärschemat).
 - Mäta avstånd mellan två valfria punkter.

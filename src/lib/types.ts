@@ -59,10 +59,11 @@ export interface Project {
 
 /**
  * One price observation. Written by hand ("Egen") or by a supplier scraper.
- * - 'lm': per running metre (boards)
+ * - 'lm': per running metre (boards); only for `length` when given
  * - 'st': per piece; for boards at `length`, for sheets at `length` x `width`
- *   (or any stock size when omitted)
+ *   (or any size when omitted)
  * - 'm2': per square metre (sheets)
+ * Entries with a length (and width) also tell us which stock sizes exist.
  */
 export interface PriceEntry {
   profileId: string
@@ -73,6 +74,8 @@ export interface PriceEntry {
   /** SEK incl. VAT */
   price: number
   url?: string
+  /** Product name at the supplier */
+  name?: string
   fetchedAt?: string
 }
 
@@ -85,4 +88,28 @@ export interface Settings {
   showDimensions: boolean
   /** Snap to other parts' faces while moving */
   snapToParts: boolean
+}
+
+/** A product as collected from a supplier's website. Sizes in mm, price in SEK incl. VAT per piece. */
+export interface ScrapedProduct {
+  sku: string
+  name: string
+  url: string
+  kind: 'board' | 'sheet'
+  /** Our category, e.g. 'konstruktion' or 'plywood' */
+  category: ProfileCategory
+  thickness: number
+  /** Board: cross-section width. Sheet: the shorter side. */
+  width: number
+  /** Board: length. Sheet: the longer side. */
+  length: number
+  price: number
+}
+
+/** public/prices/<supplier>.json */
+export interface SupplierPriceFile {
+  supplier: string
+  website: string
+  fetchedAt: string
+  products: ScrapedProduct[]
 }

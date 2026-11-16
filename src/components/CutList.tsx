@@ -9,16 +9,20 @@ export function usePlan() {
   const kerf = useStore((s) => s.settings.kerf)
   const ownPrices = useStore((s) => s.ownPrices)
   const useExamplePrices = useStore((s) => s.useExamplePrices)
+  const supplierFiles = useStore((s) => s.supplierFiles)
+  const disabledSuppliers = useStore((s) => s.disabledSuppliers)
   const rows = useMemo(() => cutList(parts), [parts])
   const plan = useMemo(
-    () => purchasePlan(parts, activePrices({ ownPrices, useExamplePrices }), kerf),
-    [parts, ownPrices, useExamplePrices, kerf],
+    () => purchasePlan(parts, activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers }), kerf),
+    [parts, ownPrices, useExamplePrices, supplierFiles, disabledSuppliers, kerf],
   )
-  return { rows, plan, useExamplePrices }
+  // Only warn about example prices when one is actually used
+  const usesExamples = plan.some((r) => r.items.some((i) => i.offer?.supplier === 'Exempel'))
+  return { rows, plan, usesExamples }
 }
 
 export function CutList({ onPrint }: { onPrint: () => void }) {
-  const { rows, plan, useExamplePrices } = usePlan()
+  const { rows, plan, usesExamples } = usePlan()
   const kerf = useStore((s) => s.settings.kerf)
   const setSettings = useStore((s) => s.setSettings)
 
@@ -38,7 +42,7 @@ export function CutList({ onPrint }: { onPrint: () => void }) {
         <NumberField value={kerf} min={0} suffix="mm" onCommit={(v) => setSettings({ kerf: v })} />
       </label>
       <PurchaseList plan={plan} />
-      {useExamplePrices && <p className="warn">Exempelpriser används — inte riktiga butikspriser.</p>}
+      {usesExamples && <p className="warn">Vissa priser är exempelpriser — inte riktiga butikspriser.</p>}
     </div>
   )
 }

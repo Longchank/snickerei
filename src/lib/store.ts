@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { partBox, rotatePart } from './geometry'
-import type { Part, PriceEntry, Project, Settings } from './types'
+import { mergePrices, supplierEntries } from './prices'
+import type { Part, PriceEntry, Project, Settings, SupplierPriceFile } from './types'
 
 const HISTORY_LIMIT = 100
 
@@ -13,6 +14,10 @@ interface State {
   /** Hand-entered prices (supplier "Egen"). Scraped prices will be merged in later. */
   ownPrices: PriceEntry[]
   useExamplePrices: boolean
+  /** Price files loaded from public/prices/ — not persisted, reloaded at start */
+  supplierFiles: SupplierPriceFile[]
+  /** Supplier name → whether its prices are used (default: on) */
+  disabledSuppliers: string[]
   past: Part[][]
   future: Part[][]
 
@@ -31,6 +36,8 @@ interface State {
   /** kr per running metre for boards, kr per sheet for sheets */
   setOwnPrice: (profileId: string, price: number | null) => void
   setUseExamplePrices: (v: boolean) => void
+  addSupplierFile: (file: SupplierPriceFile) => void
+  setSupplierEnabled: (supplier: string, enabled: boolean) => void
 }
 
 const DEFAULT_SETTINGS: Settings = { snap: 5, kerf: 3, showDimensions: true, snapToParts: true }
@@ -55,6 +62,8 @@ export const useStore = create<State>()(
         settings: DEFAULT_SETTINGS,
         ownPrices: [],
         useExamplePrices: true,
+        supplierFiles: [],
+        disabledSuppliers: [],
         past: [],
         future: [],
 
@@ -141,6 +150,16 @@ export const useStore = create<State>()(
           })),
 
         setUseExamplePrices: (useExamplePrices) => set({ useExamplePrices }),
+
+        addSupplierFile: (file) =>
+          set((s) => ({ supplierFiles: [...s.supplierFiles.filter((f) => f.supplier !== file.supplier), file] })),
+
+        setSupplierEnabled: (supplier, enabled) =>
+          set((s) => ({
+            disabledSuppliers: enabled
+              ? s.disabledSuppliers.filter((x) => x !== supplier)
+              : [...new Set([...s.disabledSuppliers, supplier])],
+          })),
       }
     },
     {
@@ -157,14 +176,37 @@ export const useStore = create<State>()(
         settings: s.settings,
         ownPrices: s.ownPrices,
         useExamplePrices: s.useExamplePrices,
+        disabledSuppliers: s.disabledSuppliers,
       }),
     },
   ),
 )
 
-/** All prices currently in effect. A hand-entered price replaces the example price. */
-export function activePrices(s: Pick<State, 'ownPrices' | 'useExamplePrices'>): PriceEntry[] {
-  if (!s.useExamplePrices) return s.ownPrices
-  const own = new Set(s.ownPrices.map((e) => e.profileId))
-  return [...s.ownPrices, ...EXAMPLE_PRICES.filter((e) => !own.has(e.profileId))]
+type PriceState = Pick<State, 'ownPrices' | 'useExamplePrices' | 'supplierFiles' | 'disabledSuppliers'>
+
+const supplierCache = new WeakMap<SupplierPriceFile, PriceEntry[]>()
+function entriesOf(file: SupplierPriceFile): PriceEntry[] {
+  let e = supplierCache.get(file)
+  if (!e) supplierCache.set(file, (e = supplierEntries(file)))
+  return e
+}
+
+/** All prices in effect: own prices, then enabled suppliers, then (optionally) examples. */
+export function activePrices(s: PriceState): PriceEntry[] {
+  const suppliers = s.supplierFiles
+    .filter((f) => !s.disabledSuppliers.includes(f.supplier))
+    .flatMap(entriesOf)
+  return mergePrices(s.ownPrices, suppliers, s.useExamplePrices ? EXAMPLE_PRICES : [])
+}
+
+/** Load the supplier price files shipped with the app. */
+export async function loadSupplierPrices(names = ['bauhaus']) {
+  for (const name of names) {
+    try {
+      const res = await fetch(`./prices/${name}.json`, { cache: 'no-cache' })
+      if (res.ok) useStore.getState().addSupplierFile(await res.json())
+    } catch {
+      // Offline or file missing: hand-entered and example prices still work
+    }
+  }
 }

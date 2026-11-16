@@ -665,3 +665,31 @@ td {
     -webkit-print-color-adjust: exact;
   }
 }
+
+/* Shopping list lines */
+.plan ul.items {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+  display: grid;
+  gap: 4px;
+}
+.plan ul.items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.plan a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.price-table td,
+.price-table th {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.app.mobile .price-input,
+.app.mobile .price-own .number-field input {
+  width: 64px;
+}

@@ -6,7 +6,7 @@ import { useStore } from '../lib/store'
 export function PrintReport({ snapshot }: { snapshot: string | null }) {
   const name = useStore((s) => s.project.name)
   const kerf = useStore((s) => s.settings.kerf)
-  const { rows, plan, useExamplePrices } = usePlan()
+  const { rows, plan, usesExamples } = usePlan()
   const date = new Date().toLocaleDateString('sv-SE')
 
   return (
@@ -23,7 +23,7 @@ export function PrintReport({ snapshot }: { snapshot: string | null }) {
       <h2>Inköpslista</h2>
       <p className="small">Beräknad med {kerf} mm snittbredd.</p>
       <PurchaseList plan={plan} expanded />
-      {useExamplePrices && <p className="warn">Exempelpriser används — inte riktiga butikspriser.</p>}
+      {usesExamples && <p className="warn">Vissa priser är exempelpriser — inte riktiga butikspriser.</p>}
     </div>
   )
 }

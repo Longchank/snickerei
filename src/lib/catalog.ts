@@ -1,7 +1,7 @@
 import type { PriceEntry, Profile, ProfileCategory } from './types'
 
 export const CATEGORY_NAMES: Record<ProfileCategory, string> = {
-  konstruktion: 'Konstruktionsvirke C24',
+  konstruktion: 'Konstruktionsvirke',
   hyvlat: 'Hyvlat virke',
   tryckimpregnerat: 'Tryckimpregnerat',
   lakt: 'Läkt',
@@ -53,21 +53,35 @@ export const shortName = (prof: Profile) => (prof.kind === 'sheet' ? `${prof.thi
 const FULL_SHEET: [number, number][] = [[2440, 1220]]
 const OSB_SHEET: [number, number][] = [[2400, 1200]]
 
-// Common Swedish dimensions. Stock lengths vary by supplier — the scraper is
-// meant to replace these with real data.
+// Common Swedish dimensions, checked against what Bauhaus sells (2026-11-16).
+// Stock lengths/sizes here are only a fallback: when a supplier price file has
+// a profile, its real lengths and sheet sizes are used instead.
 export const PROFILES: Profile[] = [
   ...[45, 70, 95, 120, 145, 170, 195, 220].map((w) => p('konstruktion', 45, w, KONSTR, '#e2c08d')),
   ...[45, 70, 95, 120, 145].map((w) => p('hyvlat', 21, w, HYVLAT, '#f0d9b0')),
   ...[70, 95, 120].map((w) => p('hyvlat', 28, w, HYVLAT, '#f0d9b0')),
-  p('tryckimpregnerat', 28, 120, TRALL, '#a9b77f'),
-  p('tryckimpregnerat', 34, 145, TRALL, '#a9b77f'),
-  p('tryckimpregnerat', 45, 95, TRALL, '#a9b77f'),
-  p('tryckimpregnerat', 45, 145, TRALL, '#a9b77f'),
-  p('lakt', 25, 48, LAKT, '#d8b98a'),
-  p('lakt', 34, 70, LAKT, '#d8b98a'),
-  ...[9, 12, 15, 18, 21].map((t) => sheet('plywood', t, FULL_SHEET, '#ecd4a6')),
-  ...[6, 12, 16, 19, 22].map((t) => sheet('mdf', t, FULL_SHEET, '#b88f62')),
-  ...[9, 12, 15, 18, 22].map((t) => sheet('osb', t, OSB_SHEET, '#d4ad6c')),
+  ...[70, 95].map((w) => p('hyvlat', 34, w, HYVLAT, '#f0d9b0')),
+  ...[
+    [22, 95],
+    [22, 120],
+    [28, 70],
+    [28, 95],
+    [28, 120],
+    [28, 145],
+    [34, 145],
+    [45, 95],
+    [45, 145],
+    [45, 220],
+  ].map(([t, w]) => p('tryckimpregnerat', t, w, TRALL, '#a9b77f')),
+  ...[
+    [22, 45],
+    [25, 38],
+    [25, 48],
+    [28, 45],
+  ].map(([t, w]) => p('lakt', t, w, LAKT, '#d8b98a')),
+  ...[4, 7, 9, 12, 15, 18, 21].map((t) => sheet('plywood', t, FULL_SHEET, '#ecd4a6')),
+  ...[6, 8, 10, 12, 16, 19, 22, 25].map((t) => sheet('mdf', t, FULL_SHEET, '#b88f62')),
+  ...[9, 11, 12, 15, 18, 22].map((t) => sheet('osb', t, OSB_SHEET, '#d4ad6c')),
 ]
 
 const BY_ID = new Map(PROFILES.map((x) => [x.id, x]))

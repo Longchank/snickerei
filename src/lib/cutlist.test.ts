@@ -14,15 +14,21 @@ const part = (length: number, extra: Partial<Part> = {}): Part => ({
 })
 
 describe('packCuts', () => {
-  it('packs cuts with kerf and shrinks boards to the shortest stock length', () => {
+  it('packs cuts with kerf, buying the least timber without prices', () => {
     const { boards, tooLong } = packCuts([1800, 1800, 900], [3000, 3600, 4200], 3)
     expect(tooLong).toEqual([])
-    // 1800 + 3 + 1800 = 3603 > 3600, so the pair needs a 4200;
-    // adding the 900 would need 4506, so it goes on its own 3000
+    // 1800 + 3 + 1800 = 3603 needs a 4200 (+ a 3000 for the 900) = 7.2 m;
+    // 1800 + 3 + 900 on one 3000 and 1800 on another = 6 m
     expect(boards.map((b) => [b.length, b.cuts])).toEqual([
-      [4200, [1800, 1800]],
-      [3000, [900]],
+      [3000, [1800, 900]],
+      [3000, [1800]],
     ])
+  })
+
+  it('respects kerf exactly at the limit', () => {
+    // 1498 + 3 + 1499 = 3000 fits one board; 1499 + 3 + 1499 does not
+    expect(packCuts([1498, 1499], [3000], 3).boards).toHaveLength(1)
+    expect(packCuts([1499, 1499], [3000], 3).boards).toHaveLength(2)
   })
 
   it('reports cuts longer than any stock length', () => {
