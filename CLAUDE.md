@@ -102,8 +102,16 @@ comments in English).
   resize (and the model jump) as panel content changes.
 - Position fields show the selection's bounding-box min corner, not the
   part's internal origin.
-- Snapping while dragging: grid via TransformControls `translationSnap`,
-  then `snapOffset` pulls faces to nearby parts' faces on the dragged axis.
+- Snapping (`src/lib/snap.ts`, toggles in `settings.snapTypes`):
+  measuring taps get candidates on the tapped face of the part's bounding
+  box (corners, edge midpoints, nearest edge point, face centre, part
+  centre), filtered by **on-screen** distance (30 px touch / 14 px mouse)
+  and ordered by priority; the alternatives are kept in `snapChoice` so the
+  chip in the view cycles them. Two snapped points measure along their
+  largest difference (c/c). Dragging: grid via TransformControls
+  `translationSnap`, then `snapMove` aligns faces and centres with nearby
+  parts on the dragged axes and returns guide lines. Snaps use bounding
+  boxes, so notches and angled cuts are ignored.
 - Printing: `window.print()` with a print-only `PrintReport`; the 3D
   snapshot needs `preserveDrawingBuffer` and is taken with overlays hidden
   (drei `Html` labels are DOM, not in the canvas).

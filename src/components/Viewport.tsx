@@ -1,5 +1,5 @@
 import { Edges, GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import {
   BoxGeometry,
   BufferGeometry,
@@ -17,12 +17,13 @@ import type { Group } from 'three'
 import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getProfile, hasGrain } from '../lib/catalog'
-import { eulerOf, partBox, partSize, round, snapOffset, toAxisBox, type AxisBox } from '../lib/geometry'
+import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
 import { overlapsOf, unionBox } from '../lib/joints'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
-import { useStore } from '../lib/store'
-import type { Measurement, Part, Vec3 } from '../lib/types'
+import { chooseSnaps, pointCandidates, SNAP_LABEL, snapMove, type SnapGuide } from '../lib/snap'
+import { useStore, type SnapChoice } from '../lib/store'
+import type { MeasurePoint, Measurement, Part, SnapKind, Vec3 } from '../lib/types'
 
 /** The WebGL canvas, for snapshots in the printout. */
 export const canvasRef: { current: HTMLCanvasElement | null } = { current: null }
@@ -115,7 +116,32 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
   const multiSelect = useStore((s) => s.multiSelect)
   const measureMode = useStore((s) => s.measureMode)
   const measureTap = useStore((s) => s.measureTap)
+  const snapTypes = useStore((s) => s.settings.snapTypes)
+  const setHover = useStore((s) => s.setMeasureHover)
+  const camera = useThree((s) => s.camera)
+  const viewSize = useThree((s) => s.size)
   const ref = useRef<Group>(null)
+
+  /** Snap options for a pointer event on this part, best first */
+  const snapOptions = (e: ThreeEvent<MouseEvent>): MeasurePoint[] => {
+    if (!e.face) return []
+    const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
+    const base = pickPoint(e.point.toArray() as Vec3, n.toArray() as Vec3, false)
+    const toScreen = (p: Vec3): [number, number] => {
+      const v = new Vector3(...p).project(camera)
+      return [((v.x + 1) / 2) * viewSize.width, ((1 - v.y) / 2) * viewSize.height]
+    }
+    const hit = e.point.toArray() as Vec3
+    const options = chooseSnaps(
+      pointCandidates(toAxisBox(partBox(part)), hit, base.axis),
+      hit,
+      toScreen,
+      [e.nativeEvent.offsetX, e.nativeEvent.offsetY],
+      isTouch ? 30 : 14,
+      snapTypes,
+    )
+    return options.map((o) => ({ ...base, point: o.point.map((v) => Math.round(v * 10) / 10) as Vec3, snap: o.kind }))
+  }
   useEffect(() => {
     register(part.id, ref.current)
     return () => register(part.id, null)
@@ -126,7 +152,7 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
   const geometry = useMemo(() => partGeometry(part, size), [key])
   useEffect(() => () => geometry.dispose(), [geometry])
   const rotation = useMemo(() => eulerOf(part.rotation), [part.rotation])
-  const [hover, setHover] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const grainMap = useGrainTexture(part, size)
 
   return (
@@ -138,9 +164,9 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         onClick={(e) => {
           e.stopPropagation()
           if (measureMode) {
-            if (!e.face) return
-            const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
-            measureTap(pickPoint(e.point.toArray() as Vec3, n.toArray() as Vec3, false))
+            const options = snapOptions(e)
+            if (options.length) measureTap(options[0], options)
+            setHover(null)
             return
           }
           const ne = e.nativeEvent
@@ -148,15 +174,24 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         }}
         onPointerOver={(e) => {
           e.stopPropagation()
-          setHover(true)
+          setHovered(true)
         }}
-        onPointerOut={() => setHover(false)}
+        onPointerOut={() => {
+          setHovered(false)
+          if (measureMode) setHover(null)
+        }}
+        onPointerMove={(e) => {
+          // Preview the snap under the mouse (touch screens have no hover)
+          if (!measureMode || isTouch) return
+          e.stopPropagation()
+          setHover(snapOptions(e)[0] ?? null)
+        }}
       >
         <meshStandardMaterial
           key={grainMap ? grainMap.uuid : 'plain'}
           map={grainMap}
           color={prof.color}
-          emissive={selected ? '#3b82f6' : hover && !isTouch ? '#555' : '#000'}
+          emissive={selected ? '#3b82f6' : hovered && !isTouch && !measureMode ? '#555' : '#000'}
           emissiveIntensity={selected ? 0.35 : 0.15}
           roughness={0.8}
         />
@@ -191,8 +226,8 @@ function MeasureLine({ m, index }: { m: Measurement; index: number }) {
     <group>
       <Line points={[p, q]} color="#ea580c" lineWidth={3} depthTest={false} renderOrder={3} />
       {offset && <Line points={[q, b]} color="#ea580c" lineWidth={1} dashed dashSize={20} gapSize={15} depthTest={false} />}
-      <PointMarker at={m.a.point} />
-      <PointMarker at={b} />
+      <PointMarker at={m.a.point} kind={m.a.snap} />
+      <PointMarker at={b} kind={m.b.snap} />
       <Html position={mid} center zIndexRange={[6, 0]} style={{ pointerEvents: 'none' }}>
         <span className="measure-label">
           <b>{index + 1}</b> {fmtMm(value)}
@@ -202,11 +237,21 @@ function MeasureLine({ m, index }: { m: Measurement; index: number }) {
   )
 }
 
-function PointMarker({ at, pending = false }: { at: Vec3; pending?: boolean }) {
+/** Marker colour per snap kind, matching the chip in the view */
+export const SNAP_COLOR: Record<SnapKind, string> = {
+  vertex: '#7c3aed',
+  edgeMid: '#0891b2',
+  edge: '#0891b2',
+  faceCenter: '#16a34a',
+  center: '#db2777',
+  face: '#ea580c',
+}
+
+function PointMarker({ at, kind, size = 9, ghost = false }: { at: Vec3; kind?: SnapKind; size?: number; ghost?: boolean }) {
   return (
     <mesh position={at} renderOrder={4}>
-      <sphereGeometry args={[pending ? 14 : 9, 16, 12]} />
-      <meshBasicMaterial color={pending ? '#f97316' : '#ea580c'} depthTest={false} transparent opacity={0.95} />
+      <sphereGeometry args={[size, 16, 12]} />
+      <meshBasicMaterial color={SNAP_COLOR[kind ?? 'face']} depthTest={false} transparent opacity={ghost ? 0.6 : 0.95} />
     </mesh>
   )
 }
@@ -289,6 +334,10 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const measureMode = useStore((s) => s.measureMode)
   const measureTap = useStore((s) => s.measureTap)
   const pendingPoint = useStore((s) => s.pendingPoint)
+  const measureHover = useStore((s) => s.measureHover)
+  const snapTypes = useStore((s) => s.settings.snapTypes)
+  /** What snapped while dragging, drawn as guide lines */
+  const [guides, setGuides] = useState<SnapGuide[]>([])
   const measurements = useStore((s) => s.project.measurements)
   const spaces = useMemo(
     () => (selBox ? freeSpace(selBox, otherBoxes(parts, new Set(selection))).filter((f) => f.gap <= 3000) : []),
@@ -343,8 +392,15 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       // Snap distance grows as you zoom out, so it feels the same on screen
       const dist = controls ? controls.target.distanceTo(camera.position) : 3000
       const threshold = Math.min(150, Math.max(5, dist * (isTouch ? 0.02 : 0.012)))
-      const s = snapOffset(moved, others, [axis.includes('X'), axis.includes('Y'), axis.includes('Z')], threshold)
+      const { offset: s, guides: g } = snapMove(
+        moved,
+        others,
+        [axis.includes('X'), axis.includes('Y'), axis.includes('Z')],
+        threshold,
+        snapTypes,
+      )
       pos.set(pos.x + s[0], pos.y + s[1], pos.z + s[2])
+      setGuides(g)
     }
     const d: Vec3 = [pos.x - selBox.min[0], pos.y - selBox.min[1], pos.z - selBox.min[2]]
     for (const p of selected) groups.current.get(p.id)?.position.set(p.position[0] + d[0], p.position[1] + d[1], p.position[2] + d[2])
@@ -382,6 +438,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
           onMouseDown={() => (lastDrag.current = Infinity)}
           onMouseUp={() => {
             lastDrag.current = Date.now()
+            setGuides([])
             const d = [0, 1, 2].map((i) => round(pivot.position.getComponent(i) - selBox.min[i])) as Vec3
             if (d.some((v) => v !== 0)) moveSelection(d)
             else setDelta(null)
@@ -392,7 +449,11 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       {showDimensions && !capturing && dimBox && <Dimensions box={dimBox} offset={selBox ? 60 : 120} />}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}
-      {!capturing && pendingPoint && <PointMarker at={pendingPoint.point} pending />}
+      {!capturing && pendingPoint && <PointMarker at={pendingPoint.point} kind={pendingPoint.snap} size={14} />}
+      {!capturing && measureHover && <PointMarker at={measureHover.point} kind={measureHover.snap} size={12} ghost />}
+      {!capturing && guides.map((g, i) => (
+        <Line key={i} points={[g.from, g.to]} color={g.kind === 'center' ? '#db2777' : '#0891b2'} lineWidth={2} dashed dashSize={20} gapSize={12} depthTest={false} />
+      ))}
 
       <Grid
         args={[20000, 20000]}
@@ -431,6 +492,32 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   )
 }
 
+/** What the last tap snapped to; tap to try the next alternative. */
+function SnapChip({ choice, onCycle }: { choice: SnapChoice; onCycle: () => void }) {
+  const current = choice.options[choice.index]
+  const kind = current.snap ?? 'face'
+  const more = choice.options.length > 1
+  const label = current.floor ? 'Golvet' : SNAP_LABEL[kind]
+  return (
+    <button
+      className="snap-chip"
+      onClick={onCycle}
+      disabled={!more}
+      title={more ? 'Byt till nästa fästpunkt' : undefined}
+      style={{ borderColor: SNAP_COLOR[kind] }}
+    >
+      <span className="snap-dot" style={{ background: SNAP_COLOR[kind] }} />
+      {label}
+      {more && (
+        <span className="muted small">
+          {' '}
+          {choice.index + 1}/{choice.options.length} ⟳
+        </span>
+      )}
+    </button>
+  )
+}
+
 export function Viewport({ capturing = false }: { capturing?: boolean }) {
   const clearSelection = useStore((s) => s.clearSelection)
   const multiSelect = useStore((s) => s.multiSelect)
@@ -438,6 +525,8 @@ export function Viewport({ capturing = false }: { capturing?: boolean }) {
   const measureMode = useStore((s) => s.measureMode)
   const setMeasureMode = useStore((s) => s.setMeasureMode)
   const pending = useStore((s) => s.pendingPoint !== null)
+  const snapChoice = useStore((s) => s.snapChoice)
+  const cycleSnap = useStore((s) => s.cycleSnap)
   const count = useStore((s) => s.selection.length)
   const lastDrag = useRef(0)
 
@@ -465,8 +554,11 @@ export function Viewport({ capturing = false }: { capturing?: boolean }) {
       </button>
     </div>
     {measureMode && (
-      <div className="measure-hint" role="status">
-        {pending ? 'Tryck på den andra ytan (eller golvet)' : 'Tryck på en yta eller golvet'}
+      <div className="measure-top">
+        <div className="measure-hint" role="status">
+          {pending ? 'Tryck på den andra ytan (eller golvet)' : 'Tryck på en yta eller golvet'}
+        </div>
+        {snapChoice && <SnapChip choice={snapChoice} onCycle={cycleSnap} />}
       </div>
     )}
     <Canvas

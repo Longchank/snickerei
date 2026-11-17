@@ -3,7 +3,8 @@ import { matchGuides, offBy, seatsText, type GuideMatch, type MeasureKind } from
 import { unionBox } from '../lib/joints'
 import { freeSpace, measureValue, otherBoxes } from '../lib/measure'
 import { useStore } from '../lib/store'
-import type { Part } from '../lib/types'
+import { SNAP_LABEL } from '../lib/snap'
+import type { Measurement, Part } from '../lib/types'
 
 const fmt = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',')
 
@@ -43,6 +44,26 @@ function GuideLine({ m, value }: { m: GuideMatch; value: number }) {
   )
 }
 
+const pointLabel = (p: Measurement['a']) => (p.floor ? 'golvet' : SNAP_LABEL[p.snap ?? 'face'].toLowerCase())
+
+/** What each end snapped to, and the straight-line distance when it differs. */
+function PointInfo({ m }: { m: Measurement }) {
+  const d = [0, 1, 2].map((i) => Math.abs(m.b.point[i] - m.a.point[i]))
+  const direct = Math.hypot(d[0], d[1], d[2])
+  const { value } = measureValue(m)
+  return (
+    <p className="muted small point-info">
+      Från {pointLabel(m.a)} till {pointLabel(m.b)}
+      {Math.abs(direct - value) > 1 && (
+        <>
+          {' '}
+          · rakt avstånd {fmt(direct)} mm (X {fmt(d[0])}, Y {fmt(d[1])}, Z {fmt(d[2])})
+        </>
+      )}
+    </p>
+  )
+}
+
 /** Measuring mode: the saved measurements with what they're good for. */
 export function MeasurePanel() {
   const measurements = useStore((s) => s.project.measurements)
@@ -60,7 +81,7 @@ export function MeasurePanel() {
       <p className="hint small">
         {pending
           ? 'Tryck på den andra ytan — eller golvet.'
-          : 'Tryck på en yta, sedan en till. Avståndet mäts rakt ut från den första ytan: höjd från golvet, fritt mellan två hyllor, längd mellan två sidor. Två tryck på samma yta mäter längs ytan, t.ex. hur lång en sits är.'}
+          : 'Tryck på en yta, sedan en till. Punkten fäster mot hörn, kantmitt, ytans mitt och delens mitt (c/c) — tryck på knappen överst för att byta.  Avståndet mäts rakt ut från den första ytan: höjd från golvet, fritt mellan två hyllor, längd mellan två sidor. Två tryck på samma yta mäter längs ytan, t.ex. hur lång en sits är.'}
       </p>
       {measurements.length === 0 && <p className="hint">Inga mått än.</p>}
       <ol className="measure-list">
@@ -76,8 +97,9 @@ export function MeasurePanel() {
                   ✕
                 </button>
               </div>
+              <PointInfo m={m} />
               <GuideList value={value} kind={kind} />
-              {kind === 'horizontal' && value >= 600 && (
+              {kind === 'horizontal' && value >= 600 && m.a.snap !== 'center' && m.b.snap !== 'center' && (
                 <p className="muted small">Som bänk eller bordskant: {seatsText(value)} (60 cm/person).</p>
               )}
             </li>

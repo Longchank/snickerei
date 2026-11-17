@@ -124,6 +124,28 @@ function Menu({ onPrint }: { onPrint: () => void }) {
             />
             Fäst mot andra delar
           </label>
+          <div className="menu-row snap-types" role="group" aria-label="Fäst mot">
+            <span>Fäst mot</span>
+            <div className="snap-type-buttons">
+              {(
+                [
+                  ['vertex', 'Hörn'],
+                  ['edge', 'Kanter'],
+                  ['face', 'Ytor'],
+                  ['center', 'Mitt'],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  className={settings.snapTypes[key] ? 'on' : ''}
+                  aria-pressed={settings.snapTypes[key]}
+                  onClick={() => setSettings({ snapTypes: { ...settings.snapTypes, [key]: !settings.snapTypes[key] } })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="menu-row">
             Rutnät
             <select value={settings.snap} onChange={(e) => setSettings({ snap: Number(e.target.value) })}>

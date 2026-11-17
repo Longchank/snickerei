@@ -77,14 +77,18 @@ export function otherBoxes(parts: Part[], exclude: Set<string>) {
  * first surface (along its normal) to the level of the second point — a gap,
  * a height, a length — rather than the slanted distance between the taps.
  * Two taps on the same plane (both on a seat, both on the floor) measure
- * along it instead, in the direction they differ most.
+ * along it instead, in the direction they differ most — as do two snapped
+ * points (corner to corner, centre to centre).
  */
 export function measureValue(m: Pick<Measurement, 'a' | 'b'>): { axis: 0 | 1 | 2; value: number; kind: MeasureKind; ends: [Vec3, Vec3] } {
   // A tap on the floor measures upwards from the floor, whichever came first
   const [a, b] = m.b.floor && !m.a.floor ? [m.b, m.a] : [m.a, m.b]
   const delta = [0, 1, 2].map((i) => Math.abs(b.point[i] - a.point[i]))
   let axis = a.axis
-  if (delta[axis] < 1) axis = delta.indexOf(Math.max(...delta)) as 0 | 1 | 2
+  // Between two snapped points (corner, centre, …) the surface direction means
+  // little: use the direction they differ most, e.g. centre-to-centre of legs
+  const isPoint = (p: MeasurePoint) => !!p.snap && p.snap !== 'face' && p.snap !== 'edge'
+  if (delta[axis] < 1 || (isPoint(a) && isPoint(b))) axis = delta.indexOf(Math.max(...delta)) as 0 | 1 | 2
   const end = [...a.point] as Vec3
   end[axis] = b.point[axis]
   const kind: MeasureKind = axis !== 1 ? 'horizontal' : a.floor || b.floor ? 'height' : 'vgap'

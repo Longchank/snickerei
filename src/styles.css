@@ -882,12 +882,22 @@ button.link.inline {
   background: #ea580c;
   border-color: #ea580c;
 }
-.measure-hint {
+.measure-top {
   position: absolute;
   left: 50%;
   top: 10px;
   transform: translateX(-50%);
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.measure-top > * {
+  pointer-events: auto;
+}
+.measure-hint {
   background: rgba(31, 41, 55, 0.9);
   color: #fff;
   padding: 6px 12px;
@@ -999,4 +1009,45 @@ button.link.inline {
 }
 .multi-toggle.on.measure:hover:not(:disabled) {
   background: #c2410c;
+}
+
+.snap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-width: 2px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+.app.mobile .snap-chip {
+  padding: 9px 16px;
+}
+.snap-chip:disabled {
+  opacity: 1;
+}
+.snap-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.snap-types {
+  flex-wrap: wrap;
+}
+.snap-type-buttons {
+  display: flex;
+  gap: 4px;
+}
+.snap-type-buttons button {
+  padding: 5px 8px;
+  font-size: 13px;
+}
+.snap-type-buttons button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.point-info {
+  margin: 4px 0 0;
 }

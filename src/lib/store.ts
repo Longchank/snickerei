@@ -6,6 +6,7 @@ import { partBox, rotatePart } from './geometry'
 import { miterCorner, ripPart } from './cuts'
 import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, toLocalBox, trimAgainst, unionBox } from './joints'
 import { mergePrices, supplierEntries } from './prices'
+import { DEFAULT_SNAP_TYPES } from './snap'
 import type {
   EndCut,
   Group,
@@ -34,6 +35,10 @@ interface State {
   measureMode: boolean
   /** First point of a measurement in progress */
   pendingPoint: MeasurePoint | null
+  /** Snap alternatives for the most recent tap, which the user can cycle through */
+  snapChoice: SnapChoice | null
+  /** Desktop: where a click would land right now (snap preview) */
+  measureHover: MeasurePoint | null
   settings: Settings
   /** Hand-entered prices (supplier "Egen") */
   ownPrices: PriceEntry[]
@@ -55,8 +60,12 @@ interface State {
   clearSelection: () => void
   setMultiSelect: (on: boolean) => void
   setMeasureMode: (on: boolean) => void
-  /** A tap in measuring mode: first tap starts, second finishes a measurement */
-  measureTap: (p: MeasurePoint) => void
+  /** A tap in measuring mode: first tap starts, second finishes a measurement.
+   * `options` are the snap alternatives for this tap, best (= p) first. */
+  measureTap: (p: MeasurePoint, options?: MeasurePoint[]) => void
+  /** Use the next snap alternative for the most recent tap */
+  cycleSnap: () => void
+  setMeasureHover: (p: MeasurePoint | null) => void
   removeMeasurement: (id: string) => void
   clearMeasurements: () => void
 
@@ -92,7 +101,20 @@ interface State {
   setSupplierEnabled: (supplier: string, enabled: boolean) => void
 }
 
-const DEFAULT_SETTINGS: Settings = { snap: 5, kerf: 3, showDimensions: true, snapToParts: true }
+export interface SnapChoice {
+  options: MeasurePoint[]
+  index: number
+  /** The pending first point, or point b of a finished measurement */
+  target: 'pending' | { id: string }
+}
+
+const DEFAULT_SETTINGS: Settings = {
+  snap: 5,
+  kerf: 3,
+  showDimensions: true,
+  snapToParts: true,
+  snapTypes: DEFAULT_SNAP_TYPES,
+}
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -174,6 +196,8 @@ export const useStore = create<State>()(
         multiSelect: false,
         measureMode: false,
         pendingPoint: null,
+        snapChoice: null,
+        measureHover: null,
         settings: DEFAULT_SETTINGS,
         ownPrices: [],
         useExamplePrices: true,
@@ -213,16 +237,51 @@ export const useStore = create<State>()(
         clearSelection: () => set({ selection: [] }),
         setMultiSelect: (multiSelect) => set({ multiSelect, ...(multiSelect ? { measureMode: false, pendingPoint: null } : {}) }),
         setMeasureMode: (on) =>
-          set({ measureMode: on, pendingPoint: null, ...(on ? { selection: [], multiSelect: false } : {}) }),
-        measureTap: (p) =>
+          set({
+            measureMode: on,
+            pendingPoint: null,
+            snapChoice: null,
+            ...(on ? { selection: [], multiSelect: false } : {}),
+          }),
+        measureTap: (p, options = [p]) =>
           set((s) => {
-            if (!s.pendingPoint) return { pendingPoint: p }
+            if (!s.pendingPoint) return { pendingPoint: p, snapChoice: { options, index: 0, target: 'pending' } }
             const m: Measurement = { id: uid(), a: s.pendingPoint, b: p }
-            return { pendingPoint: null, project: { ...s.project, measurements: [...s.project.measurements, m] } }
+            return {
+              pendingPoint: null,
+              snapChoice: { options, index: 0, target: { id: m.id } },
+              project: { ...s.project, measurements: [...s.project.measurements, m] },
+            }
+          }),
+        setMeasureHover: (measureHover) => {
+          const cur = get().measureHover
+          if (cur === measureHover || (cur && measureHover && cur.point.join() === measureHover.point.join() && cur.snap === measureHover.snap)) return
+          set({ measureHover })
+        },
+        cycleSnap: () =>
+          set((s) => {
+            const c = s.snapChoice
+            if (!c || c.options.length < 2) return s
+            const index = (c.index + 1) % c.options.length
+            const point = c.options[index]
+            const snapChoice = { ...c, index }
+            if (c.target === 'pending') return { snapChoice, pendingPoint: point }
+            const id = c.target.id
+            return {
+              snapChoice,
+              project: {
+                ...s.project,
+                measurements: s.project.measurements.map((m) => (m.id === id ? { ...m, b: point } : m)),
+              },
+            }
           }),
         removeMeasurement: (id) =>
-          set((s) => ({ project: { ...s.project, measurements: s.project.measurements.filter((m) => m.id !== id) } })),
-        clearMeasurements: () => set((s) => ({ project: { ...s.project, measurements: [] }, pendingPoint: null })),
+          set((s) => ({
+            project: { ...s.project, measurements: s.project.measurements.filter((m) => m.id !== id) },
+            snapChoice: s.snapChoice && s.snapChoice.target !== 'pending' && s.snapChoice.target.id === id ? null : s.snapChoice,
+          })),
+        clearMeasurements: () =>
+          set((s) => ({ project: { ...s.project, measurements: [] }, pendingPoint: null, snapChoice: null })),
 
         moveSelection: (d) => editSelection((ps) => moveParts(ps, d)),
         rotateSelection: (axis) =>
@@ -387,7 +446,11 @@ export const useStore = create<State>()(
           ...current,
           ...p,
           project: normalizeProject(p.project),
-          settings: { ...DEFAULT_SETTINGS, ...p.settings },
+          settings: {
+            ...DEFAULT_SETTINGS,
+            ...p.settings,
+            snapTypes: { ...DEFAULT_SNAP_TYPES, ...p.settings?.snapTypes },
+          },
         }
       },
       // Undo history and selection are session-only

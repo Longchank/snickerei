@@ -3,7 +3,7 @@
 En webblösning som skapar 3D-modeller och såglistor, samt har inbyggd prislista.
 Byggd för hobbysnickare.
 
-## Vad finns nu (v0.7)
+## Vad finns nu (v0.8)
 
 Byggd för mobilen först — fungerar även på dator.
 
@@ -30,6 +30,10 @@ Byggd för mobilen först — fungerar även på dator.
 - **Mät** (📏 i 3D-vyn): tryck på två ytor eller golvet. Mäter rakt ut från
   första ytan (höjd, fritt mellan hyllor, längd) eller längs ytan om båda
   tryck är på samma yta. Varje mått jämförs med vanliga riktvärden.
+- **Fästpunkter (snapping)**: mätverktyget fäster mot hörn, kantmitt,
+  ytans mitt och delens mitt (för c/c-mått); knappen överst byter mellan
+  alternativen. När delar flyttas fäster de yta mot yta och mitt mot mitt,
+  med en hjälplinje. Vad som fästs väljs i menyn.
 - **Fiberriktning** på plywood och OSB: valfri, längs eller tvärs delen.
   Låsta delar vänds inte i skärschemat (skivans fibrer antas gå längs
   långsidan) och visas randade i 3D och i schemat.

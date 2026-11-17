@@ -118,6 +118,8 @@ export interface MeasurePoint {
   axis: 0 | 1 | 2
   /** Picked on the floor rather than on a part */
   floor: boolean
+  /** What the point snapped to; absent = the plain tapped spot */
+  snap?: SnapKind
 }
 
 export interface Measurement {
@@ -157,7 +159,23 @@ export interface Settings {
   showDimensions: boolean
   /** Snap to other parts' faces while moving */
   snapToParts: boolean
+  /** Which features to snap to, when moving parts and when measuring */
+  snapTypes: SnapTypes
 }
+
+export interface SnapTypes {
+  /** Corners */
+  vertex: boolean
+  /** Edge midpoints and points along edges */
+  edge: boolean
+  /** Faces: face centres when measuring, face to face when moving */
+  face: boolean
+  /** Centre of a part */
+  center: boolean
+}
+
+/** What a measuring point snapped to */
+export type SnapKind = 'vertex' | 'edgeMid' | 'faceCenter' | 'center' | 'edge' | 'face'
 
 /** A product as collected from a supplier's website. Sizes in mm, price in SEK incl. VAT per piece. */
 export interface ScrapedProduct {

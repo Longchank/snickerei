@@ -70,6 +70,12 @@ describe('measureValue', () => {
     expect(measureValue({ a: f1, b: f2 })).toMatchObject({ value: 900, kind: 'horizontal', axis: 2 })
   })
 
+  it('measures between snapped points in the direction they differ most', () => {
+    const corner = { ...pickPoint([0, 740, 0], [0, 1, 0], false), snap: 'vertex' as const }
+    const centre = { ...pickPoint([600, 731, 400], [0, 1, 0], false), snap: 'center' as const }
+    expect(measureValue({ a: corner, b: centre })).toMatchObject({ value: 600, axis: 0, kind: 'horizontal' })
+  })
+
   it('measures horizontally from a side face', () => {
     const left = pickPoint([0, 400, 300], [-1, 0, 0], false)
     const right = pickPoint([1800, 420, 310], [1, 0, 0], false)
