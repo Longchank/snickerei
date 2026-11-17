@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { describePlacement, floorTapTarget, placeOnFloor, placeOnPart, rotationFor } from './place'
+import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, placeOnPart, rotationFor } from './place'
 import type { Part, Vec3 } from './types'
 
 let n = 0
@@ -90,5 +90,26 @@ describe('floorTapTarget', () => {
 
   it('leaves clear floor alone', () => {
     expect(floorTapTarget([600, 0, 400], [sill])).toBeNull()
+  })
+})
+
+describe('placementOptions', () => {
+  it('offers the tapped direction first, then standing up, then the others', () => {
+    // Tapped the sill's front face at its start
+    const opts = placementOptions('konstruktion-45x95', sill, [20, 20, 95], [0, 0, 1], [sill])
+    const dirs = opts.map((o) => {
+      const b = box(o.part)
+      const size = [0, 1, 2].map((i) => b.max[i] - b.min[i])
+      return size.indexOf(Math.max(...size))
+    })
+    expect(dirs[0]).toBe(2) // out of the front face
+    expect(dirs[1]).toBe(1) // standing up
+    expect(opts.length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('puts standing on top first for a missed tap', () => {
+    const [first] = placementOptions('konstruktion-45x95', sill, [20, 20, 95], [0, 0, 1], [sill], true)
+    expect(box(first.part).min).toEqual([0, 45, 0])
+    expect(first.part.length).toBe(1000)
   })
 })

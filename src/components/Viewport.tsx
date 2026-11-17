@@ -4,11 +4,14 @@ import {
   BoxGeometry,
   BufferGeometry,
   CanvasTexture,
+  type Intersection,
+  type Mesh,
   ExtrudeGeometry,
   type Material,
   Matrix4,
   Object3D,
   PerspectiveCamera,
+  Raycaster,
   RepeatWrapping,
   Shape,
   Vector2,
@@ -32,11 +35,30 @@ import type { MeasurePoint, Measurement, Part, SnapKind, Vec3 } from '../lib/typ
  */
 export const snapshotRef: { current: (() => string) | null } = { current: null }
 
+export interface FuzzyHit {
+  partId: string
+  hit: Vec3
+  normal: Vec3
+  /** The tap itself missed; a ray beside it found the part */
+  missed: boolean
+}
+/**
+ * Finds the board nearest a tap that just missed: casts rays in widening
+ * circles around the tap point (in screen pixels) and returns the first part
+ * hit. Set by the scene; used when placing boards.
+ */
+const fuzzyPickRef: { current: ((clientX: number, clientY: number, maxPx: number) => FuzzyHit | null) | null } = {
+  current: null,
+}
+
+
 const FIT_EVENT = 'snickerei:fit'
 /** Move the camera so the whole model is in view. */
 export const fitView = () => window.dispatchEvent(new Event(FIT_EVENT))
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+/** How far (screen px) from a board a tap still counts as a tap on it */
+const FUZZY_PX = isTouch ? 36 : 16
 
 type Register = (id: string, g: Group | null) => void
 
@@ -165,6 +187,7 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
     <group ref={ref} position={part.position} rotation={rotation}>
       <mesh
         geometry={geometry}
+        userData={{ partId: part.id }}
         castShadow
         receiveShadow
         onClick={(e) => {
@@ -322,6 +345,42 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const controls = useThree((s) => s.controls) as unknown as { target: Vector3; update: () => void } | null
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
+  useEffect(() => {
+    const raycaster = new Raycaster()
+    fuzzyPickRef.current = (clientX, clientY, maxPx) => {
+      const rect = gl.domElement.getBoundingClientRect()
+      const meshes: Object3D[] = []
+      scene.traverse((o) => {
+        if (o.userData.partId && (o as Mesh).isMesh) meshes.push(o)
+      })
+      if (!meshes.length) return null
+      for (const r of [0, 6, 12, 18, 24, 30, 36, 42].filter((x) => x <= maxPx)) {
+        const steps = r === 0 ? 1 : 12
+        let best: Intersection | null = null
+        for (let k = 0; k < steps; k++) {
+          const a = (k / steps) * Math.PI * 2
+          const x = clientX + r * Math.cos(a) - rect.left
+          const y = clientY + r * Math.sin(a) - rect.top
+          raycaster.setFromCamera(new Vector2((x / rect.width) * 2 - 1, -(y / rect.height) * 2 + 1), camera)
+          const hit = raycaster.intersectObjects(meshes, false)[0]
+          if (hit && (!best || hit.distance < best.distance)) best = hit
+        }
+        if (best?.face) {
+          const n = best.face.normal.clone().transformDirection(best.object.matrixWorld)
+          return {
+            partId: best.object.userData.partId,
+            hit: best.point.toArray() as Vec3,
+            normal: n.toArray() as Vec3,
+            missed: r > 0,
+          }
+        }
+      }
+      return null
+    }
+    return () => {
+      fuzzyPickRef.current = null
+    }
+  }, [gl, scene, camera])
   useEffect(() => {
     snapshotRef.current = () => {
       gl.render(scene, camera)
@@ -542,8 +601,9 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
           placing
             ? (e) => {
                 e.stopPropagation()
-                // A near miss next to a board counts as a tap on it; "near"
-                // grows with zoom so it's about a fingertip on screen
+                // A tap that just misses a board counts as a tap on it
+                const near = fuzzyPickRef.current?.(e.nativeEvent.clientX, e.nativeEvent.clientY, FUZZY_PX)
+                if (near) return placeTap(near)
                 const dist = controls ? controls.target.distanceTo(camera.position) : 3000
                 placeTap({ floor: [e.point.x, 0, e.point.z], margin: Math.min(300, Math.max(40, dist * (isTouch ? 0.06 : 0.03))) })
               }
@@ -584,12 +644,24 @@ function PlaceBanner({ profileId }: { profileId: string }) {
   const note = useStore((s) => s.placeNote)
   const setPlaceProfile = useStore((s) => s.setPlaceProfile)
   const addPart = useStore((s) => s.addPart)
+  const undo = useStore((s) => s.undo)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const choice = useStore((s) => s.placeChoice)
+  const cyclePlacement = useStore((s) => s.cyclePlacement)
   const prof = getProfile(profileId)
   return (
     <div className="measure-top place-top">
       <div className="place-banner" role="status">
         <strong>Placera {prof.kind === 'sheet' ? prof.name : prof.name}</strong>
         <span>{note ?? 'Tryck på en bräda – vid början, mitten eller änden – eller på golvet'}</span>
+        {choice && choice.options.length > 1 && (
+          <button className="place-cycle" onClick={cyclePlacement}>
+            ⟳ Annan riktning{' '}
+            <span className="muted small">
+              {choice.index + 1}/{choice.options.length}
+            </span>
+          </button>
+        )}
         <div className="place-actions">
           <button
             onClick={() => {
@@ -598,6 +670,16 @@ function PlaceBanner({ profileId }: { profileId: string }) {
             }}
           >
             Lägg till fritt
+          </button>
+          <button
+            onClick={() => {
+              undo()
+              useStore.setState({ placeNote: 'Ångrat — tryck igen där brädan ska sitta', placeChoice: null })
+            }}
+            disabled={!canUndo}
+            aria-label="Ångra senaste"
+          >
+            ↶ Ångra
           </button>
           <button className="primary" onClick={() => setPlaceProfile(null)}>
             Klar
@@ -709,7 +791,13 @@ export function Viewport({
       onPointerMissed={(e) => {
         // The move gizmo isn't a raycast target, so a drag on it ends in a "missed" click
         const st = useStore.getState()
-        if (e.type === 'click' && Date.now() - lastDrag.current > 200 && !st.measureMode && !st.placeProfile) clearSelection()
+        // Placing: a tap in the air next to a board still goes on the board
+        if (st.placeProfile && e.type === 'click') {
+          const near = fuzzyPickRef.current?.(e.clientX, e.clientY, FUZZY_PX)
+          if (near) st.placeTap(near)
+          return
+        }
+        if (e.type === 'click' && Date.now() - lastDrag.current > 200 && !st.measureMode) clearSelection()
       }}
     >
       <Scene lastDrag={lastDrag} capturing={capturing} />

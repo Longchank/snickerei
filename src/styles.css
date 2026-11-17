@@ -1198,3 +1198,10 @@ button.primary {
   top: auto;
   bottom: calc(92px + env(safe-area-inset-bottom));
 }
+
+.place-cycle {
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  padding: 7px 12px;
+}

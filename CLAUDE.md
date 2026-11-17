@@ -125,8 +125,13 @@ comments in English).
   lower side, filling up to the nearest part ahead. End face → turns 90°
   towards the centroid of the other parts and spans the parts in its way.
   Floor taps within a zoom-scaled margin of a part on the floor count as a
-  tap on its top (`floorTapTarget`). Move arrows are hidden while placing;
-  the Del tab doesn't auto-open.
+  tap on its top (`floorTapTarget`). Missed taps (floor or air) cast rays
+  in rings up to 36 px (touch) around the tap (`fuzzyPickRef`); a hit there
+  is a "missed" tap, for which standing on top comes first.
+  `placementOptions` lists the alternatives (tapped direction, up, other
+  sides, other rail directions); "⟳ Annan riktning" cycles them without an
+  undo step, so "↶ Ångra" in the banner removes the board in one go. Move
+  arrows are hidden while placing; the Del tab doesn't auto-open.
 - Position fields show the selection's bounding-box min corner, not the
   part's internal origin.
 - Snapping (`src/lib/snap.ts`, toggles in `settings.snapTypes`):

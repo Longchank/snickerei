@@ -6,7 +6,7 @@ import { partBox, rotatePart } from './geometry'
 import { miterCorner, ripPart } from './cuts'
 import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, toLocalBox, trimAgainst, unionBox } from './joints'
 import { mergePrices, supplierEntries } from './prices'
-import { describePlacement, floorTapTarget, placeOnFloor, placeOnPart } from './place'
+import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, type Placement } from './place'
 import { DEFAULT_SNAP_TYPES } from './snap'
 import type {
   EndCut,
@@ -40,6 +40,8 @@ interface State {
   placeProfile: string | null
   /** What the last placement did, for the banner */
   placeNote: string | null
+  /** Other ways the last placed board could go, to cycle through */
+  placeChoice: { partId: string; options: Placement[]; index: number } | null
   /** First point of a measurement in progress */
   pendingPoint: MeasurePoint | null
   /** Snap alternatives for the most recent tap, which the user can cycle through */
@@ -70,7 +72,11 @@ interface State {
   setPlaceProfile: (profileId: string | null) => void
   /** A tap while placing: on a part's face (with outward normal) or the floor */
   /** `margin`: how far (mm) from a part a floor tap still counts as a tap on it */
-  placeTap: (target: { partId: string; hit: Vec3; normal: Vec3 } | { floor: Vec3; margin?: number }) => void
+  placeTap: (
+    target: { partId: string; hit: Vec3; normal: Vec3; missed?: boolean } | { floor: Vec3; margin?: number },
+  ) => void
+  /** Put the last placed board the next way instead */
+  cyclePlacement: () => void
   /** A tap in measuring mode: first tap starts, second finishes a measurement.
    * `options` are the snap alternatives for this tap, best (= p) first. */
   measureTap: (p: MeasurePoint, options?: MeasurePoint[]) => void
@@ -211,6 +217,7 @@ export const useStore = create<State>()(
         measureMode: false,
         placeProfile: null,
         placeNote: null,
+        placeChoice: null,
         pendingPoint: null,
         snapChoice: null,
         measureHover: null,
@@ -256,32 +263,49 @@ export const useStore = create<State>()(
           set({
             placeProfile,
             placeNote: null,
+            placeChoice: null,
             ...(placeProfile ? { measureMode: false, pendingPoint: null, snapChoice: null, multiSelect: false } : {}),
           }),
         placeTap: (target) => {
           const profileId = get().placeProfile
           if (!profileId) return
           const parts = get().project.parts
-          let placement
+          let options: Placement[]
           if ('floor' in target) {
             // A near miss next to a part on the floor goes on that part
             const near = floorTapTarget(target.floor, parts, target.margin)
-            placement = near
-              ? placeOnPart(profileId, near.part, near.hit, [0, 1, 0], parts)
-              : placeOnFloor(profileId, target.floor)
+            options = near
+              ? placementOptions(profileId, near.part, near.hit, [0, 1, 0], parts)
+              : [placeOnFloor(profileId, target.floor)]
           } else {
             const on = parts.find((p) => p.id === target.partId)
             if (!on) return
-            placement = placeOnPart(profileId, on, target.hit, target.normal, parts)
+            options = placementOptions(profileId, on, target.hit, target.normal, parts, target.missed)
           }
           const prof = getProfile(profileId)
           const part: Part = {
-            ...placement.part,
+            ...options[0].part,
             id: uid(),
             name: `${prof.name} #${parts.filter((p) => p.profileId === profileId).length + 1}`,
           }
           editParts((ps) => [...ps, part], [part.id])
-          set({ placeNote: describePlacement(placement) })
+          set({ placeNote: describePlacement(options[0]), placeChoice: { partId: part.id, options, index: 0 } })
+        },
+        cyclePlacement: () => {
+          const c = get().placeChoice
+          if (!c || c.options.length < 2) return
+          const index = (c.index + 1) % c.options.length
+          const next = c.options[index]
+          // Replaces the placement itself (no undo step of its own), so one
+          // Ångra still removes the board
+          set((s) => ({
+            project: {
+              ...s.project,
+              parts: s.project.parts.map((p) => (p.id === c.partId ? { ...p, ...next.part } : p)),
+            },
+            placeChoice: { ...c, index },
+            placeNote: describePlacement(next),
+          }))
         },
         setMeasureMode: (on) =>
           set({

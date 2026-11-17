@@ -96,7 +96,15 @@ function ahead(others: Part[], axis: Axis, sign: 1 | -1, start: number, footprin
  * - Tapping an end face: the new board turns 90° and runs towards the rest of
  *   the model (a top rail on a post), spanning the parts in its way.
  */
-export function placeOnPart(profileId: string, target: Part, hit: Vec3, normal: Vec3, parts: Part[]): Placement {
+export function placeOnPart(
+  profileId: string,
+  target: Part,
+  hit: Vec3,
+  normal: Vec3,
+  parts: Part[],
+  /** End-face taps: run this way instead of towards the rest of the model */
+  forceDir?: { axis: Axis; sign: 1 | -1 },
+): Placement {
   const others = parts.filter((p) => p.id !== target.id)
   const tBox = toAxisBox(partBox(target))
   const n = normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs))) as Axis
@@ -157,7 +165,10 @@ export function placeOnPart(profileId: string, target: Part, hit: Vec3, normal: 
     const tC = centre(tBox)
     let dir: Axis = tWidth !== n ? tWidth : candidates[0]
     let dSign: 1 | -1 = 1
-    if (others.length) {
+    if (forceDir) {
+      dir = forceDir.axis
+      dSign = forceDir.sign
+    } else if (others.length) {
       const boxes = others.map((p) => centre(toAxisBox(partBox(p))))
       const avg = [0, 1, 2].map((i) => boxes.reduce((s, c) => s + c[i], 0) / boxes.length)
       const best = candidates.reduce((m, a) => (Math.abs(avg[a] - tC[a]) > Math.abs(avg[m] - tC[m]) ? a : m))
@@ -214,6 +225,51 @@ export function floorTapTarget(hit: Vec3, parts: Part[], margin = 60): { part: P
     best = { part, hit: [x, b.max[1], z], d }
   }
   return best ? { part: best.part, hit: best.hit } : null
+}
+
+/**
+ * All sensible ways to place a board from one tap, best first: as tapped,
+ * then the other directions — so the user can cycle when the guess is wrong.
+ * `missed`: the tap only came near the target (a slightly missed tap), so
+ * standing on top of it is the likeliest intent.
+ */
+export function placementOptions(
+  profileId: string,
+  target: Part,
+  hit: Vec3,
+  normal: Vec3,
+  parts: Part[],
+  missed = false,
+): Placement[] {
+  const tBox = toAxisBox(partBox(target))
+  const tLength = worldAxisOf(target.rotation, 0)
+  const n = normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs))) as Axis
+  const out: Placement[] = []
+  const add = (p: Placement) => {
+    const key = JSON.stringify([p.part.position, p.part.rotation, p.part.length])
+    if (!out.some((o) => JSON.stringify([o.part.position, o.part.rotation, o.part.length]) === key)) out.push(p)
+  }
+  /** The tap moved onto another face of the target, keeping its spot along the length */
+  const onFace = (axis: Axis, sign: 1 | -1): [Vec3, Vec3] => {
+    const h = [...hit] as Vec3
+    h[axis] = sign > 0 ? tBox.max[axis] : tBox.min[axis]
+    const nn: Vec3 = [0, 0, 0]
+    nn[axis] = sign
+    return [h, nn]
+  }
+  const sides: [Axis, 1 | -1][] = []
+  for (const a of AXES) if (a !== tLength) sides.push([a, 1], [a, -1])
+  // Up first among the alternatives: posts are the commonest case
+  sides.sort(([a, s], [b, t]) => Number(b === 1 && t === 1) - Number(a === 1 && s === 1))
+
+  if (missed && n !== tLength && tLength !== 1) add(placeOnPart(profileId, target, ...onFace(1, 1), parts))
+  add(placeOnPart(profileId, target, hit, normal, parts))
+  if (n === tLength) {
+    // End face: the other ways a rail could run from here
+    for (const a of AXES) if (a !== n) for (const sg of [1, -1] as const) add(placeOnPart(profileId, target, hit, normal, parts, { axis: a, sign: sg }))
+  }
+  for (const [a, sg] of sides) add(placeOnPart(profileId, target, ...onFace(a, sg), parts))
+  return out
 }
 
 /** Place a new board flat on the floor where it was tapped. */
