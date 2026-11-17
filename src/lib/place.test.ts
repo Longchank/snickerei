@@ -1,0 +1,94 @@
+import { describe, expect, it } from 'vitest'
+import { partBox, toAxisBox } from './geometry'
+import { describePlacement, floorTapTarget, placeOnFloor, placeOnPart, rotationFor } from './place'
+import type { Part, Vec3 } from './types'
+
+let n = 0
+const make = (p: Omit<Part, 'id' | 'name'>, name?: string): Part => {
+  const id = `p${n++}`
+  return { ...p, id, name: name ?? id }
+}
+const box = (p: Omit<Part, 'id' | 'name'>) => toAxisBox(partBox({ ...p, id: '', name: '' }))
+
+// A sill: 45x95 lying flat along X, x 0..1200, y 0..45, z 0..95
+const sill = make({ profileId: 'konstruktion-45x95', length: 1200, position: [0, 0, 0], rotation: [0, 0, 0] }, 'Syll')
+const UP: Vec3 = [0, 1, 0]
+
+describe('rotationFor', () => {
+  it('finds a rotation for every length/width axis pair', () => {
+    for (const l of [0, 1, 2] as const)
+      for (const w of [0, 1, 2] as const) {
+        if (l === w) continue
+        const r = rotationFor(l, w)
+        const b = box({ profileId: 'konstruktion-45x95', length: 1000, position: [0, 0, 0], rotation: r })
+        const size = [0, 1, 2].map((i) => b.max[i] - b.min[i])
+        expect(size[l]).toBe(1000)
+        expect(size[w]).toBe(95)
+      }
+  })
+})
+
+describe('placeOnPart: on a side face', () => {
+  it('stands a post at the end of the sill, flush with its end', () => {
+    const p = placeOnPart('konstruktion-45x95', sill, [1150, 45, 40], UP, [sill])
+    expect(p.anchor).toBe('end')
+    const b = box(p.part)
+    expect(b.min).toEqual([1155, 45, 0])
+    expect(b.max).toEqual([1200, 1045, 95])
+  })
+
+  it('stands one at the start and one in the middle', () => {
+    expect(box(placeOnPart('konstruktion-45x95', sill, [40, 45, 40], UP, [sill]).part).min).toEqual([0, 45, 0])
+    const mid = placeOnPart('konstruktion-45x95', sill, [610, 45, 40], UP, [sill])
+    expect(mid.anchor).toBe('mid')
+    expect(box(mid.part).min[0]).toBe(577.5)
+  })
+
+  it('places exactly where tapped between the snap zones', () => {
+    const p = placeOnPart('konstruktion-45x95', sill, [400, 45, 40], UP, [sill])
+    expect(p.anchor).toBe('free')
+    expect(box(p.part).min[0]).toBe(377.5)
+  })
+
+  it('fills up to a top rail above', () => {
+    const rail = make({ profileId: 'konstruktion-45x95', length: 1200, position: [0, 800, 0], rotation: [0, 0, 0] }, 'Överliggare')
+    const p = placeOnPart('konstruktion-45x95', sill, [1150, 45, 40], UP, [sill, rail])
+    expect(p.part.length).toBe(755)
+    expect(describePlacement(p)).toBe('Vid änden · 755 mm, fyller upp till Överliggare')
+  })
+})
+
+describe('placeOnPart: on an end face', () => {
+  it('runs a top rail from one post across to the other', () => {
+    // Two posts standing on the sill's ends, 1000 tall
+    const post = (x: number) => placeOnPart('konstruktion-45x95', sill, [x, 45, 40], UP, [sill]).part
+    const left = make(post(40), 'Stolpe 1')
+    const right = make(post(1160), 'Stolpe 2')
+    const parts = [sill, left, right]
+    // Tap the top end of the left post
+    const p = placeOnPart('konstruktion-45x95', left, [20, 1045, 40], UP, parts)
+    const b = box(p.part)
+    expect(b.min).toEqual([0, 1045, 0])
+    expect(b.max).toEqual([1200, 1090, 95])
+    expect(p.lengthReason).toBe('span')
+    expect(p.lengthFrom).toBe('Stolpe 2')
+  })
+})
+
+describe('placeOnFloor', () => {
+  it('lays the board flat at the tapped spot', () => {
+    expect(box(placeOnFloor('konstruktion-45x70', [512, 0, 303]).part).min).toEqual([510, 0, 305])
+  })
+})
+
+describe('floorTapTarget', () => {
+  it('treats a floor tap just beside a part on the floor as a tap on its top', () => {
+    const t = floorTapTarget([600, 0, 130], [sill])
+    expect(t?.part.id).toBe(sill.id)
+    expect(t?.hit).toEqual([600, 45, 95])
+  })
+
+  it('leaves clear floor alone', () => {
+    expect(floorTapTarget([600, 0, 400], [sill])).toBeNull()
+  })
+})

@@ -116,6 +116,17 @@ comments in English).
   so opening/closing never resizes the view. "Visa hela modellen" fits the
   model into the visible gap between them (reads their screen rects). The
   axes widget sits top-left on touch screens.
+- Placing by tapping (`src/lib/place.ts`, owner request 2026-11-17: "easy
+  to add lumber to placed lumber, mostly at the ends or centre, to build a
+  frame"): with parts in the model, a catalog button arms
+  `placeProfile`; each tap places one board until "Klar". Side face → the
+  new board stands out along the normal, snapped to the target's
+  start/centre/end (outer 25 % / middle 25 %), flush with the target's
+  lower side, filling up to the nearest part ahead. End face → turns 90°
+  towards the centroid of the other parts and spans the parts in its way.
+  Floor taps within a zoom-scaled margin of a part on the floor count as a
+  tap on its top (`floorTapTarget`). Move arrows are hidden while placing;
+  the Del tab doesn't auto-open.
 - Position fields show the selection's bounding-box min corner, not the
   part's internal origin.
 - Snapping (`src/lib/snap.ts`, toggles in `settings.snapTypes`):

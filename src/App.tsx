@@ -53,6 +53,11 @@ export function App() {
   // Selecting or adding a part shows its properties
   // (except while picking several parts, so the list stays open)
   const measureMode = useStore((s) => s.measureMode)
+  const placing = useStore((s) => s.placeProfile !== null)
+  // Placing boards: get the panel out of the way so the model can be tapped
+  useEffect(() => {
+    if (placing && mobile) setSheetOpen(false)
+  }, [placing, mobile])
   useEffect(() => {
     if (measureMode) {
       setTab('del')
@@ -60,7 +65,9 @@ export function App() {
     }
   }, [measureMode])
   useEffect(() => {
-    if (hasSelection && !useStore.getState().multiSelect) {
+    const st = useStore.getState()
+    // Not while picking several parts or placing boards: keep the view clear
+    if (hasSelection && !st.multiSelect && !st.placeProfile) {
       setTab('del')
       setSheetOpen(true)
     }

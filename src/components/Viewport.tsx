@@ -120,6 +120,8 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
   const multiSelect = useStore((s) => s.multiSelect)
   const measureMode = useStore((s) => s.measureMode)
   const measureTap = useStore((s) => s.measureTap)
+  const placing = useStore((s) => s.placeProfile !== null)
+  const placeTap = useStore((s) => s.placeTap)
   const snapTypes = useStore((s) => s.settings.snapTypes)
   const setHover = useStore((s) => s.setMeasureHover)
   const camera = useThree((s) => s.camera)
@@ -167,6 +169,12 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         receiveShadow
         onClick={(e) => {
           e.stopPropagation()
+          if (placing) {
+            if (!e.face) return
+            const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
+            placeTap({ partId: part.id, hit: e.point.toArray() as Vec3, normal: n.toArray() as Vec3 })
+            return
+          }
           if (measureMode) {
             const options = snapOptions(e)
             if (options.length) measureTap(options[0], options)
@@ -345,6 +353,8 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   )
   const measureMode = useStore((s) => s.measureMode)
   const measureTap = useStore((s) => s.measureTap)
+  const placing = useStore((s) => s.placeProfile !== null)
+  const placeTap = useStore((s) => s.placeTap)
   const pendingPoint = useStore((s) => s.pendingPoint)
   const measureHover = useStore((s) => s.measureHover)
   const snapTypes = useStore((s) => s.settings.snapTypes)
@@ -471,7 +481,8 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       {!capturing && !delta && overlaps.map((b, i) => <OverlapBox key={i} box={b} />)}
 
       <primitive object={pivot} />
-      {selBox && (
+      {/* No move arrows while placing boards: they'd sit right where you tap */}
+      {selBox && !placing && (
         <TransformControls
           ref={tc as never}
           object={pivot}
@@ -528,12 +539,20 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         receiveShadow
         // Only a click target while measuring, so a tap on empty floor still deselects otherwise
         onClick={
-          measureMode
+          placing
             ? (e) => {
                 e.stopPropagation()
-                measureTap(pickPoint([e.point.x, 0, e.point.z], [0, 1, 0], true))
+                // A near miss next to a board counts as a tap on it; "near"
+                // grows with zoom so it's about a fingertip on screen
+                const dist = controls ? controls.target.distanceTo(camera.position) : 3000
+                placeTap({ floor: [e.point.x, 0, e.point.z], margin: Math.min(300, Math.max(40, dist * (isTouch ? 0.06 : 0.03))) })
               }
-            : undefined
+            : measureMode
+              ? (e) => {
+                  e.stopPropagation()
+                  measureTap(pickPoint([e.point.x, 0, e.point.z], [0, 1, 0], true))
+                }
+              : undefined
         }
       >
         <planeGeometry args={[40000, 40000]} />
@@ -557,6 +576,35 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         </GizmoHelper>
       )}
     </>
+  )
+}
+
+/** Placing boards: what to do, what the last tap did, and how to stop. */
+function PlaceBanner({ profileId }: { profileId: string }) {
+  const note = useStore((s) => s.placeNote)
+  const setPlaceProfile = useStore((s) => s.setPlaceProfile)
+  const addPart = useStore((s) => s.addPart)
+  const prof = getProfile(profileId)
+  return (
+    <div className="measure-top place-top">
+      <div className="place-banner" role="status">
+        <strong>Placera {prof.kind === 'sheet' ? prof.name : prof.name}</strong>
+        <span>{note ?? 'Tryck på en bräda – vid början, mitten eller änden – eller på golvet'}</span>
+        <div className="place-actions">
+          <button
+            onClick={() => {
+              addPart(profileId)
+              setPlaceProfile(null)
+            }}
+          >
+            Lägg till fritt
+          </button>
+          <button className="primary" onClick={() => setPlaceProfile(null)}>
+            Klar
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -601,6 +649,7 @@ export function Viewport({
   const measureMode = useStore((s) => s.measureMode)
   const setMeasureMode = useStore((s) => s.setMeasureMode)
   const pending = useStore((s) => s.pendingPoint !== null)
+  const placeProfile = useStore((s) => s.placeProfile)
   const snapChoice = useStore((s) => s.snapChoice)
   const cycleSnap = useStore((s) => s.cycleSnap)
   const count = useStore((s) => s.selection.length)
@@ -639,6 +688,7 @@ export function Viewport({
         📏 Mät
       </button>
     </div>
+    {placeProfile && <PlaceBanner profileId={placeProfile} />}
     {measureMode && (
       <div className="measure-top">
         <div className="measure-hint" role="status">
@@ -658,7 +708,8 @@ export function Viewport({
       camera={{ position: [2500, 1800, 3000], fov: 45, near: 30, far: 60000 }}
       onPointerMissed={(e) => {
         // The move gizmo isn't a raycast target, so a drag on it ends in a "missed" click
-        if (e.type === 'click' && Date.now() - lastDrag.current > 200 && !useStore.getState().measureMode) clearSelection()
+        const st = useStore.getState()
+        if (e.type === 'click' && Date.now() - lastDrag.current > 200 && !st.measureMode && !st.placeProfile) clearSelection()
       }}
     >
       <Scene lastDrag={lastDrag} capturing={capturing} />

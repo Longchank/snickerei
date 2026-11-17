@@ -6,6 +6,7 @@ import { partBox, rotatePart } from './geometry'
 import { miterCorner, ripPart } from './cuts'
 import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, toLocalBox, trimAgainst, unionBox } from './joints'
 import { mergePrices, supplierEntries } from './prices'
+import { describePlacement, floorTapTarget, placeOnFloor, placeOnPart } from './place'
 import { DEFAULT_SNAP_TYPES } from './snap'
 import type {
   EndCut,
@@ -35,6 +36,10 @@ interface State {
   multiSelect: boolean
   /** Measuring tool on: taps pick points instead of selecting */
   measureMode: boolean
+  /** Placing boards of this profile: taps on the model place one each */
+  placeProfile: string | null
+  /** What the last placement did, for the banner */
+  placeNote: string | null
   /** First point of a measurement in progress */
   pendingPoint: MeasurePoint | null
   /** Snap alternatives for the most recent tap, which the user can cycle through */
@@ -62,6 +67,10 @@ interface State {
   clearSelection: () => void
   setMultiSelect: (on: boolean) => void
   setMeasureMode: (on: boolean) => void
+  setPlaceProfile: (profileId: string | null) => void
+  /** A tap while placing: on a part's face (with outward normal) or the floor */
+  /** `margin`: how far (mm) from a part a floor tap still counts as a tap on it */
+  placeTap: (target: { partId: string; hit: Vec3; normal: Vec3 } | { floor: Vec3; margin?: number }) => void
   /** A tap in measuring mode: first tap starts, second finishes a measurement.
    * `options` are the snap alternatives for this tap, best (= p) first. */
   measureTap: (p: MeasurePoint, options?: MeasurePoint[]) => void
@@ -200,6 +209,8 @@ export const useStore = create<State>()(
         pickCount: 0,
         multiSelect: false,
         measureMode: false,
+        placeProfile: null,
+        placeNote: null,
         pendingPoint: null,
         snapChoice: null,
         measureHover: null,
@@ -241,8 +252,40 @@ export const useStore = create<State>()(
         select: (selection) => set((s) => ({ selection, pickCount: s.pickCount + 1 })),
         clearSelection: () => set({ selection: [] }),
         setMultiSelect: (multiSelect) => set({ multiSelect, ...(multiSelect ? { measureMode: false, pendingPoint: null } : {}) }),
+        setPlaceProfile: (placeProfile) =>
+          set({
+            placeProfile,
+            placeNote: null,
+            ...(placeProfile ? { measureMode: false, pendingPoint: null, snapChoice: null, multiSelect: false } : {}),
+          }),
+        placeTap: (target) => {
+          const profileId = get().placeProfile
+          if (!profileId) return
+          const parts = get().project.parts
+          let placement
+          if ('floor' in target) {
+            // A near miss next to a part on the floor goes on that part
+            const near = floorTapTarget(target.floor, parts, target.margin)
+            placement = near
+              ? placeOnPart(profileId, near.part, near.hit, [0, 1, 0], parts)
+              : placeOnFloor(profileId, target.floor)
+          } else {
+            const on = parts.find((p) => p.id === target.partId)
+            if (!on) return
+            placement = placeOnPart(profileId, on, target.hit, target.normal, parts)
+          }
+          const prof = getProfile(profileId)
+          const part: Part = {
+            ...placement.part,
+            id: uid(),
+            name: `${prof.name} #${parts.filter((p) => p.profileId === profileId).length + 1}`,
+          }
+          editParts((ps) => [...ps, part], [part.id])
+          set({ placeNote: describePlacement(placement) })
+        },
         setMeasureMode: (on) =>
           set({
+            placeProfile: null,
             measureMode: on,
             pendingPoint: null,
             snapChoice: null,

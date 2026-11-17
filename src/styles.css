@@ -1150,3 +1150,51 @@ button.link.inline {
 .app.mobile.immersive .measure-top {
   top: calc(10px + env(safe-area-inset-top));
 }
+
+/* Placing boards */
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.place-banner {
+  background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  max-width: min(92vw, 420px);
+  text-align: center;
+}
+.place-banner span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.place-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 2px;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.app.mobile .place-top {
+  left: 8px;
+  right: 8px;
+  transform: none;
+}
+.app.mobile .place-banner {
+  max-width: none;
+}
+.app.mobile .place-top {
+  top: auto;
+  bottom: calc(92px + env(safe-area-inset-bottom));
+}

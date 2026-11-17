@@ -8,12 +8,25 @@ const BOARD_CATEGORIES = (Object.keys(CATEGORY_NAMES) as ProfileCategory[]).filt
 
 function Category({ cat }: { cat: ProfileCategory }) {
   const addPart = useStore((s) => s.addPart)
+  const hasParts = useStore((s) => s.project.parts.length > 0)
+  const placeProfile = useStore((s) => s.placeProfile)
+  const setPlaceProfile = useStore((s) => s.setPlaceProfile)
+  // With parts in the model, choosing a board starts placing it by tapping;
+  // the very first board just goes in
+  const choose = (id: string) =>
+    !hasParts ? addPart(id) : setPlaceProfile(placeProfile === id ? null : id)
   return (
     <section>
       <h3>{CATEGORY_NAMES[cat]}</h3>
       <div className="chips">
         {PROFILES.filter((p) => p.category === cat).map((p) => (
-          <button key={p.id} className="chip" onClick={() => addPart(p.id)} title={`Lägg till ${p.name}`}>
+          <button
+            key={p.id}
+            className={`chip ${placeProfile === p.id ? 'on' : ''}`}
+            aria-pressed={placeProfile === p.id}
+            onClick={() => choose(p.id)}
+            title={`Lägg till ${p.name}`}
+          >
             <span className="swatch" style={{ background: p.color }} />
             {shortName(p)}
           </button>
@@ -27,7 +40,10 @@ export function Catalog() {
   return (
     <div className="catalog">
       <h2>Virke</h2>
-      <p className="hint">Tvärsnittet är låst — bara längden kan ändras.</p>
+      <p className="hint">
+        Välj en bräda och tryck sedan där den ska sitta på modellen — vid början, mitten eller änden av en annan bräda,
+        eller på golvet. Tvärsnittet är låst — bara längden kan ändras.
+      </p>
       {BOARD_CATEGORIES.map((cat) => (
         <Category key={cat} cat={cat} />
       ))}

@@ -3,7 +3,7 @@
 En webblösning som skapar 3D-modeller och såglistor, samt har inbyggd prislista.
 Byggd för hobbysnickare.
 
-## Vad finns nu (v0.8)
+## Vad finns nu (v0.9)
 
 Byggd för mobilen först — fungerar även på dator.
 
@@ -11,6 +11,11 @@ Byggd för mobilen först — fungerar även på dator.
   - **Virke** (konstruktionsvirke, hyvlat, tryckimpregnerat, läkt): en 45x70
     är alltid 45x70, bara längden kan ändras.
   - **Skivor** (plywood, MDF, OSB): tjockleken är låst, längd och bredd är fria.
+- **Placera genom att trycka**: välj en bräda och tryck där den ska sitta.
+  På en brädas sida ställs den nya rakt ut (som en stolpe) och fäster vid
+  början, mitten eller änden; på en brädas ände vrids den 90° (som en
+  överliggare). Längden anpassas: en stolpe fyller upp till delen ovanför,
+  en överliggare spänner över stolparna. En ram tar fem tryck.
 - Flytta med pilarna i 3D-vyn eller med −/+-knappar. Delar **fäster mot
   varandra** (kant mot kant, i liv) och mot ett rutnät på 1–100 mm.
 - **Mått i 3D-vyn** för markerad del, eller totalmått när inget är markerat.
