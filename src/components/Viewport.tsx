@@ -25,8 +25,11 @@ import { chooseSnaps, pointCandidates, SNAP_LABEL, snapMove, type SnapGuide } fr
 import { useStore, type SnapChoice } from '../lib/store'
 import type { MeasurePoint, Measurement, Part, SnapKind, Vec3 } from '../lib/types'
 
-/** The WebGL canvas, for snapshots in the printout. */
-export const canvasRef: { current: HTMLCanvasElement | null } = { current: null }
+/**
+ * Takes a picture of the 3D view for the printout. The view is only drawn on
+ * demand, so this draws a frame and reads it straight away.
+ */
+export const snapshotRef: { current: (() => string) | null } = { current: null }
 
 const FIT_EVENT = 'snickerei:fit'
 /** Move the camera so the whole model is in view. */
@@ -308,6 +311,14 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const moveSelection = useStore((s) => s.moveSelection)
   const camera = useThree((s) => s.camera)
   const controls = useThree((s) => s.controls) as unknown as { target: Vector3; update: () => void } | null
+  const gl = useThree((s) => s.gl)
+  const scene = useThree((s) => s.scene)
+  useEffect(() => {
+    snapshotRef.current = () => {
+      gl.render(scene, camera)
+      return gl.domElement.toDataURL('image/png')
+    }
+  }, [gl, scene, camera])
 
   const groups = useRef(new Map<string, Group>())
   const register = useCallback<Register>((id, g) => {
@@ -417,7 +428,13 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     <>
       <color attach="background" args={['#eef1f4']} />
       <ambientLight intensity={0.6} />
-      <directionalLight position={[3000, 6000, 4000]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}>
+      <directionalLight
+        position={[3000, 6000, 4000]}
+        intensity={1.6}
+        castShadow
+        // Smaller shadow map on phones: much cheaper, hardly visible
+        shadow-mapSize={isTouch ? [1024, 1024] : [2048, 2048]}
+      >
         <orthographicCamera attach="shadow-camera" args={[-5000, 5000, 5000, -5000, 10, 20000]} />
       </directionalLight>
 
@@ -455,18 +472,24 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         <Line key={i} points={[g.from, g.to]} color={g.kind === 'center' ? '#db2777' : '#0891b2'} lineWidth={2} dashed dashSize={20} gapSize={12} depthTest={false} />
       ))}
 
+      {/* Grid and shadow floor sit clearly apart (and just below the parts) so
+          they don't flicker against each other at a distance */}
       <Grid
+        position={[0, -1, 0]}
         args={[20000, 20000]}
         cellSize={100}
+        cellThickness={0.6}
         sectionSize={1000}
-        cellColor="#c9ced6"
+        sectionThickness={1.1}
+        cellColor="#d3d8df"
         sectionColor="#8f98a6"
-        fadeDistance={15000}
+        fadeDistance={9000}
+        fadeStrength={1.2}
         infiniteGrid
       />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.5, 0]}
+        position={[0, -6, 0]}
         receiveShadow
         // Only a click target while measuring, so a tap on empty floor still deselects otherwise
         onClick={
@@ -482,7 +505,16 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         <shadowMaterial opacity={0.15} />
       </mesh>
 
-      <OrbitControls makeDefault target={[500, 300, 0]} />
+      <OrbitControls
+        makeDefault
+        target={[500, 300, 0]}
+        // Calmer on touch screens; a short glide after letting go
+        rotateSpeed={isTouch ? 0.55 : 0.9}
+        zoomSpeed={0.9}
+        panSpeed={0.8}
+        enableDamping
+        dampingFactor={0.15}
+      />
       {!capturing && (
         <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
           <GizmoViewport labelColor="white" axisHeadScale={0.9} />
@@ -518,7 +550,15 @@ function SnapChip({ choice, onCycle }: { choice: SnapChoice; onCycle: () => void
   )
 }
 
-export function Viewport({ capturing = false }: { capturing?: boolean }) {
+export function Viewport({
+  capturing = false,
+  immersive = false,
+  onImmersive,
+}: {
+  capturing?: boolean
+  immersive?: boolean
+  onImmersive?: (on: boolean) => void
+}) {
   const clearSelection = useStore((s) => s.clearSelection)
   const multiSelect = useStore((s) => s.multiSelect)
   const setMultiSelect = useStore((s) => s.setMultiSelect)
@@ -532,10 +572,20 @@ export function Viewport({ capturing = false }: { capturing?: boolean }) {
 
   return (
     <>
+    {immersive && (
+      <button className="show-menus" onClick={() => onImmersive?.(false)}>
+        ☰ Visa menyer
+      </button>
+    )}
     <div className="view-buttons">
       <button className="icon" onClick={fitView} title="Visa hela modellen" aria-label="Visa hela modellen">
         ⤢
       </button>
+      {onImmersive && !immersive && (
+        <button className="icon" onClick={() => onImmersive(true)} title="Dölj menyerna" aria-label="Dölj menyerna">
+          ⛶
+        </button>
+      )}
       <button
         className={`multi-toggle ${multiSelect ? 'on' : ''}`}
         aria-pressed={multiSelect}
@@ -563,9 +613,13 @@ export function Viewport({ capturing = false }: { capturing?: boolean }) {
     )}
     <Canvas
       shadows
-      gl={{ preserveDrawingBuffer: true }}
-      camera={{ position: [2500, 1800, 3000], fov: 45, near: 10, far: 100000 }}
-      onCreated={({ gl }) => (canvasRef.current = gl.domElement)}
+      // Only draw when something changes, not 60 times a second — saves the
+      // phone's battery and keeps it responsive
+      frameloop="demand"
+      // Phones have 3x screens; 1.5x looks the same here and is far cheaper
+      dpr={isTouch ? [1, 1.5] : [1, 2]}
+      // A larger near plane gives better depth precision (less flicker)
+      camera={{ position: [2500, 1800, 3000], fov: 45, near: 30, far: 60000 }}
       onPointerMissed={(e) => {
         // The move gizmo isn't a raycast target, so a drag on it ends in a "missed" click
         if (e.type === 'click' && Date.now() - lastDrag.current > 200 && !useStore.getState().measureMode) clearSelection()

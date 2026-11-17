@@ -29,6 +29,8 @@ interface State {
   project: Project
   /** Selected part ids */
   selection: string[]
+  /** Bumped on every pick (even of the same part), so the UI can react to it */
+  pickCount: number
   /** Phone: taps add to / remove from the selection instead of replacing it */
   multiSelect: boolean
   /** Measuring tool on: taps pick points instead of selecting */
@@ -154,6 +156,8 @@ export const useStore = create<State>()(
             past: [...s.past, before].slice(-HISTORY_LIMIT),
             future: [],
             ...(selection !== undefined ? { selection } : {}),
+            // Adding/duplicating selects the new parts: that's a pick too
+            ...(selection?.length ? { pickCount: s.pickCount + 1 } : {}),
           }
         })
       const editParts = (fn: (parts: Part[]) => Part[], selection?: string[]) =>
@@ -193,6 +197,7 @@ export const useStore = create<State>()(
       return {
         project: emptyProject(),
         selection: [],
+        pickCount: 0,
         multiSelect: false,
         measureMode: false,
         pendingPoint: null,
@@ -227,13 +232,13 @@ export const useStore = create<State>()(
 
         tapPart: (id, additive = get().multiSelect) => {
           const ids = groupMembers(id)
-          if (!additive) return set({ selection: ids })
+          if (!additive) return set((s) => ({ selection: ids, pickCount: s.pickCount + 1 }))
           const current = new Set(get().selection)
           const allIn = ids.every((x) => current.has(x))
           ids.forEach((x) => (allIn ? current.delete(x) : current.add(x)))
-          set({ selection: [...current] })
+          set((s) => ({ selection: [...current], pickCount: s.pickCount + 1 }))
         },
-        select: (selection) => set({ selection }),
+        select: (selection) => set((s) => ({ selection, pickCount: s.pickCount + 1 })),
         clearSelection: () => set({ selection: [] }),
         setMultiSelect: (multiSelect) => set({ multiSelect, ...(multiSelect ? { measureMode: false, pendingPoint: null } : {}) }),
         setMeasureMode: (on) =>

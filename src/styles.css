@@ -1055,3 +1055,40 @@ button.link.inline {
 .source-note {
   margin: 4px 0 10px;
 }
+
+/* Grab bar on the phone's bottom panel */
+.sheet-handle {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 6px;
+  cursor: grab;
+  touch-action: none;
+}
+.sheet-handle span {
+  width: 44px;
+  height: 5px;
+  border-radius: 3px;
+  background: #c9ccd2;
+}
+.sheet.open .sheet-body {
+  padding-top: 2px;
+}
+
+/* Menus hidden: the 3D view fills the screen */
+.app.immersive {
+  grid-template-columns: 100% !important;
+  grid-template-rows: 1fr !important;
+  grid-template-areas: 'view' !important;
+}
+.show-menus {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  font-weight: 600;
+  padding: 8px 14px;
+}
+.mobile .show-menus {
+  padding: 11px 16px;
+}

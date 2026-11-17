@@ -124,9 +124,20 @@ comments in English).
   `translationSnap`, then `snapMove` aligns faces and centres with nearby
   parts on the dragged axes and returns guide lines. Snaps use bounding
   boxes, so notches and angled cuts are ignored.
-- Printing: `window.print()` with a print-only `PrintReport`; the 3D
-  snapshot needs `preserveDrawingBuffer` and is taken with overlays hidden
-  (drei `Html` labels are DOM, not in the canvas).
+- **Rendering is on demand** (`frameloop="demand"`, 2026-11-17, phone
+  performance): the scene only redraws on React prop changes and controls'
+  change events. Anything that mutates three.js objects outside React must
+  call `invalidate()`. Phones render at dpr ≤ 1.5 with a 1024 shadow map.
+  Camera near/far 30/60000, grid at y −1 and the shadow floor at y −6 to
+  avoid z-fighting flicker. OrbitControls tuned calmer on touch
+  (rotateSpeed 0.55, dampingFactor 0.15).
+- Printing: `window.print()` with a print-only `PrintReport`; the snapshot
+  comes from `snapshotRef` (renders a frame and reads it immediately, so no
+  `preserveDrawingBuffer`), taken with overlays hidden (drei `Html` labels
+  are DOM, not in the canvas).
+- Phone UI: grab handle on the bottom panel (tap/swipe), and a full-screen
+  mode (⛶ in the view, "Visa menyer" to return; Esc on desktop). Every pick
+  (`pickCount`) opens the Del tab, also re-picking the selected part.
 - Deploy: GitHub Pages via Actions on push to `main`; `vite base: './'`.
 
 ## Commands

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Catalog } from './components/Catalog'
 import { CutList } from './components/CutList'
 import { Inspector } from './components/Inspector'
 import { PriceList } from './components/PriceList'
 import { PrintReport } from './components/PrintReport'
 import { Toolbar } from './components/Toolbar'
-import { canvasRef, fitView, Viewport } from './components/Viewport'
+import { fitView, snapshotRef, Viewport } from './components/Viewport'
 import { loadSupplierPrices, useStore } from './lib/store'
 
 type Tab = 'lagg' | 'del' | 'lista' | 'priser'
@@ -36,8 +36,15 @@ export function App() {
   const [sheetOpen, setSheetOpen] = useState(true)
   const [snapshot, setSnapshot] = useState<string | null>(null)
   const [capturing, setCapturing] = useState(false)
-  const selection = useStore((s) => s.selection)
-  const selectionKey = selection.join(',')
+  /** Menus hidden: only the 3D view */
+  const [immersive, setImmersive] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setImmersive(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  const hasSelection = useStore((s) => s.selection.length > 0)
+  const pickCount = useStore((s) => s.pickCount)
   useKeyboardShortcuts()
   useEffect(() => {
     loadSupplierPrices()
@@ -53,11 +60,13 @@ export function App() {
     }
   }, [measureMode])
   useEffect(() => {
-    if (selectionKey && !useStore.getState().multiSelect) {
+    if (hasSelection && !useStore.getState().multiSelect) {
       setTab('del')
       setSheetOpen(true)
     }
-  }, [selectionKey])
+    // Every pick counts, also of the part that's already selected
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickCount])
 
   // 'Lägg till' lives in the left column on desktop
   const activeTab: Tab = !mobile && tab === 'lagg' ? 'del' : tab
@@ -70,7 +79,7 @@ export function App() {
     await nextFrame()
     await nextFrame()
     await nextFrame()
-    setSnapshot(canvasRef.current?.toDataURL('image/png') ?? null)
+    setSnapshot(snapshotRef.current?.() ?? null)
     setCapturing(false)
     await nextFrame()
     window.print()
@@ -87,18 +96,19 @@ export function App() {
 
   return (
     <>
-      <div className={`app ${mobile ? 'mobile' : 'desktop'}`}>
-        <Toolbar onPrint={print} />
-        {!mobile && (
+      <div className={`app ${mobile ? 'mobile' : 'desktop'}${immersive ? ' immersive' : ''}`}>
+        {!immersive && <Toolbar onPrint={print} />}
+        {!mobile && !immersive && (
           <aside className="panel left">
             <Catalog />
           </aside>
         )}
         <main className="viewport">
-          <Viewport capturing={capturing} />
+          <Viewport capturing={capturing} immersive={immersive} onImmersive={setImmersive} />
         </main>
-        {mobile ? (
+        {immersive ? null : mobile ? (
           <section className={`sheet ${sheetOpen ? 'open' : ''}`}>
+            <SheetHandle open={sheetOpen} onChange={setSheetOpen} />
             {sheetOpen && (
               <div className="sheet-body" key={activeTab}>
                 {content}
@@ -138,6 +148,35 @@ export function App() {
       </div>
       <PrintReport snapshot={snapshot} />
     </>
+  )
+}
+
+/** Grab bar on the bottom panel: tap to toggle, swipe down to hide, up to show. */
+function SheetHandle({ open, onChange }: { open: boolean; onChange: (open: boolean) => void }) {
+  const start = useRef<number | null>(null)
+  return (
+    <div
+      className="sheet-handle"
+      role="button"
+      tabIndex={0}
+      aria-label={open ? 'Dölj panelen' : 'Visa panelen'}
+      aria-expanded={open}
+      onPointerDown={(e) => {
+        start.current = e.clientY
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerUp={(e) => {
+        if (start.current === null) return
+        const dy = e.clientY - start.current
+        start.current = null
+        if (dy > 30) onChange(false)
+        else if (dy < -30) onChange(true)
+        else if (Math.abs(dy) < 10) onChange(!open)
+      }}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onChange(!open)}
+    >
+      <span />
+    </div>
   )
 }
 
