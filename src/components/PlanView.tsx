@@ -72,7 +72,8 @@ export function PriceAge({ plan }: { plan: PlanRow[] }) {
         return (
           <p key={supplier} className={stale ? 'warn' : 'price-age'}>
             Webbpriser från {supplier} hämtade {formatDate(fetchedAt)} ({formatAge(fetchedAt)}).
-            {stale ? ' Priserna kan ha ändrats — kontrollera i butiken.' : ' Priset i butik kan skilja sig.'}
+            {stale ? ' Priserna kan ha ändrats — kontrollera i butiken.' : ' Priset i butik kan skilja sig.'} Snickerei
+            har ingen koppling till {supplier}.
           </p>
         )
       })}

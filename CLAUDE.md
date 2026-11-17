@@ -22,7 +22,14 @@ comments in English).
   sizes are parsed from the name. Bauhaus has no website terms beyond
   köpvillkor/GDPR/cookies (checked 2026-11-16). Stay polite: one request at
   a time, 2 s apart, ~16 requests per run. The deploy workflow runs it on
-  every build and weekly; failure keeps the committed file.
+  every build and weekly. **The price file is not committed** (gitignored,
+  decided 2026-11-17, to avoid redistributing the data via a public repo);
+  a failed fetch publishes without shop prices. Public-facing stance: facts
+  only (name, size, price), small subset, link back, non-commercial, no
+  affiliation, stop on request (README "Om prisuppgifterna"). The legal
+  risk to watch is the EU database right / URL §49 catalogue protection
+  (repeated extraction + republication); get legal advice before any
+  commercial use. Code is MIT-licensed; the licence doesn't cover price data.
   On-demand fetching from the browser is impossible (bauhaus.se sends no
   CORS headers); the owner chose (2026-11-16) to keep the weekly fetch and
   show each price's age instead (`PriceAge`, warning after `STALE_DAYS`=14).
@@ -32,8 +39,9 @@ comments in English).
   wins) → clearly-labelled fake "Exempel" prices. Never present example
   prices as real. Supplier entries also define the stock lengths/sheet
   sizes used for the shopping list.
-- Local runs need `NODE_USE_ENV_PROXY=1 npm run prices` in the cloud
-  container (Node's fetch ignores HTTPS_PROXY otherwise).
+- Local runs need `npm run prices` once to have shop prices (in a proxied
+  cloud container: `NODE_USE_ENV_PROXY=1`, as Node's fetch ignores
+  HTTPS_PROXY otherwise).
 - Stack: React + TS + Vite, react-three-fiber/drei, Zustand (persisted to
   localStorage). No backend: supplier prices are static JSON built in CI.
 

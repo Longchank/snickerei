@@ -54,10 +54,28 @@ Byggd för mobilen först — fungerar även på dator.
 `npm run prices` hämtar Bauhaus kategorisidor för virke och skivor (16 anrop
 med 2 s paus, bara sidor som robots.txt tillåter) och sparar
 `public/prices/bauhaus.json`. Publiceringen gör detta automatiskt, och
-dessutom varje måndag. Misslyckas hämtningen används filen som ligger i repot.
+dessutom varje måndag. Prisfilen sparas inte i repot. Misslyckas hämtningen
+publiceras appen ändå; den visar då att butikspriser saknas och använder
+egna priser.
 
 Hornbach blockerar automatiska anrop (bot-skydd även på robots.txt), så
-deras priser hämtas inte.
+deras priser hämtas inte, och vi försöker inte ta oss förbi skyddet.
+
+### Om prisuppgifterna
+
+- Endast faktauppgifter hämtas: produktnamn, mått och pris. Inga bilder
+  eller texter.
+- Ett litet urval (virke och skivor), varje pris länkar tillbaka till
+  butikens produktsida.
+- Snickerei är ett fritt, icke-kommersiellt hobbyprojekt och har ingen
+  koppling till Bauhaus eller andra butiker.
+- **Företräder du en butik och vill att vi slutar hämta era priser?** Öppna
+  ett ärende (issue) i det här repot så tar vi bort er direkt.
+
+## Licens
+
+Koden är fri att använda under [MIT-licensen](LICENSE). Licensen gäller
+koden — inte prisuppgifterna, som tillhör respektive butik.
 
 ## Publicering
 
@@ -69,6 +87,7 @@ GitHub Actions bygger och publicerar till GitHub Pages vid varje push till
 
 ```bash
 npm install
+npm run prices   # hämta butikspriser (behövs en gång för priser lokalt)
 npm run dev      # utvecklingsserver
 npm test         # enhetstester
 npm run build    # produktionsbygge i dist/

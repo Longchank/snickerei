@@ -2,3 +2,6 @@ node_modules
 dist
 *.tsbuildinfo
 .DS_Store
+
+# Supplier prices are fetched during deploy, not stored in the repo
+public/prices/*.json

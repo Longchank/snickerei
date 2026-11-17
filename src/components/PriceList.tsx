@@ -45,7 +45,10 @@ export function PriceList() {
           </span>
         </label>
       ))}
-      {files.length === 0 && <p className="warn">Inga butikspriser kunde läsas in.</p>}
+      {files.length === 0 && (
+        <p className="warn">Inga butikspriser kunde läsas in just nu. Egna priser fungerar som vanligt.</p>
+      )}
+      {files.length > 0 && <SourceNote />}
       <label className="check">
         <input type="checkbox" checked={useExamplePrices} onChange={(e) => setUseExamplePrices(e.target.checked)} />
         Använd exempelpriser där riktiga priser saknas
@@ -104,6 +107,16 @@ export function PriceList() {
         )
       })}
     </div>
+  )
+}
+
+/** Where shop prices come from, and that we're not affiliated. */
+export function SourceNote() {
+  return (
+    <p className="hint small source-note">
+      Butikspriserna hämtas automatiskt från butikernas webbplatser en gång i veckan och kan skilja sig från priset i
+      butik. Snickerei är ett fritt hobbyprojekt utan koppling till butikerna. Varje pris länkar till produktsidan.
+    </p>
   )
 }
 
