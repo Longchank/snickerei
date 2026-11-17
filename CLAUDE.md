@@ -50,6 +50,10 @@ comments in English).
 - **Push directly to `main`** — no pull requests needed. Fetch first and
   only fast-forward; never force-push `main`. A push to `main` triggers the
   GitHub Pages deploy (and a price fetch).
+- **No session links in commit messages** (owner, 2026-11-17): don't add a
+  `Claude-Session:` trailer (or any claude.ai link) — the repo is going
+  public. `Co-Authored-By: Claude …` is fine. Older commits keep theirs;
+  don't rewrite history to remove them.
 
 ## Later / parked ideas
 
