@@ -23,6 +23,33 @@ body {
   margin: 0;
   background: var(--bg);
 }
+
+/* The app is a fixed, full-screen surface, not a scrolling page. This stops
+   Chrome's pull-to-refresh (and the overscroll bounce) from taking over a
+   downward drag in the 3D view and cancelling the camera rotation. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#root {
+  height: 100%;
+}
+/* The 3D view handles every touch itself (rotate, pinch, pan). A library
+   sets touch-action: auto inline on the canvas, hence !important. */
+.viewport,
+.viewport div,
+.viewport canvas {
+  touch-action: none !important;
+}
+/* Panels and menus still scroll with a finger, without dragging the page */
+.panel,
+.sheet-body,
+.menu-pop {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
 button,
 input,
 select {
@@ -647,6 +674,13 @@ td {
 @media print {
   @page {
     margin: 14mm;
+  }
+  /* The printout is a normal flowing document over several pages */
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
   }
   body {
     background: #fff;

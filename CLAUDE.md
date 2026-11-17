@@ -164,6 +164,12 @@ comments in English).
   comes from `snapshotRef` (renders a frame and reads it immediately, so no
   `preserveDrawingBuffer`), taken with overlays hidden (drei `Html` labels
   are DOM, not in the canvas).
+- **No page scrolling** (2026-11-17): html/body are `overflow: hidden;
+  overscroll-behavior: none`, the 3D view is `touch-action: none
+  !important` (a library sets `auto` inline on the canvas). Otherwise
+  Chrome's pull-to-refresh claims downward drags and cancels the camera
+  rotation. Panels keep `touch-action: pan-y`. Print CSS restores normal
+  flow so the printout spans pages.
 - Phone UI: grab handle on the bottom panel (tap/swipe), and a full-screen
   mode (⛶ in the view, "Visa menyer" to return; Esc on desktop). Every pick
   (`pickCount`) opens the Del tab, also re-picking the selected part.
