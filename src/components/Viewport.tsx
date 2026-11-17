@@ -1,10 +1,11 @@
-import { Edges, GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
+import { Edges, GizmoHelper, GizmoViewport, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import {
   BoxGeometry,
   BufferGeometry,
   CanvasTexture,
   ExtrudeGeometry,
+  type Material,
   Matrix4,
   Object3D,
   PerspectiveCamera,
@@ -369,18 +370,44 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     const fit = () => {
       const box = unionBox(parts)
       if (!box || !controls || !(camera instanceof PerspectiveCamera)) return
+      // On phones the toolbar and panel float over the view: fit the model
+      // into the visible gap between them, not behind them
+      const canvas = gl.domElement.getBoundingClientRect()
+      const covered = (sel: string, edge: 'top' | 'bottom') => {
+        const el = document.querySelector(sel)
+        if (!el) return 0
+        const r = el.getBoundingClientRect()
+        return edge === 'top' ? Math.max(0, r.bottom - canvas.top) : Math.max(0, canvas.bottom - r.top)
+      }
+      const h = canvas.height || 1
+      const topInset = Math.min(covered('.app.mobile .toolbar', 'top'), h * 0.3)
+      const bottomInset = Math.min(covered('.app.mobile .sheet', 'bottom'), h * 0.6)
+      const visibleFrac = Math.max(0.2, (h - topInset - bottomInset) / h)
+
       const center = new Vector3(...box.min).add(new Vector3(...box.max)).multiplyScalar(0.5)
       const radius = new Vector3(...box.max).sub(new Vector3(...box.min)).length() / 2 + 150
       const vfov = (camera.fov * Math.PI) / 180
-      const fov = Math.min(vfov, 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect))
+      const visibleVfov = 2 * Math.atan(Math.tan(vfov / 2) * visibleFrac)
+      const fov = Math.min(visibleVfov, 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect))
       const dir = camera.position.clone().sub(controls.target).normalize()
+      const dist = radius / Math.sin(fov / 2)
       controls.target.copy(center)
-      camera.position.copy(center).addScaledVector(dir, radius / Math.sin(fov / 2))
+      camera.position.copy(center).addScaledVector(dir, dist)
       controls.update()
+      // Shift the view so the model's centre lands in the middle of the gap
+      const shiftPx = (bottomInset - topInset) / 2
+      if (Math.abs(shiftPx) > 1) {
+        const worldPerPx = (2 * dist * Math.tan(vfov / 2)) / h
+        const up = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion)
+        const shift = up.multiplyScalar(-shiftPx * worldPerPx)
+        camera.position.add(shift)
+        controls.target.add(shift)
+        controls.update()
+      }
     }
     window.addEventListener(FIT_EVENT, fit)
     return () => window.removeEventListener(FIT_EVENT, fit)
-  }, [parts, camera, controls])
+  }, [parts, camera, controls, gl])
   // Only a project that was already there when the app opened gets auto-fitted
   const fitOnStart = useRef(parts.length > 0)
   useEffect(() => {
@@ -472,20 +499,28 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         <Line key={i} points={[g.from, g.to]} color={g.kind === 'center' ? '#db2777' : '#0891b2'} lineWidth={2} dashed dashSize={20} gapSize={12} depthTest={false} />
       ))}
 
-      {/* Grid and shadow floor sit clearly apart (and just below the parts) so
-          they don't flicker against each other at a distance */}
-      <Grid
+      {/* Plain line grids (10 cm cells, a stronger line every metre), faint —
+          steadier than a shader grid; they sit clearly above the shadow floor
+          so the two don't flicker against each other */}
+      <gridHelper
+        args={[20000, 200, '#9aa4b0', '#9aa4b0']}
         position={[0, -1, 0]}
-        args={[20000, 20000]}
-        cellSize={100}
-        cellThickness={0.6}
-        sectionSize={1000}
-        sectionThickness={1.1}
-        cellColor="#d3d8df"
-        sectionColor="#8f98a6"
-        fadeDistance={9000}
-        fadeStrength={1.2}
-        infiniteGrid
+        onUpdate={(g) => {
+          const m = g.material as Material
+          m.transparent = true
+          m.opacity = 0.22
+          m.depthWrite = false
+        }}
+      />
+      <gridHelper
+        args={[20000, 20, '#7a8896', '#7a8896']}
+        position={[0, -0.9, 0]}
+        onUpdate={(g) => {
+          const m = g.material as Material
+          m.transparent = true
+          m.opacity = 0.45
+          m.depthWrite = false
+        }}
       />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
@@ -516,7 +551,8 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         dampingFactor={0.15}
       />
       {!capturing && (
-        <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
+        // On phones the bottom panel floats over the view, so the axes go top left
+        <GizmoHelper alignment={isTouch ? 'top-left' : 'bottom-right'} margin={isTouch ? [50, 120] : [60, 60]}>
           <GizmoViewport labelColor="white" axisHeadScale={0.9} />
         </GizmoHelper>
       )}

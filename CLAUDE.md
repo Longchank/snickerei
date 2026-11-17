@@ -110,8 +110,12 @@ comments in English).
   Guideline ranges (`GUIDES`) are general furniture practice from memory,
   labelled "riktvärden" in the UI — not sourced; don't present as rules.
   `project.measurements` persist; they're not in undo history.
-- The phone bottom panel has a fixed height (42dvh) so the 3D view doesn't
-  resize (and the model jump) as panel content changes.
+- **Phone layout = floating panels** (owner, 2026-11-17, modelled on their
+  projector-mount viewer): the 3D canvas always fills the screen; the
+  toolbar and bottom panel are see-through cards on top (blur, rounded),
+  so opening/closing never resizes the view. "Visa hela modellen" fits the
+  model into the visible gap between them (reads their screen rects). The
+  axes widget sits top-left on touch screens.
 - Position fields show the selection's bounding-box min corner, not the
   part's internal origin.
 - Snapping (`src/lib/snap.ts`, toggles in `settings.snapTypes`):
@@ -128,8 +132,9 @@ comments in English).
   performance): the scene only redraws on React prop changes and controls'
   change events. Anything that mutates three.js objects outside React must
   call `invalidate()`. Phones render at dpr ≤ 1.5 with a 1024 shadow map.
-  Camera near/far 30/60000, grid at y −1 and the shadow floor at y −6 to
-  avoid z-fighting flicker. OrbitControls tuned calmer on touch
+  Camera near/far 30/60000. The grid is two plain `gridHelper`s (10 cm
+  cells + 1 m lines, faint, no depth write) at y ≈ −1, the shadow floor at
+  y −6, to avoid z-fighting flicker (drei's shader `Grid` was dropped). OrbitControls tuned calmer on touch
   (rotateSpeed 0.55, dampingFactor 0.15).
 - Printing: `window.print()` with a print-only `PrintReport`; the snapshot
   comes from `snapshotRef` (renders a frame and reads it immediately, so no
