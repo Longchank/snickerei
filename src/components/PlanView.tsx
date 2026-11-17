@@ -156,6 +156,9 @@ function SheetPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'sheet' }>
             <SheetDiagram key={i} sheet={s} />
           ))}
         </div>
+        {r.sheets.some((s) => s.pieces.some((p) => p.grainLocked)) && (
+          <p className="hint small">Randade delar har låst fiberriktning, längs skivans långsida.</p>
+        )}
       </Diagram>
       {r.tooLarge.length > 0 && (
         <p className="warn">

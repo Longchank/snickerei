@@ -3,7 +3,7 @@
 En webblösning som skapar 3D-modeller och såglistor, samt har inbyggd prislista.
 Byggd för hobbysnickare.
 
-## Vad finns nu (v0.5)
+## Vad finns nu (v0.6)
 
 Byggd för mobilen först — fungerar även på dator.
 
@@ -24,6 +24,9 @@ Byggd för mobilen först — fungerar även på dator.
   utskriften.
 - **Sneda ändar**: gering (över sidan) eller fas (över kanten) i valfri
   vinkel i varje ände. Längden mäts på långsidan.
+- **Fiberriktning** på plywood och OSB: valfri, längs eller tvärs delen.
+  Låsta delar vänds inte i skärschemat (skivans fibrer antas gå längs
+  långsidan) och visas randade i 3D och i schemat.
 - **Fransk list**: klyv en del på längden i 45° (eller annan vinkel) till
   två listar. Räknas som en bräda i såglistan och inköpslistan.
 - **Såglista** och **inköpslista**: vilka längder/skivor som ska köpas, med
@@ -72,5 +75,4 @@ state. Ingen backend än.
 - "Visa på Hornbach"-länk för att själv slå upp och skriva in priset.
 - Fler bygghandlare (Byggmax, Beijer, XL-Bygg, K-Rauta …) — kolla varje
   sajts villkor och robots.txt först.
-- Fiberriktning på skivor (låsa rotation i skärschemat).
 - Mäta avstånd mellan två valfria punkter.

@@ -45,6 +45,12 @@ function sheet(category: ProfileCategory, t: number, stockSheets: [number, numbe
   }
 }
 
+/**
+ * Sheet materials with a face grain or strand direction. Assumed to run along
+ * the stock sheet's long side, as is standard for plywood and OSB.
+ */
+export const hasGrain = (prof: Profile) => prof.kind === 'sheet' && (prof.category === 'plywood' || prof.category === 'osb')
+
 /** Short label for a catalog button: "45x70" or "18 mm". */
 export const shortName = (prof: Profile) => (prof.kind === 'sheet' ? `${prof.thickness} mm` : prof.name)
 

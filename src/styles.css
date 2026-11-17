@@ -598,6 +598,13 @@ td {
   stroke: #b9b3a5;
   stroke-width: 6;
 }
+.sheet-piece-fill {
+  fill: var(--wood);
+}
+.grain-line {
+  stroke: #a67c3d;
+  stroke-width: 6;
+}
 .sheet-piece {
   fill: var(--wood);
   stroke: #8a6a3d;

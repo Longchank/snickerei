@@ -1,10 +1,22 @@
 import { Edges, GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { BoxGeometry, BufferGeometry, ExtrudeGeometry, Matrix4, Object3D, PerspectiveCamera, Shape, Vector2, Vector3 } from 'three'
+import {
+  BoxGeometry,
+  BufferGeometry,
+  CanvasTexture,
+  ExtrudeGeometry,
+  Matrix4,
+  Object3D,
+  PerspectiveCamera,
+  RepeatWrapping,
+  Shape,
+  Vector2,
+  Vector3,
+} from 'three'
 import type { Group } from 'three'
 import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getProfile } from '../lib/catalog'
+import { getProfile, hasGrain } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, snapOffset, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
 import { overlapsOf, unionBox } from '../lib/joints'
@@ -23,7 +35,7 @@ const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: co
 type Register = (id: string, g: Group | null) => void
 
 const evaluator = new Evaluator()
-evaluator.attributes = ['position', 'normal']
+evaluator.attributes = ['position', 'uv', 'normal']
 
 /** Map a cutter's 2-D outline into part-local space: (u, v) → plane axes, extruded along the third. */
 const BASIS: Record<Cutter['basis'], (size: Vec3) => { m: Matrix4; depth: number }> = {
@@ -60,6 +72,43 @@ function partGeometry(part: Part, size: Vec3): BufferGeometry {
   return result.geometry
 }
 
+/** Faint stripes for showing a sheet's grain; 'h' runs along u, 'v' along v. */
+const stripeImages: Partial<Record<'h' | 'v', HTMLCanvasElement>> = {}
+function stripeImage(dir: 'h' | 'v'): HTMLCanvasElement {
+  if (!stripeImages[dir]) {
+    const c = document.createElement('canvas')
+    c.width = c.height = 32
+    const g = c.getContext('2d')!
+    g.fillStyle = '#ffffff'
+    g.fillRect(0, 0, 32, 32)
+    g.fillStyle = '#b8935a'
+    if (dir === 'h') g.fillRect(0, 12, 32, 7)
+    else g.fillRect(12, 0, 7, 32)
+    stripeImages[dir] = c
+  }
+  return stripeImages[dir]!
+}
+
+/** Grain texture for a part, or null. On the faces u runs along the part's length. */
+function useGrainTexture(part: Part, size: Vec3): CanvasTexture | null {
+  const prof = getProfile(part.profileId)
+  const grain = hasGrain(prof) ? part.grain : undefined
+  // Keeps the stripes sharp on faces seen at a low angle
+  const anisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy())
+  const texture = useMemo(() => {
+    if (!grain) return null
+    const t = new CanvasTexture(stripeImage(grain === 'length' ? 'h' : 'v'))
+    t.wrapS = t.wrapT = RepeatWrapping
+    t.anisotropy = anisotropy
+    // One stripe about every 25 mm
+    if (grain === 'length') t.repeat.set(1, Math.max(1, size[2] / 25))
+    else t.repeat.set(Math.max(1, size[0] / 25), 1)
+    return t
+  }, [grain, size[0], size[2], anisotropy])
+  useEffect(() => () => texture?.dispose(), [texture])
+  return texture
+}
+
 function PartMesh({ part, selected, register }: { part: Part; selected: boolean; register: Register }) {
   const tapPart = useStore((s) => s.tapPart)
   const multiSelect = useStore((s) => s.multiSelect)
@@ -75,6 +124,7 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
   useEffect(() => () => geometry.dispose(), [geometry])
   const rotation = useMemo(() => eulerOf(part.rotation), [part.rotation])
   const [hover, setHover] = useState(false)
+  const grainMap = useGrainTexture(part, size)
 
   return (
     <group ref={ref} position={part.position} rotation={rotation}>
@@ -94,6 +144,8 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         onPointerOut={() => setHover(false)}
       >
         <meshStandardMaterial
+          key={grainMap ? grainMap.uuid : 'plain'}
+          map={grainMap}
           color={prof.color}
           emissive={selected ? '#3b82f6' : hover && !isTouch ? '#555' : '#000'}
           emissiveIntensity={selected ? 0.35 : 0.15}

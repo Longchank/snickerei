@@ -58,6 +58,11 @@ export interface Part {
   ends?: [EndCut | null, EndCut | null]
   /** This part is one half of a board ripped lengthwise at an angle (French cleat) */
   rip?: Rip
+  /**
+   * Sheets with a grain (plywood, OSB): which way the face grain must run,
+   * relative to the part's length. Absent = any direction.
+   */
+  grain?: 'length' | 'width'
 }
 
 /**

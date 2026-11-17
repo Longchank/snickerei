@@ -63,8 +63,12 @@ comments in English).
   (sheets); stock lengths and sheet sizes in `catalog.ts` are typical
   values, not verified per supplier.
 - Sheets are nested with a guillotine best-short-side-fit packer
-  (`packSheets`), rotation allowed, grain ignored; every sheet size on offer
-  is tried and the cheapest result kept.
+  (`packSheets`); every sheet size on offer is tried and the cheapest
+  result kept. Pieces rotate freely unless `part.grain` is set (plywood and
+  OSB only, `hasGrain`): the stock sheet's grain is assumed to run along its
+  long side, so 'length' pieces lie unrotated and 'width' pieces rotated.
+  Grain shows as a stripe texture in 3D (UVs survive CSG) and as a striped
+  pattern in the sheet diagram.
 - Boards: `packCuts` tries each stock length as bin size with first-fit and
   a subset-sum "best fill", then gives each board its cheapest fitting
   length; keeps the cheapest total (without prices: least timber).

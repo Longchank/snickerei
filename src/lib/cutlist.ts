@@ -1,4 +1,4 @@
-import { getProfile } from './catalog'
+import { getProfile, hasGrain } from './catalog'
 import { describeCuts } from './cuts'
 import { describeNotch } from './joints'
 import type { Part, PriceEntry, Profile } from './types'
@@ -47,6 +47,9 @@ export function cutList(parts: Part[]): CutRow[] {
     const width = partWidth(part, profile)
     // Parts with different joints and cuts are different pieces in the workshop
     const notes = [
+      ...(hasGrain(profile) && part.grain
+        ? [`Fiberriktning ${part.grain === 'length' ? 'längs' : 'tvärs'} delens längd`]
+        : []),
       ...describeCuts(part),
       ...(part.notches ?? []).map((n) => describeNotch(part, n)),
       ...[ripNote(part, parts)].filter((n): n is string => n !== null),
@@ -180,7 +183,12 @@ export interface Placement {
   w: number
   h: number
   rotated: boolean
+  /** The piece's grain is locked to the sheet's */
+  grainLocked: boolean
 }
+
+/** A piece to nest: length, width, and optionally which way its grain must run. */
+export type SheetPiece = [number, number, ('length' | 'width')?]
 
 export interface StockSheet {
   length: number
@@ -204,7 +212,7 @@ interface Rect {
  * heuristic — good, not optimal.
  */
 export function packSheets(
-  pieces: [number, number][],
+  pieces: SheetPiece[],
   stockSheets: [number, number][],
   kerf: number,
 ): { sheets: StockSheet[]; tooLarge: [number, number][] } {
@@ -213,9 +221,17 @@ export function packSheets(
   const sheets: { free: Rect[]; pieces: Placement[] }[] = []
   const tooLarge: [number, number][] = []
 
-  const sorted = [...pieces].sort((a, b) => b[0] * b[1] - a[0] * a[1] || Math.max(...b) - Math.max(...a))
-  for (const [pl, pw] of sorted) {
-    const fitsSheet = (pl <= sl && pw <= sw) || (pw <= sl && pl <= sw)
+  const sorted = [...pieces].sort((a, b) => b[0] * b[1] - a[0] * a[1] || Math.max(b[0], b[1]) - Math.max(a[0], a[1]))
+  for (const [pl, pw, grain] of sorted) {
+    // The sheet's grain runs along its length (x in the diagram). A piece with
+    // grain along its length lies unrotated; grain across its width, rotated.
+    const orientations = (
+      [
+        [pl, pw, false],
+        [pw, pl, true],
+      ] as const
+    ).filter(([, , rotated]) => !grain || rotated === (grain === 'width'))
+    const fitsSheet = orientations.some(([w, h]) => w <= sl && h <= sw)
     if (!fitsSheet) {
       tooLarge.push([pl, pw])
       continue
@@ -223,10 +239,7 @@ export function packSheets(
     let best: { sheet: number; rect: number; w: number; h: number; rotated: boolean; score: number } | null = null
     const tryPlace = (si: number) => {
       sheets[si].free.forEach((r, ri) => {
-        for (const [w, h, rotated] of [
-          [pl, pw, false],
-          [pw, pl, true],
-        ] as const) {
+        for (const [w, h, rotated] of orientations) {
           if (w <= r.w && h <= r.h) {
             const score = Math.min(r.w - w, r.h - h)
             if (!best || score < best.score) best = { sheet: si, rect: ri, w, h, rotated, score }
@@ -242,7 +255,7 @@ export function packSheets(
     const b = best as unknown as { sheet: number; rect: number; w: number; h: number; rotated: boolean }
     const sheet = sheets[b.sheet]
     const r = sheet.free[b.rect]
-    sheet.pieces.push({ x: r.x, y: r.y, w: b.w, h: b.h, rotated: b.rotated })
+    sheet.pieces.push({ x: r.x, y: r.y, w: b.w, h: b.h, rotated: b.rotated, grainLocked: !!grain })
 
     // Guillotine split of the leftover, leaving a kerf between piece and offcut.
     // Split along the shorter leftover so the bigger offcut stays in one piece.
@@ -384,7 +397,9 @@ export function purchasePlan(parts: Part[], prices: PriceEntry[], kerf: number):
       const options = stockOptions(profile, prices)
 
       if (profile.kind === 'sheet') {
-        const pieces = ps.map((p) => [p.length, p.width ?? profile.width] as [number, number])
+        const pieces = ps.map(
+          (p): SheetPiece => [p.length, p.width ?? profile.width, hasGrain(profile) ? p.grain : undefined],
+        )
         // Try each sheet size on offer and keep the cheapest result
         // (without prices: the least sheet area bought)
         let best: (SheetPlan & { score: [number, number] }) | null = null

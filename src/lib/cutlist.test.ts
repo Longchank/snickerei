@@ -131,3 +131,32 @@ describe('snapOffset', () => {
     expect(snapOffset(moving, [far], [true, true, true], 20)).toEqual([0, 0, 0])
   })
 })
+
+describe('grain direction', () => {
+  const SHEET: [number, number][] = [[2440, 1220]]
+
+  it('never turns a piece whose grain is locked', () => {
+    // 1000 long x 2000 wide only fits turned; with grain along its length it can't
+    expect(packSheets([[1000, 2000, 'length']], SHEET, 3).tooLarge).toEqual([[1000, 2000]])
+    const across = packSheets([[1000, 2000, 'width']], SHEET, 3)
+    expect(across.sheets[0].pieces[0]).toMatchObject({ w: 2000, h: 1000, rotated: true, grainLocked: true })
+    const along = packSheets([[2000, 1000, 'length']], SHEET, 3)
+    expect(along.sheets[0].pieces[0]).toMatchObject({ rotated: false, grainLocked: true })
+  })
+
+  it('can need more sheets than free nesting', () => {
+    // Three 1100 x 700 parts: free, they stand side by side (3 x 700 across 2440);
+    // with grain along their length they must lie (1100 across), two per sheet
+    const free = packSheets(Array.from({ length: 3 }, () => [1100, 700] as [number, number]), SHEET, 3)
+    expect(free.sheets).toHaveLength(1)
+    const locked = packSheets(Array.from({ length: 3 }, () => [1100, 700, 'length'] as [number, number, 'length']), SHEET, 3)
+    expect(locked.sheets).toHaveLength(2)
+  })
+
+  it('is noted in the cut list for plywood but not MDF', () => {
+    const ply = part(600, { profileId: 'plywood-18', width: 400, grain: 'length' })
+    const mdf = part(600, { profileId: 'mdf-19', width: 400, grain: 'length' })
+    expect(cutList([ply])[0].notes).toEqual(['Fiberriktning längs delens längd'])
+    expect(cutList([mdf])[0].notes).toEqual([])
+  })
+})

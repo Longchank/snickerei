@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { getProfile } from '../lib/catalog'
+import { getProfile, hasGrain } from '../lib/catalog'
 import { miterCorner } from '../lib/cuts'
 import type { AxisBox } from '../lib/geometry'
 import { describeNotch, overlapsOf, toLocalBox, trimAgainst, unionBox } from '../lib/joints'
-import { useSelectedParts, useStore } from '../lib/store'
-import type { EndCut, Part, Vec3 } from '../lib/types'
+import { activePrices, useSelectedParts, useStore } from '../lib/store'
+import { stockOptions } from '../lib/cutlist'
+import type { EndCut, Part, Profile, Vec3 } from '../lib/types'
 import { NumberField } from './NumberField'
 
 const AXES = ['X', 'Y', 'Z'] as const
@@ -97,7 +98,7 @@ function SinglePart({ part }: { part: Part }) {
   const parts = useStore((s) => s.project.parts)
   const group = useStore((s) => s.project.groups.find((g) => g.id === part.groupId))
   const prof = getProfile(part.profileId)
-  const maxSheet = prof.stockSheets[0]
+  const sheetSizes = useSheetSizes(prof)
 
   return (
     <div className="inspector">
@@ -148,7 +149,35 @@ function SinglePart({ part }: { part: Part }) {
           />
         </label>
       )}
-      {prof.kind === 'sheet' && maxSheet && <p className="hint small">Skivan säljs i {maxSheet.join(' × ')} mm.</p>}
+      {prof.kind === 'sheet' && sheetSizes.length > 0 && (
+        <p className="hint small">
+          Skivan säljs i {sheetSizes.map((x) => x.join(' × ')).join(', ')} mm.
+        </p>
+      )}
+      {hasGrain(prof) && (
+        <div className="field">
+          <span>Fiberriktning</span>
+          <div className="segmented" role="group" aria-label="Fiberriktning">
+            {(
+              [
+                [undefined, 'Valfri'],
+                ['length', 'Längs'],
+                ['width', 'Tvärs'],
+              ] as const
+            ).map(([g, label]) => (
+              <button
+                key={label}
+                className={part.grain === g ? 'on' : ''}
+                aria-pressed={part.grain === g}
+                onClick={() => updatePart(part.id, { grain: g })}
+                title={g ? `Fibrerna går ${label.toLowerCase()} delens längd` : 'Delen får vändas fritt i skärschemat'}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Placement parts={[part]} />
       <Actions />
@@ -218,6 +247,20 @@ function Joints({ part }: { part: Part }) {
       ))}
     </section>
   )
+}
+
+/** Sheet sizes on offer: from supplier prices when there are any, else the catalog's. */
+function useSheetSizes(prof: Profile): [number, number][] {
+  const ownPrices = useStore((s) => s.ownPrices)
+  const useExamplePrices = useStore((s) => s.useExamplePrices)
+  const supplierFiles = useStore((s) => s.supplierFiles)
+  const disabledSuppliers = useStore((s) => s.disabledSuppliers)
+  return useMemo(() => {
+    if (prof.kind !== 'sheet') return []
+    const prices = activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers })
+    // Largest first, at most three
+    return [...stockOptions(prof, prices).sheets].sort((a, b) => b[0] * b[1] - a[0] * a[1]).slice(0, 3)
+  }, [prof, ownPrices, useExamplePrices, supplierFiles, disabledSuppliers])
 }
 
 const canMiter = (a: Part, b: Part, box: AxisBox) => miterCorner(a, b, box, toLocalBox) !== null
