@@ -6,6 +6,7 @@ import { describeNotch, overlapsOf, toLocalBox, trimAgainst, unionBox } from '..
 import { activePrices, useSelectedParts, useStore } from '../lib/store'
 import { stockOptions } from '../lib/cutlist'
 import type { EndCut, Part, Profile, Vec3 } from '../lib/types'
+import { MeasurePanel, SpaceInfo } from './MeasurePanel'
 import { NumberField } from './NumberField'
 
 const AXES = ['X', 'Y', 'Z'] as const
@@ -13,12 +14,14 @@ const fmt = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',')
 
 export function Inspector() {
   const selected = useSelectedParts()
+  const measureMode = useStore((s) => s.measureMode)
+  if (measureMode) return <MeasurePanel />
   if (selected.length === 0) {
     return (
       <div className="inspector empty">
         <p className="hint">
           Tryck på en del i 3D-vyn eller i listan för att ändra den. Slå på <strong>Flera</strong> i 3D-vyn för att
-          markera flera delar.
+          markera flera delar, eller <strong>Mät</strong> för att mäta mellan ytor.
         </p>
         <Shortcuts />
       </div>
@@ -181,6 +184,7 @@ function SinglePart({ part }: { part: Part }) {
 
       <Placement parts={[part]} />
       <Actions />
+      <SpaceInfo parts={[part]} />
       <Ends part={part} />
       <Rip part={part} />
       <Joints part={part} />
@@ -405,6 +409,7 @@ function MultipleParts({ parts }: { parts: Part[] }) {
 
       <Placement parts={parts} />
       <Actions />
+      <SpaceInfo parts={parts} />
       <Shortcuts />
     </div>
   )

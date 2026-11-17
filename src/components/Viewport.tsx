@@ -20,8 +20,9 @@ import { getProfile, hasGrain } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, snapOffset, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
 import { overlapsOf, unionBox } from '../lib/joints'
+import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
 import { useStore } from '../lib/store'
-import type { Part, Vec3 } from '../lib/types'
+import type { Measurement, Part, Vec3 } from '../lib/types'
 
 /** The WebGL canvas, for snapshots in the printout. */
 export const canvasRef: { current: HTMLCanvasElement | null } = { current: null }
@@ -112,6 +113,8 @@ function useGrainTexture(part: Part, size: Vec3): CanvasTexture | null {
 function PartMesh({ part, selected, register }: { part: Part; selected: boolean; register: Register }) {
   const tapPart = useStore((s) => s.tapPart)
   const multiSelect = useStore((s) => s.multiSelect)
+  const measureMode = useStore((s) => s.measureMode)
+  const measureTap = useStore((s) => s.measureTap)
   const ref = useRef<Group>(null)
   useEffect(() => {
     register(part.id, ref.current)
@@ -134,6 +137,12 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         receiveShadow
         onClick={(e) => {
           e.stopPropagation()
+          if (measureMode) {
+            if (!e.face) return
+            const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
+            measureTap(pickPoint(e.point.toArray() as Vec3, n.toArray() as Vec3, false))
+            return
+          }
           const ne = e.nativeEvent
           tapPart(part.id, multiSelect || ne.shiftKey || ne.ctrlKey || ne.metaKey)
         }}
@@ -166,6 +175,58 @@ function OverlapBox({ box }: { box: AxisBox }) {
       <boxGeometry args={size} />
       <meshBasicMaterial color="#ef4444" transparent opacity={0.45} depthTest={false} />
     </mesh>
+  )
+}
+
+const fmtMm = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',')
+
+/** A saved measurement: orange line between the two surfaces, with its value. */
+function MeasureLine({ m, index }: { m: Measurement; index: number }) {
+  const { ends, value } = measureValue(m)
+  const [p, q] = ends
+  const mid: Vec3 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2]
+  const b = m.b.point
+  const offset = Math.hypot(b[0] - q[0], b[1] - q[1], b[2] - q[2]) > 1
+  return (
+    <group>
+      <Line points={[p, q]} color="#ea580c" lineWidth={3} depthTest={false} renderOrder={3} />
+      {offset && <Line points={[q, b]} color="#ea580c" lineWidth={1} dashed dashSize={20} gapSize={15} depthTest={false} />}
+      <PointMarker at={m.a.point} />
+      <PointMarker at={b} />
+      <Html position={mid} center zIndexRange={[6, 0]} style={{ pointerEvents: 'none' }}>
+        <span className="measure-label">
+          <b>{index + 1}</b> {fmtMm(value)}
+        </span>
+      </Html>
+    </group>
+  )
+}
+
+function PointMarker({ at, pending = false }: { at: Vec3; pending?: boolean }) {
+  return (
+    <mesh position={at} renderOrder={4}>
+      <sphereGeometry args={[pending ? 14 : 9, 16, 12]} />
+      <meshBasicMaterial color={pending ? '#f97316' : '#ea580c'} depthTest={false} transparent opacity={0.95} />
+    </mesh>
+  )
+}
+
+/** Free space from the selection to the nearest part or the floor, as green dashed lines. */
+function FreeSpaceLines({ spaces }: { spaces: FreeSpace[] }) {
+  return (
+    <>
+      {spaces.map((f) => {
+        const mid: Vec3 = [(f.from[0] + f.end[0]) / 2, (f.from[1] + f.end[1]) / 2, (f.from[2] + f.end[2]) / 2]
+        return (
+          <group key={f.direction}>
+            <Line points={[f.from, f.end]} color="#16a34a" lineWidth={2} dashed dashSize={25} gapSize={15} />
+            <Html position={mid} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
+              <span className="free-label">{fmtMm(f.gap)}</span>
+            </Html>
+          </group>
+        )
+      })}
+    </>
   )
 }
 
@@ -224,6 +285,14 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const overlaps = useMemo(
     () => (selected.length === 1 ? overlapsOf(selected[0], parts).map((o) => o.box) : []),
     [selected, parts],
+  )
+  const measureMode = useStore((s) => s.measureMode)
+  const measureTap = useStore((s) => s.measureTap)
+  const pendingPoint = useStore((s) => s.pendingPoint)
+  const measurements = useStore((s) => s.project.measurements)
+  const spaces = useMemo(
+    () => (selBox ? freeSpace(selBox, otherBoxes(parts, new Set(selection))).filter((f) => f.gap <= 3000) : []),
+    [selBox, parts, selection],
   )
 
   // The gizmo moves this invisible pivot (at the selection's min corner); the
@@ -321,6 +390,9 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       )}
 
       {showDimensions && !capturing && dimBox && <Dimensions box={dimBox} offset={selBox ? 60 : 120} />}
+      {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
+      {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}
+      {!capturing && pendingPoint && <PointMarker at={pendingPoint.point} pending />}
 
       <Grid
         args={[20000, 20000]}
@@ -331,7 +403,20 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         fadeDistance={15000}
         infiniteGrid
       />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.5, 0]}
+        receiveShadow
+        // Only a click target while measuring, so a tap on empty floor still deselects otherwise
+        onClick={
+          measureMode
+            ? (e) => {
+                e.stopPropagation()
+                measureTap(pickPoint([e.point.x, 0, e.point.z], [0, 1, 0], true))
+              }
+            : undefined
+        }
+      >
         <planeGeometry args={[40000, 40000]} />
         <shadowMaterial opacity={0.15} />
       </mesh>
@@ -350,6 +435,9 @@ export function Viewport({ capturing = false }: { capturing?: boolean }) {
   const clearSelection = useStore((s) => s.clearSelection)
   const multiSelect = useStore((s) => s.multiSelect)
   const setMultiSelect = useStore((s) => s.setMultiSelect)
+  const measureMode = useStore((s) => s.measureMode)
+  const setMeasureMode = useStore((s) => s.setMeasureMode)
+  const pending = useStore((s) => s.pendingPoint !== null)
   const count = useStore((s) => s.selection.length)
   const lastDrag = useRef(0)
 
@@ -367,7 +455,20 @@ export function Viewport({ capturing = false }: { capturing?: boolean }) {
       >
         {multiSelect ? '☑' : '☐'} Flera{count > 1 ? ` (${count})` : ''}
       </button>
+      <button
+        className={`multi-toggle ${measureMode ? 'on measure' : ''}`}
+        aria-pressed={measureMode}
+        onClick={() => setMeasureMode(!measureMode)}
+        title="Mät: tryck på två ytor eller golvet"
+      >
+        📏 Mät
+      </button>
     </div>
+    {measureMode && (
+      <div className="measure-hint" role="status">
+        {pending ? 'Tryck på den andra ytan (eller golvet)' : 'Tryck på en yta eller golvet'}
+      </div>
+    )}
     <Canvas
       shadows
       gl={{ preserveDrawingBuffer: true }}
@@ -375,7 +476,7 @@ export function Viewport({ capturing = false }: { capturing?: boolean }) {
       onCreated={({ gl }) => (canvasRef.current = gl.domElement)}
       onPointerMissed={(e) => {
         // The move gizmo isn't a raycast target, so a drag on it ends in a "missed" click
-        if (e.type === 'click' && Date.now() - lastDrag.current > 200) clearSelection()
+        if (e.type === 'click' && Date.now() - lastDrag.current > 200 && !useStore.getState().measureMode) clearSelection()
       }}
     >
       <Scene lastDrag={lastDrag} capturing={capturing} />

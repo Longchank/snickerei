@@ -6,7 +6,18 @@ import { partBox, rotatePart } from './geometry'
 import { miterCorner, ripPart } from './cuts'
 import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, toLocalBox, trimAgainst, unionBox } from './joints'
 import { mergePrices, supplierEntries } from './prices'
-import type { EndCut, Group, Part, PriceEntry, Project, Settings, SupplierPriceFile, Vec3 } from './types'
+import type {
+  EndCut,
+  Group,
+  MeasurePoint,
+  Measurement,
+  Part,
+  PriceEntry,
+  Project,
+  Settings,
+  SupplierPriceFile,
+  Vec3,
+} from './types'
 
 const HISTORY_LIMIT = 100
 
@@ -19,6 +30,10 @@ interface State {
   selection: string[]
   /** Phone: taps add to / remove from the selection instead of replacing it */
   multiSelect: boolean
+  /** Measuring tool on: taps pick points instead of selecting */
+  measureMode: boolean
+  /** First point of a measurement in progress */
+  pendingPoint: MeasurePoint | null
   settings: Settings
   /** Hand-entered prices (supplier "Egen") */
   ownPrices: PriceEntry[]
@@ -39,6 +54,11 @@ interface State {
   select: (ids: string[]) => void
   clearSelection: () => void
   setMultiSelect: (on: boolean) => void
+  setMeasureMode: (on: boolean) => void
+  /** A tap in measuring mode: first tap starts, second finishes a measurement */
+  measureTap: (p: MeasurePoint) => void
+  removeMeasurement: (id: string) => void
+  clearMeasurements: () => void
 
   moveSelection: (d: Vec3) => void
   rotateSelection: (axis: 0 | 1 | 2) => void
@@ -76,11 +96,16 @@ const DEFAULT_SETTINGS: Settings = { snap: 5, kerf: 3, showDimensions: true, sna
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-const emptyProject = (): Project => ({ name: 'Nytt projekt', parts: [], groups: [] })
+const emptyProject = (): Project => ({ name: 'Nytt projekt', parts: [], groups: [], measurements: [] })
 
 /** Older saves and imported files may lack newer fields. */
 export function normalizeProject(p: Partial<Project> | undefined): Project {
-  return { name: p?.name ?? 'Nytt projekt', parts: p?.parts ?? [], groups: p?.groups ?? [] }
+  return {
+    name: p?.name ?? 'Nytt projekt',
+    parts: p?.parts ?? [],
+    groups: p?.groups ?? [],
+    measurements: p?.measurements ?? [],
+  }
 }
 
 /** Drop groups with fewer than two parts (a group of one is just a part). */
@@ -147,6 +172,8 @@ export const useStore = create<State>()(
         project: emptyProject(),
         selection: [],
         multiSelect: false,
+        measureMode: false,
+        pendingPoint: null,
         settings: DEFAULT_SETTINGS,
         ownPrices: [],
         useExamplePrices: true,
@@ -184,7 +211,18 @@ export const useStore = create<State>()(
         },
         select: (selection) => set({ selection }),
         clearSelection: () => set({ selection: [] }),
-        setMultiSelect: (multiSelect) => set({ multiSelect }),
+        setMultiSelect: (multiSelect) => set({ multiSelect, ...(multiSelect ? { measureMode: false, pendingPoint: null } : {}) }),
+        setMeasureMode: (on) =>
+          set({ measureMode: on, pendingPoint: null, ...(on ? { selection: [], multiSelect: false } : {}) }),
+        measureTap: (p) =>
+          set((s) => {
+            if (!s.pendingPoint) return { pendingPoint: p }
+            const m: Measurement = { id: uid(), a: s.pendingPoint, b: p }
+            return { pendingPoint: null, project: { ...s.project, measurements: [...s.project.measurements, m] } }
+          }),
+        removeMeasurement: (id) =>
+          set((s) => ({ project: { ...s.project, measurements: s.project.measurements.filter((m) => m.id !== id) } })),
+        clearMeasurements: () => set((s) => ({ project: { ...s.project, measurements: [] }, pendingPoint: null })),
 
         moveSelection: (d) => editSelection((ps) => moveParts(ps, d)),
         rotateSelection: (axis) =>

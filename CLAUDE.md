@@ -90,6 +90,16 @@ comments in English).
   in the cut list and shopping list (`stockPieces`). Overlaps inside
   cut-away regions (incl. points on the cut line) count as resolved, so a
   mitered corner or a cleat pair doesn't show as a collision.
+- Measuring (`src/lib/measure.ts`, `ergonomics.ts`): taps pick a point +
+  surface-normal axis (`pickPoint`); `measureValue` measures along the
+  first surface's normal (floor taps measure up from the floor), or along
+  the surface when both taps share a plane. `freeSpace` probes the middle
+  half of each face so a table's corner legs don't hide the space under it.
+  Guideline ranges (`GUIDES`) are general furniture practice from memory,
+  labelled "riktvärden" in the UI — not sourced; don't present as rules.
+  `project.measurements` persist; they're not in undo history.
+- The phone bottom panel has a fixed height (42dvh) so the 3D view doesn't
+  resize (and the model jump) as panel content changes.
 - Position fields show the selection's bounding-box min corner, not the
   part's internal origin.
 - Snapping while dragging: grid via TransformControls `translationSnap`,

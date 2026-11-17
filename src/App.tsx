@@ -45,6 +45,13 @@ export function App() {
 
   // Selecting or adding a part shows its properties
   // (except while picking several parts, so the list stays open)
+  const measureMode = useStore((s) => s.measureMode)
+  useEffect(() => {
+    if (measureMode) {
+      setTab('del')
+      setSheetOpen(true)
+    }
+  }, [measureMode])
   useEffect(() => {
     if (selectionKey && !useStore.getState().multiSelect) {
       setTab('del')

@@ -3,7 +3,7 @@
 En webblösning som skapar 3D-modeller och såglistor, samt har inbyggd prislista.
 Byggd för hobbysnickare.
 
-## Vad finns nu (v0.6)
+## Vad finns nu (v0.7)
 
 Byggd för mobilen först — fungerar även på dator.
 
@@ -24,6 +24,12 @@ Byggd för mobilen först — fungerar även på dator.
   utskriften.
 - **Sneda ändar**: gering (över sidan) eller fas (över kanten) i valfri
   vinkel i varje ände. Längden mäts på långsidan.
+- **Fritt utrymme och riktvärden**: markera en del och se fritt utrymme åt
+  alla håll (till närmaste del eller golvet) och om höjden passar som t.ex.
+  matbord, sittbänk eller arbetsbänk.
+- **Mät** (📏 i 3D-vyn): tryck på två ytor eller golvet. Mäter rakt ut från
+  första ytan (höjd, fritt mellan hyllor, längd) eller längs ytan om båda
+  tryck är på samma yta. Varje mått jämförs med vanliga riktvärden.
 - **Fiberriktning** på plywood och OSB: valfri, längs eller tvärs delen.
   Låsta delar vänds inte i skärschemat (skivans fibrer antas gå längs
   långsidan) och visas randade i 3D och i schemat.
@@ -75,4 +81,3 @@ state. Ingen backend än.
 - "Visa på Hornbach"-länk för att själv slå upp och skriva in priset.
 - Fler bygghandlare (Byggmax, Beijer, XL-Bygg, K-Rauta …) — kolla varje
   sajts villkor och robots.txt först.
-- Mäta avstånd mellan två valfria punkter.

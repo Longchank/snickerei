@@ -107,6 +107,23 @@ export interface Project {
   name: string
   parts: Part[]
   groups: Group[]
+  /** Measurements the user has made with the measuring tool */
+  measurements: Measurement[]
+}
+
+/** A point picked on a surface (or the floor) and which way that surface faces. */
+export interface MeasurePoint {
+  point: Vec3
+  /** Axis of the surface normal: 0 = x, 1 = y (up), 2 = z */
+  axis: 0 | 1 | 2
+  /** Picked on the floor rather than on a part */
+  floor: boolean
+}
+
+export interface Measurement {
+  id: string
+  a: MeasurePoint
+  b: MeasurePoint
 }
 
 /**
