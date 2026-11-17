@@ -33,7 +33,7 @@ describe('end cuts', () => {
     expect(cutSetback(mitered, { plane: 'face', angle: 45 })).toBeCloseTo(95)
     expect(describeCuts(mitered)).toEqual([
       'Gering 45° i början (längden mätt på långsidan)',
-      'Fas 30° i slutet (längden mätt på långsidan)',
+      'Gering på högkant 30° i slutet (längden mätt på långsidan)',
     ])
   })
 })

@@ -68,7 +68,8 @@ export interface Part {
 /**
  * An angled end cut. The part's length is measured on the long side.
  * - 'face': miter seen on the wide face (cut through the thickness), like a picture frame
- * - 'edge': bevel seen on the edge (cut through the width)
+ * - 'edge': miter seen on the narrow face (cut through the width), sawn with
+ *   the board on edge ("på högkant")
  * angle: degrees from square; the sign picks which side keeps the long point
  * (positive: the long point is on the side at local z = 0 / y = 0).
  */

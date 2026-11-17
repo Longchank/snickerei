@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { getProfile, hasGrain } from '../lib/catalog'
+import { findCornerPartner } from '../lib/corner'
 import { miterCorner } from '../lib/cuts'
 import type { AxisBox } from '../lib/geometry'
 import { describeNotch, overlapsOf, toLocalBox, trimAgainst, unionBox } from '../lib/joints'
@@ -274,7 +275,13 @@ type EndKind = 'rak' | 'face' | 'edge'
 /** Square, miter or bevel at each end, with an angle and which side keeps the long point. */
 function Ends({ part }: { part: Part }) {
   const setEndCut = useStore((s) => s.setEndCut)
+  const parts = useStore((s) => s.project.parts)
   const ends = part.ends ?? [null, null]
+  // Ends that meet another board's end at a corner are cut to match it
+  const partners = useMemo(
+    () => ([0, 1] as const).map((i) => findCornerPartner(part, i, parts)),
+    [part, parts],
+  )
   return (
     <section className="ends">
       <h3>Ändar</h3>
@@ -292,7 +299,7 @@ function Ends({ part }: { part: Part }) {
                 [
                   ['rak', 'Rak'],
                   ['face', 'Gering'],
-                  ['edge', 'Fas'],
+                  ['edge', 'Högkant'],
                 ] as const
               ).map(([k, label]) => (
                 <button
@@ -305,7 +312,13 @@ function Ends({ part }: { part: Part }) {
                 </button>
               ))}
             </div>
-            {kind !== 'rak' && cut && (
+            {partners[i] && (
+              <p className="hint small end-partner">
+                Möter <strong>{partners[i]!.part.name}</strong> i ett hörn — båda ändarna anpassas så de möts
+                {kind === 'rak' ? ' (den här brädan går igenom)' : ''}.
+              </p>
+            )}
+            {kind !== 'rak' && cut && !partners[i] && (
               <div className="end-angle">
                 <NumberField value={angle} min={0} suffix="°" onCommit={(a) => set(cut.plane, Math.min(80, a), sign)} />
                 <button onClick={() => set(cut.plane, angle, -sign)} title="Vänd vinkeln åt andra hållet">

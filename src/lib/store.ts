@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
 import { partBox, rotatePart } from './geometry'
+import { cornerButt, cornerMiter, findCornerPartner } from './corner'
 import { miterCorner, ripPart } from './cuts'
 import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, toLocalBox, trimAgainst, unionBox } from './joints'
 import { mergePrices, supplierEntries } from './prices'
@@ -431,7 +432,20 @@ export const useStore = create<State>()(
             }),
           ),
 
-        setEndCut: (partId, end, cut) =>
+        setEndCut: (partId, end, cut) => {
+          const parts = get().project.parts
+          const part = parts.find((p) => p.id === partId)
+          if (!part) return
+          // An end that meets another board's end at a corner: make both match
+          const partner = findCornerPartner(part, end, parts)
+          if (partner) {
+            const pair = cut && cut.angle ? cornerMiter(part, end, partner) : cornerButt(part, end, partner)
+            if (pair) {
+              const [a, b] = pair
+              editParts((ps) => ps.map((p) => (p.id === a.id ? a : p.id === b.id ? b : p)))
+              return
+            }
+          }
           editParts((ps) =>
             ps.map((p) => {
               if (p.id !== partId) return p
@@ -439,7 +453,8 @@ export const useStore = create<State>()(
               ends[end] = cut && cut.angle ? cut : null
               return { ...p, ends: ends.some(Boolean) ? ends : undefined }
             }),
-          ),
+          )
+        },
         miterWith: (partId, otherId) =>
           joint(partId, otherId, (a, b) => {
             const box = overlapBox(a, b)

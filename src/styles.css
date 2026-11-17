@@ -1205,3 +1205,8 @@ button.primary {
   font-weight: 600;
   padding: 7px 12px;
 }
+
+.end-partner {
+  grid-column: 2;
+  margin: 0;
+}

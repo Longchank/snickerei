@@ -95,8 +95,16 @@ comments in English).
   don't change cut length. Overlaps fully cleared by notches aren't
   reported. Parts with different notches are separate cut-list rows.
 - Angled cuts (`src/lib/cuts.ts`): `part.ends` = [start, end] end cuts,
-  plane 'face' (miter, across z) or 'edge' (bevel, across y); signed angle
-  picks the long-point side; length is measured on the long side.
+  plane 'face' (miter, across z, UI "Gering") or 'edge' (miter sawn with the
+  board on edge, across y, UI "Högkant" — not "Fas"); signed angle picks
+  the long-point side; length is measured on the long side.
+- **Corners match** (`src/lib/corner.ts`, owner 2026-11-17: "if 2 lumber
+  have matching end cuts they should match up"): setting an end cut on an
+  end that meets another board's end at a corner (`findCornerPartner`;
+  not a T) changes both boards: Gering/Högkant → both run to the outer
+  corner and get the diagonal miter (`cornerMiter`, angle from the
+  widths, user angle ignored); Rak → butt joint, the edited board runs
+  through and the partner is shortened against it (`cornerButt`).
   `part.rip` = one half of a lengthwise angled rip (French cleat); both
   halves share `rip.id`, keep the original size/position, and count once
   in the cut list and shopping list (`stockPieces`). Overlaps inside

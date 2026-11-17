@@ -194,8 +194,9 @@ export function describeCuts(part: Part): string[] {
   const where = ['början', 'slutet']
   ends.forEach((cut, i) => {
     if (!cut || !cut.angle) return
-    const kind = cut.plane === 'face' ? 'Gering' : 'Fas'
-    notes.push(`${kind} ${fmtDeg(cut.angle)} i ${where[i]} (längden mätt på långsidan)`)
+    // 'edge' is still a miter, sawn with the board standing on edge (högkant)
+    const how = cut.plane === 'face' ? 'Gering' : 'Gering på högkant'
+    notes.push(`${how} ${fmtDeg(cut.angle)} i ${where[i]} (längden mätt på långsidan)`)
   })
   return notes
 }
