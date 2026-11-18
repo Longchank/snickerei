@@ -269,6 +269,11 @@ export function placementOptions(
     for (const a of AXES) if (a !== n) for (const sg of [1, -1] as const) add(placeOnPart(profileId, target, hit, normal, parts, { axis: a, sign: sg }))
   }
   for (const [a, sg] of sides) add(placeOnPart(profileId, target, ...onFace(a, sg), parts))
+  // Nothing goes through the floor (unless the target itself is below it)
+  if (tBox.min[1] >= 0) {
+    const above = out.filter((p) => toAxisBox(partBox({ ...p.part, id: '', name: '' })).min[1] >= -0.5)
+    if (above.length) return above
+  }
   return out
 }
 
@@ -287,5 +292,63 @@ export function describePlacement(p: Placement): string {
       ? `, spänner till ${p.lengthFrom}`
       : `, fyller upp till ${p.lengthFrom}`
     : ''
-  return `${ANCHOR_LABEL[p.anchor]} · ${len}${why}`
+  return `${lie(p.part)}, ${ANCHOR_LABEL[p.anchor].toLowerCase()} · ${len}${why}`
 }
+
+/** "Stående", "Liggande" or "På högkant", from which way the length and width run */
+function lie(part: Omit<Part, 'id' | 'name'>): string {
+  if (worldAxisOf(part.rotation, 0) === 1) return 'Stående'
+  return worldAxisOf(part.rotation, 2) === 1 ? 'På högkant' : 'Liggande'
+}
+
+/**
+ * What an already-placed board sits on: the part whose face it touches, the
+ * middle of the contact and the face's outward normal — as if that spot had
+ * been tapped when placing. Contact at the board's own end comes first (a
+ * post on a sill), then the biggest contact area. Null if it touches nothing.
+ */
+export function contactOf(board: Part, parts: Part[]): { target: Part; hit: Vec3; normal: Vec3 } | null {
+  const b = toAxisBox(partBox(board))
+  const length = worldAxisOf(board.rotation, 0)
+  let best: { target: Part; hit: Vec3; normal: Vec3; score: number } | null = null
+  for (const q of parts) {
+    if (q.id === board.id || (board.rip && q.rip?.id === board.rip.id)) continue
+    const t = toAxisBox(partBox(q))
+    for (const a of AXES) {
+      for (const sign of [1, -1] as const) {
+        // Board on the + side of q (touching q's max face) or on the − side
+        const gap = sign > 0 ? b.min[a] - t.max[a] : t.min[a] - b.max[a]
+        if (Math.abs(gap) > 1) continue
+        const rest = AXES.filter((x) => x !== a)
+        const over = rest.map((x) => [Math.max(b.min[x], t.min[x]), Math.min(b.max[x], t.max[x])])
+        if (over.some(([lo, hi]) => hi - lo <= 0.5)) continue
+        const hit = [0, 0, 0] as Vec3
+        hit[a] = sign > 0 ? t.max[a] : t.min[a]
+        rest.forEach((x, k) => (hit[x] = (over[k][0] + over[k][1]) / 2))
+        const normal = [0, 0, 0] as Vec3
+        normal[a] = sign
+        const area = over.reduce((s, [lo, hi]) => s * (hi - lo), 1)
+        const score = (a === length ? 1e12 : 0) + area
+        if (!best || score > best.score) best = { target: q, hit, normal, score }
+      }
+    }
+  }
+  return best && { target: best.target, hit: best.hit, normal: best.normal }
+}
+
+/**
+ * Other ways to place an existing board, from what it sits on (see
+ * `contactOf`) — the same alternatives as "Annan riktning" while placing.
+ * Empty for sheets and boards that touch nothing.
+ */
+export function reorientOptions(board: Part, parts: Part[]): Placement[] {
+  if (getProfile(board.profileId).kind === 'sheet') return []
+  const others = parts.filter((p) => p.id !== board.id)
+  const c = contactOf(board, others)
+  if (!c) return []
+  return placementOptions(board.profileId, c.target, c.hit, c.normal, others)
+}
+
+/** Same position, turn and length? */
+export const samePlacement = (a: Omit<Part, 'id' | 'name'>, b: Omit<Part, 'id' | 'name'>) =>
+  JSON.stringify([a.position, a.rotation, a.length]) === JSON.stringify([b.position, b.rotation, b.length])

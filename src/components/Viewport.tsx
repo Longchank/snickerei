@@ -24,6 +24,7 @@ import { getProfile, hasGrain } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
 import { switchButt } from '../lib/corner'
+import { reorientOptions } from '../lib/place'
 import { overlapsOf, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -879,6 +880,12 @@ function ActionBar() {
   const chosen = parts.filter((p) => ids.has(p.id))
   // Two boards meeting in a square corner: offer to swap which runs through
   const canSwitch = chosen.length === 2 && switchButt(chosen[0], chosen[1]) !== null
+  // One placed board: the same "Annan riktning" as while placing
+  const reorientSelection = useStore((s) => s.reorientSelection)
+  const choice = useStore((s) => s.placeChoice)
+  const note = useStore((s) => s.placeNote)
+  const canReorient = chosen.length === 1 && reorientOptions(chosen[0], parts).length > 1
+  const showNote = canReorient && choice?.partId === chosen[0].id && note
   // Exactly one whole group selected?
   const gid = chosen[0]?.groupId
   const group =
@@ -929,7 +936,16 @@ function ActionBar() {
             ⇄ Byt stötfog
           </button>
         )}
-        {chosen.length === 1 && !group && <span className="action-hint">Tryck på fler delar för att markera dem också</span>}
+        {canReorient && (
+          <button className="switch-butt" onClick={reorientSelection} title="Prova nästa sätt att sätta brädan där den sitter">
+            ⟳ Annan riktning
+          </button>
+        )}
+        {showNote ? (
+          <span className="action-hint">{note}</span>
+        ) : (
+          chosen.length === 1 && !group && <span className="action-hint">Tryck på fler delar för att markera dem också</span>
+        )}
       </div>
     </div>
   )

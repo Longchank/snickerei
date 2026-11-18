@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from 'react'
 import { CATEGORY_NAMES, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
 import type { Part, ProfileCategory } from '../lib/types'
@@ -5,6 +6,42 @@ import type { Part, ProfileCategory } from '../lib/types'
 const BOARD_CATEGORIES = (Object.keys(CATEGORY_NAMES) as ProfileCategory[]).filter(
   (c) => !SHEET_CATEGORIES.includes(c),
 )
+
+const FOLD_KEY = 'snickerei-open-folds'
+function readFolds(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(FOLD_KEY) ?? '[]')
+  } catch {
+    return []
+  }
+}
+
+/** A section that folds away; closed by default, remembers being opened on this device. */
+function Fold({ id, title, children, count }: { id: string; title: ReactNode; children: ReactNode; count?: number }) {
+  const [open, setOpen] = useState(() => readFolds().includes(id))
+  return (
+    <details
+      className="fold"
+      open={open}
+      onToggle={(e) => {
+        const now = (e.currentTarget as HTMLDetailsElement).open
+        setOpen(now)
+        try {
+          const rest = readFolds().filter((x) => x !== id)
+          localStorage.setItem(FOLD_KEY, JSON.stringify(now ? [...rest, id] : rest))
+        } catch {
+          /* storage unavailable: just don't remember */
+        }
+      }}
+    >
+      <summary>
+        <span>{title}</span>
+        {count !== undefined && <span className="muted small">{count}</span>}
+      </summary>
+      {open && children}
+    </details>
+  )
+}
 
 function Category({ cat }: { cat: ProfileCategory }) {
   const addPart = useStore((s) => s.addPart)
@@ -15,11 +52,12 @@ function Category({ cat }: { cat: ProfileCategory }) {
   // the very first board just goes in
   const choose = (id: string) =>
     !hasParts ? addPart(id) : setPlaceProfile(placeProfile === id ? null : id)
+  const profiles = PROFILES.filter((p) => p.category === cat)
+  const armed = profiles.some((p) => p.id === placeProfile)
   return (
-    <section>
-      <h3>{CATEGORY_NAMES[cat]}</h3>
+    <Fold id={`cat-${cat}`} title={<>{CATEGORY_NAMES[cat]}{armed && <span className="fold-armed"> · vald</span>}</>} count={profiles.length}>
       <div className="chips">
-        {PROFILES.filter((p) => p.category === cat).map((p) => (
+        {profiles.map((p) => (
           <button
             key={p.id}
             className={`chip ${placeProfile === p.id ? 'on' : ''}`}
@@ -32,7 +70,7 @@ function Category({ cat }: { cat: ProfileCategory }) {
           </button>
         ))}
       </div>
-    </section>
+    </Fold>
   )
 }
 
@@ -88,8 +126,7 @@ export function PartList() {
   )
 
   return (
-    <>
-      <h2>Delar ({parts.length})</h2>
+    <Fold id="parts" title={<h2>Delar</h2>} count={parts.length}>
       {parts.length === 0 && <p className="hint">Inga delar än.</p>}
       {groups.map((g) => {
         const members = parts.filter((p) => p.groupId === g.id)
@@ -108,6 +145,6 @@ export function PartList() {
         )
       })}
       <ul className="part-list">{parts.filter((p) => !p.groupId).map(item)}</ul>
-    </>
+    </Fold>
   )
 }

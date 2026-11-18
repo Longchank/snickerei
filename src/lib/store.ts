@@ -18,7 +18,7 @@ import {
   unionBox,
 } from './joints'
 import { mergePrices, supplierEntries } from './prices'
-import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, type Placement } from './place'
+import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, reorientOptions, samePlacement, type Placement } from './place'
 import { DEFAULT_SNAP_TYPES } from './snap'
 import type {
   EndCut,
@@ -97,6 +97,8 @@ interface State {
   ) => void
   /** Put the last placed board the next way instead */
   cyclePlacement: () => void
+  /** "Annan riktning" for the one selected, already placed board */
+  reorientSelection: () => void
   /** A tap in measuring mode: first tap starts, second finishes a measurement.
    * `options` are the snap alternatives for this tap, best (= p) first. */
   measureTap: (p: MeasurePoint, options?: MeasurePoint[]) => void
@@ -370,6 +372,25 @@ export const useStore = create<State>()(
             placeChoice: { ...c, index },
             placeNote: describePlacement(next),
           }))
+        },
+        reorientSelection: () => {
+          const { selection, project, placeChoice: c } = get()
+          if (selection.length !== 1) return
+          const id = selection[0]
+          const part = project.parts.find((p) => p.id === id)
+          if (!part) return
+          // Keep cycling the same list while the board is where the last tap put it
+          const continuing = c && c.partId === id && samePlacement(c.options[c.index].part, part)
+          const options = continuing ? c.options : reorientOptions(part, project.parts)
+          if (options.length < 2) return
+          const current = continuing ? c.index : options.findIndex((o) => samePlacement(o.part, part))
+          const index = (current + 1) % options.length
+          const next = options[index]
+          const apply = (ps: Part[]) => ps.map((p) => (p.id === id ? { ...p, ...next.part } : p))
+          // The first tap is an undo step; further taps replace it, so one Ångra goes back
+          if (continuing) set((s) => ({ project: { ...s.project, parts: apply(s.project.parts) } }))
+          else editParts(apply, [id])
+          set({ placeChoice: { partId: id, options, index }, placeNote: describePlacement(next) })
         },
         setMeasureMode: (on) =>
           set({

@@ -192,6 +192,17 @@ comments in English).
   sides, other rail directions); "⟳ Annan riktning" cycles them without an
   undo step, so "↶ Ångra" in the banner removes the board in one go. Move
   arrows are hidden while placing; the Del tab doesn't auto-open.
+  Options that would go below the floor are dropped. **"⟳ Annan riktning"
+  also works on a placed board** (owner 2026-11-18): Bygg action bar with
+  one board selected; `contactOf` finds what it sits on (contact at its
+  own end first, then largest area) and `reorientOptions` re-runs
+  `placementOptions` from there. First tap = one undo step, further taps
+  replace it (`placeChoice` reused while the board stays where the last
+  tap put it). Notes read "Stående/Liggande/På högkant, vid änden · …".
+- **Lägg till menu** (owner 2026-11-18): every catalog category and the
+  Delar list fold (`Fold`, `<details>`), closed by default; opened ones
+  are remembered per device (localStorage `snickerei-open-folds`). On the
+  phone the panel closes when a board has been added.
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
   were editable in the 3D view): the Del panel only shows the selection's
   outer size. Moving and turning happen in the 3D view (Bygg: arrows,

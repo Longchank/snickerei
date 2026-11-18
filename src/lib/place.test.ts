@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, placeOnPart, rotationFor } from './place'
+import { contactOf, describePlacement, floorTapTarget, placementOptions, placeOnFloor, placeOnPart, reorientOptions, rotationFor, samePlacement } from './place'
 import type { Part, Vec3 } from './types'
 
 let n = 0
@@ -54,7 +54,7 @@ describe('placeOnPart: on a side face', () => {
     const rail = make({ profileId: 'konstruktion-45x95', length: 1200, position: [0, 800, 0], rotation: [0, 0, 0] }, 'Överliggare')
     const p = placeOnPart('konstruktion-45x95', sill, [1150, 45, 40], UP, [sill, rail])
     expect(p.part.length).toBe(755)
-    expect(describePlacement(p)).toBe('Vid änden · 755 mm, fyller upp till Överliggare')
+    expect(describePlacement(p)).toBe('Stående, vid änden · 755 mm, fyller upp till Överliggare')
   })
 })
 
@@ -104,12 +104,40 @@ describe('placementOptions', () => {
     })
     expect(dirs[0]).toBe(2) // out of the front face
     expect(dirs[1]).toBe(1) // standing up
-    expect(opts.length).toBeGreaterThanOrEqual(4)
+    expect(opts.length).toBeGreaterThanOrEqual(3)
+    // None goes down through the floor
+    for (const o of opts) expect(box(o.part).min[1]).toBeGreaterThanOrEqual(0)
   })
 
   it('puts standing on top first for a missed tap', () => {
     const [first] = placementOptions('konstruktion-45x95', sill, [20, 20, 95], [0, 0, 1], [sill], true)
     expect(box(first.part).min).toEqual([0, 45, 0])
     expect(first.part.length).toBe(1000)
+  })
+})
+
+describe('reorientOptions (Annan riktning for a placed board)', () => {
+  // A post placed by tapping the top of the sill near its end
+  const placed = placeOnPart('konstruktion-45x95', sill, [1180, 45, 40], UP, [sill])
+  const post = make(placed.part, 'Stolpe')
+
+  it('finds what the board stands on, at its own end', () => {
+    const c = contactOf(post, [sill])!
+    expect(c.target.id).toBe(sill.id)
+    expect(c.normal).toEqual([0, 1, 0])
+    expect(c.hit[1]).toBe(45)
+  })
+
+  it('offers the same alternatives as when placing, including the current one', () => {
+    const opts = reorientOptions(post, [sill, post])
+    expect(opts.length).toBeGreaterThanOrEqual(3)
+    expect(opts.some((o) => samePlacement(o.part, post))).toBe(true)
+    // Every option still sits at the sill's end
+    for (const o of opts) expect(box(o.part).max[0]).toBeGreaterThan(1100)
+  })
+
+  it('has nothing to offer for a board touching nothing', () => {
+    const lone = make({ ...sill, position: [0, 0, 3000] })
+    expect(reorientOptions(lone, [sill, lone])).toEqual([])
   })
 })

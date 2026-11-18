@@ -61,6 +61,13 @@ export function App() {
   useEffect(() => {
     if ((placing || moving || turning) && mobile) setSheetOpen(false)
   }, [placing, moving, turning, mobile])
+  // A board was added from Lägg till: close the menu so it shows in the view
+  const partCount = useStore((s) => s.project.parts.length)
+  const lastCount = useRef(partCount)
+  useEffect(() => {
+    if (partCount > lastCount.current && mobile && tab === 'lagg') setSheetOpen(false)
+    lastCount.current = partCount
+  }, [partCount, mobile, tab])
   // Switching mode: Bygg shows the model and its action bar, so the details
   // panel closes; Redigera opens the details of what's selected
   const mode = useStore((s) => s.settings.mode)
