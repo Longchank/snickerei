@@ -20,8 +20,8 @@ export function Inspector() {
     return (
       <div className="inspector empty">
         <p className="hint">
-          Tryck på en del i 3D-vyn eller i listan för att ändra den. Slå på <strong>Flera</strong> i 3D-vyn för att
-          markera flera delar, eller <strong>Mät</strong> för att mäta mellan ytor.
+          Tryck på en del i 3D-vyn för att se och ändra den — längd, ändar och fogar. Tryck på <strong>Mät</strong>{' '}
+          för att mäta mellan ytor.
         </p>
         <Shortcuts />
       </div>

@@ -96,8 +96,14 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickCount])
 
+  // The Del (details) tab belongs to Redigera; in Bygg the action bar in the
+  // view handles the selection (owner 2026-11-18). Measuring still uses the
+  // panel's slot, so it shows while measuring in either mode.
+  const delAvailable = mode === 'redigera'
+  const tabs = TABS.filter((t) => delAvailable || t.id !== 'del')
   // 'Lägg till' lives in the left column on desktop
-  const activeTab: Tab = !mobile && tab === 'lagg' ? 'del' : tab
+  let activeTab: Tab = !mobile && tab === 'lagg' ? (delAvailable ? 'del' : 'lista') : tab
+  if (activeTab === 'del' && !delAvailable && !measureMode) activeTab = mobile ? 'lagg' : 'lista'
 
   const print = async () => {
     // Clean view for the snapshot: nothing selected, no overlays, whole model in frame
@@ -146,8 +152,8 @@ export function App() {
                 {content}
               </div>
             )}
-            <nav className="tabbar">
-              {TABS.map((t) => (
+            <nav className="tabbar" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
+              {tabs.map((t) => (
                 <button
                   key={t.id}
                   className={sheetOpen && activeTab === t.id ? 'active' : ''}
@@ -168,7 +174,7 @@ export function App() {
         ) : (
           <aside className="panel right">
             <nav className="tabs">
-              {TABS.filter((t) => t.desktop).map((t) => (
+              {tabs.filter((t) => t.desktop).map((t) => (
                 <button key={t.id} className={activeTab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
                   {t.id === 'del' ? 'Egenskaper' : t.id === 'lista' ? 'Såglista' : 'Prislista'}
                 </button>

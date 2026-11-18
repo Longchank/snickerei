@@ -91,7 +91,10 @@ comments in English).
   switches to Bygg. Redigera: a tap picks one part (even inside a group)
   and opens the Del panel. `pickPart` routes taps by mode. Switching to
   Bygg closes the details panel (it hid the action bar, so the switch
-  looked broken); switching to Redigera with a selection opens it. With
+  looked broken); switching to Redigera with a selection opens it. **The
+  Del tab exists only in Redigera** (owner 2026-11-18; desktop: the
+  "Egenskaper" tab) — in Bygg the tab bar is Lägg till · Listor · Priser.
+  Measuring still opens the panel's Del slot in either mode. With
   the phone panel open, the action/move/place bars sit at the top
   (`.sheet-open .place-top`) instead of behind the panel.
 - **Moving** (`moveMode`, `src/lib/move.ts`): diegetic arrows in the 3D
