@@ -4,10 +4,11 @@
  * the outer corner, cut along the diagonal) or a square butt joint.
  */
 import { Euler, Vector3 } from 'three'
+import { getProfile } from './catalog'
 import { miterCorner } from './cuts'
 import { eulerOf, partBox, round, toAxisBox, type AxisBox } from './geometry'
 import { intersect, toLocalBox } from './joints'
-import type { EndCut, Part } from './types'
+import type { EndCut, Part, Vec3 } from './types'
 
 /** How close (mm) two boards must be to count as meeting */
 const TOL = 2
@@ -146,6 +147,44 @@ export function cornerButt(p: Part, pe: 0 | 1, partner: CornerPartner): [Part, P
 }
 
 
+
+
+/**
+ * Lengthen (d > 0) or shorten (d < 0) a part at one end, keeping the other
+ * end in place. Only for re-cutting butt joints (below): everywhere else a
+ * cut never changes a board's length.
+ */
+export function extendEnd(p: Part, end: 0 | 1, d: number): Part {
+  if (Math.abs(d) < 0.01) return p
+  const length = round(p.length + d)
+  if (end === 1) return { ...p, length }
+  // Growing at the start moves the part's origin back along its length
+  const dir = lengthDir(p).multiplyScalar(-d)
+  return {
+    ...p,
+    length,
+    position: [round(p.position[0] + dir.x), round(p.position[1] + dir.y), round(p.position[2] + dir.z)],
+    notches: p.notches?.map((n) => ({
+      ...n,
+      min: [n.min[0] + d, n.min[1], n.min[2]] as Vec3,
+      max: [n.max[0] + d, n.max[1], n.max[2]] as Vec3,
+    })),
+  }
+}
+
+/** Two boards meeting end to end in a square corner */
+export interface ButtCorner {
+  a: string
+  ae: 0 | 1
+  b: string
+  be: 0 | 1
+}
+
+/** Does this end of `p` run through to the far side of `other` (the outer corner)? */
+function runsThrough(p: Part, end: 0 | 1, other: Part): boolean {
+  return Math.abs(reach(p, end, farSide(p, end, box(other), lengthAxis(p)))) < 0.5
+}
+
 /** The two ends where boards a and b meet at a corner, or null. */
 export function cornerEnds(a: Part, b: Part): { ae: 0 | 1; be: 0 | 1 } | null {
   for (const ae of [0, 1] as const) {
@@ -155,26 +194,150 @@ export function cornerEnds(a: Part, b: Part): { ae: 0 | 1; be: 0 | 1 } | null {
   return null
 }
 
-/** Does this end of `p` run through to the far side of `other` (the outer corner)? */
-function runsThrough(p: Part, end: 0 | 1, other: Part): boolean {
-  return Math.abs(reach(p, end, farSide(p, end, box(other), lengthAxis(p)))) < 0.5
+const isSquare = (p: Part, end: 0 | 1) => !p.ends?.[end]?.angle
+
+/**
+ * The frame the seed boards belong to: every square corner reachable from
+ * them through boards meeting end to end. Mitered corners don't count.
+ */
+export function frameCorners(seedIds: string[], parts: Part[]): ButtCorner[] {
+  const byId = new Map(parts.map((p) => [p.id, p]))
+  const seen = new Set<string>()
+  const queue = seedIds.filter((id) => byId.has(id))
+  const corners: ButtCorner[] = []
+  const keys = new Set<string>()
+  while (queue.length) {
+    const id = queue.shift()!
+    if (seen.has(id)) continue
+    seen.add(id)
+    const p = byId.get(id)!
+    if (getProfileKind(p) === 'sheet') continue
+    for (const end of [0, 1] as const) {
+      const partner = findCornerPartner(p, end, parts)
+      if (!partner || getProfileKind(partner.part) === 'sheet') continue
+      if (!isSquare(p, end) || !isSquare(partner.part, partner.end)) continue
+      const key = [`${p.id}:${end}`, `${partner.part.id}:${partner.end}`].sort().join('|')
+      if (!keys.has(key)) {
+        keys.add(key)
+        corners.push({ a: p.id, ae: end, b: partner.part.id, be: partner.end })
+      }
+      queue.push(partner.part.id)
+    }
+  }
+  return corners
 }
 
 /**
- * Switch which board of a square (butt) corner runs through: the one that
- * stopped against the other now runs to the outer corner, and the other
- * stops against it. Both boards only slide along their length — lengths
- * never change. Null if they don't meet at a corner, or a meeting end has
- * an angled cut (that's a miter, not a butt joint).
+ * Re-cut one square corner so `runner` runs through to the outer corner and
+ * `stopper` ends against it. The outer corner and both boards' far ends stay
+ * where they are — the boards get longer or shorter instead (owner
+ * 2026-11-18: switching butt joints keeps the outer size).
  */
-export function switchButt(a: Part, b: Part): [Part, Part] | null {
-  const ends = cornerEnds(a, b)
-  if (!ends) return null
-  const { ae, be } = ends
-  if (a.ends?.[ae]?.angle || b.ends?.[be]?.angle) return null
-  if (runsThrough(a, ae, b)) {
-    const [nb, na] = cornerButt(b, be, { part: a, end: ae })
-    return [na, nb]
-  }
-  return cornerButt(a, ae, { part: b, end: be })
+export function recutButt(runner: Part, re: 0 | 1, stopper: Part, se: 0 | 1): [Part, Part] {
+  const a = lengthAxis(runner)
+  const b = lengthAxis(stopper)
+  // The outer corner, along each board, is the further of the two boards' extents
+  const rBox = box(runner)
+  const sBox = box(stopper)
+  const rOuter = endCoord(runner, re) === rBox.max[a] ? Math.max(rBox.max[a], sBox.max[a]) : Math.min(rBox.min[a], sBox.min[a])
+  const sOuter = endCoord(stopper, se) === sBox.max[b] ? Math.max(sBox.max[b], rBox.max[b]) : Math.min(sBox.min[b], rBox.min[b])
+  const r2 = extendEnd(runner, re, reach(runner, re, rOuter))
+  // The stopper first reaches the outer corner too, then stops at the runner's near side
+  const s1 = extendEnd(stopper, se, reach(stopper, se, sOuter))
+  const rb = box(r2)
+  const sAtMax = endCoord(s1, se) === box(s1).max[b]
+  const s2 = extendEnd(s1, se, reach(s1, se, sAtMax ? rb.min[b] : rb.max[b]))
+  return [r2, s2]
 }
+
+/** "de stående", "de som går vänster–höger" … for the boards along one axis */
+export const AXIS_BOARDS = ['de som går vänster–höger', 'de stående', 'de som går framåt–bakåt']
+
+export interface ButtSwitch {
+  parts: Part[]
+  /** The corners that were switched */
+  corners: ButtCorner[]
+  /** For a whole frame: the axis whose boards now run through */
+  axis?: 0 | 1 | 2
+}
+
+/** Which axis should run through after switching a frame: the one that mostly stops now */
+function targetAxis(corners: ButtCorner[], byId: Map<string, Part>): 0 | 1 | 2 | null {
+  const score = [0, 0, 0]
+  const present = [false, false, false]
+  for (const c of corners) {
+    const a = byId.get(c.a)!
+    const b = byId.get(c.b)!
+    const aRuns = runsThrough(a, c.ae, b)
+    const bRuns = runsThrough(b, c.be, a)
+    for (const [p, runs] of [[a, aRuns], [b, bRuns]] as const) {
+      const ax = lengthAxis(p)
+      present[ax] = true
+      if (!runs) score[ax]++
+      else score[ax]--
+    }
+  }
+  const order: (0 | 1 | 2)[] = [1, 0, 2] // ties: standing boards first
+  let best: 0 | 1 | 2 | null = null
+  for (const ax of order) if (present[ax] && (best === null || score[ax] > score[best])) best = ax
+  return best
+}
+
+/**
+ * ⇄ Byt stötfog. Two selected boards that share a square corner: switch that
+ * corner. Otherwise: the whole frame of the selection — every square corner
+ * gets the boards along one axis running through (the axis that mostly
+ * stops now), so "top/bottom through" becomes "sides through" and back.
+ * Null when there's no square corner to switch.
+ */
+export function switchButtJoints(selection: string[], parts: Part[]): ButtSwitch | null {
+  const byId = new Map(parts.map((p) => [p.id, p]))
+  const sel = selection.map((id) => byId.get(id)).filter((p): p is Part => !!p)
+  const apply = (corners: ButtCorner[], pickRunner: (a: Part, b: Part, c: ButtCorner) => boolean) => {
+    for (const c of corners) {
+      const a = byId.get(c.a)!
+      const b = byId.get(c.b)!
+      const [r, re, st, se] = pickRunner(a, b, c) ? [a, c.ae, b, c.be] : [b, c.be, a, c.ae]
+      const [r2, s2] = recutButt(r, re, st, se)
+      if (r2.length < 1 || s2.length < 1) return false
+      byId.set(r2.id, r2)
+      byId.set(s2.id, s2)
+    }
+    return true
+  }
+  const result = (corners: ButtCorner[], axis?: 0 | 1 | 2): ButtSwitch => ({
+    parts: parts.map((p) => byId.get(p.id)!),
+    corners,
+    axis,
+  })
+
+  if (sel.length === 2) {
+    const ends = cornerEnds(sel[0], sel[1])
+    if (ends && isSquare(sel[0], ends.ae) && isSquare(sel[1], ends.be)) {
+      const c: ButtCorner = { a: sel[0].id, ae: ends.ae, b: sel[1].id, be: ends.be }
+      // Toggle: the board that runs through now becomes the one that stops
+      const aRuns = runsThrough(sel[0], ends.ae, sel[1])
+      return apply([c], () => !aRuns) ? result([c]) : null
+    }
+  }
+  const corners = frameCorners(selection, parts)
+  if (!corners.length) return null
+  const axis = targetAxis(corners, byId)
+  if (axis === null) return null
+  const ok = apply(corners, (a, b, c) => {
+    if (lengthAxis(a) === axis) return true
+    if (lengthAxis(b) === axis) return false
+    // A corner without that axis: just toggle it
+    return !runsThrough(a, c.ae, b)
+  })
+  return ok ? result(corners, axis) : null
+}
+
+/** Old two-board API, kept for callers and tests: switch the corner a and b share. */
+export function switchButt(a: Part, b: Part): [Part, Part] | null {
+  const r = switchButtJoints([a.id, b.id], [a, b])
+  if (!r || r.axis !== undefined) return null
+  return [r.parts[0], r.parts[1]]
+}
+
+const getProfileKind = (p: Part) => getProfile(p.profileId).kind

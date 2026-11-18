@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cornerButt, cornerMiter, findCornerPartner, switchButt } from './corner'
+import { cornerButt, cornerMiter, findCornerPartner, frameCorners, switchButt, switchButtJoints } from './corner'
 import { partBox, toAxisBox } from './geometry'
 import { overlapsOf } from './joints'
 import { placeOnPart } from './place'
@@ -58,15 +58,21 @@ describe('cornerButt', () => {
   })
 })
 
-describe('switchButt', () => {
-  it('swaps which board runs through, only sliding them, and switches back', () => {
+const outer = (ps: Part[]) => {
+  const bs = ps.map(box)
+  return { min: [0, 1, 2].map((i) => Math.min(...bs.map((b) => b.min[i]))), max: [0, 1, 2].map((i) => Math.max(...bs.map((b) => b.max[i]))) }
+}
+
+describe('switchButt (one corner)', () => {
+  it('re-cuts the corner: the other board runs through, the outer corner stays, and back', () => {
     // The sill runs through; the post stands on it
     const [s1, p1] = switchButt(sill, post)!
-    // Now the post runs to the floor and the sill stops against it
-    expect(box(p1)).toEqual({ min: [1155, 0, 0], max: [1200, 1000, 95] })
-    expect(box(s1)).toEqual({ min: [-45, 0, 0], max: [1155, 45, 95] })
-    expect(s1.length).toBe(sill.length)
-    expect(p1.length).toBe(post.length)
+    // Now the post runs to the floor (longer) and the sill stops against it (shorter)
+    expect(box(p1)).toEqual({ min: [1155, 0, 0], max: [1200, 1045, 95] })
+    expect(box(s1)).toEqual({ min: [0, 0, 0], max: [1155, 45, 95] })
+    expect(p1.length).toBe(1045)
+    expect(s1.length).toBe(1155)
+    expect(outer([s1, p1])).toEqual(outer([sill, post]))
     expect(overlapsOf(s1, [p1])).toEqual([])
     // And back again (argument order doesn't matter)
     const [p2, s2] = switchButt(p1, s1)!
@@ -78,5 +84,48 @@ describe('switchButt', () => {
     expect(switchButt(sill, { ...rail, position: [0, 2000, 0] })).toBeNull()
     const [ms, mp] = cornerMiter(sill, 1, { part: post, end: 0 })!
     expect(switchButt(ms, mp)).toBeNull()
+  })
+})
+
+describe('switchButtJoints (whole frame)', () => {
+  // A standing frame 1000 × 600: top and bottom run through, the sides stand between
+  const b = (id: string, length: number, position: Part['position'], rotation: Part['rotation']): Part => ({
+    id, name: id, profileId: 'konstruktion-45x95', length, position, rotation,
+  })
+  const bottom = b('bottom', 1000, [0, 0, 0], [0, 0, 0])
+  const top = b('top', 1000, [0, 555, 0], [0, 0, 0])
+  const left = b('left', 510, [45, 45, 0], [0, 0, 1])
+  const right = b('right', 510, [1000, 45, 0], [0, 0, 1])
+  const frame = [bottom, top, left, right]
+
+  it('finds all four corners from any one board', () => {
+    expect(frameCorners(['left'], frame)).toHaveLength(4)
+    expect(frameCorners(['top'], frame)).toHaveLength(4)
+  })
+
+  it('switches every corner so the sides run through, keeping the outer size, and back', () => {
+    const r = switchButtJoints(['left'], frame)!
+    expect(r.axis).toBe(1) // the standing boards now run through
+    const [bo, to, le, ri] = r.parts
+    expect([le.length, ri.length]).toEqual([600, 600])
+    expect([bo.length, to.length]).toEqual([910, 910])
+    expect(outer(r.parts)).toEqual(outer(frame))
+    for (const p of r.parts) expect(overlapsOf(p, r.parts)).toEqual([])
+    // No corner came apart: still four corners
+    expect(frameCorners(['left'], r.parts)).toHaveLength(4)
+    // And back
+    const back = switchButtJoints(['top'], r.parts)!
+    expect(back.axis).toBe(0)
+    expect(back.parts.map(box)).toEqual(frame.map(box))
+  })
+
+  it('two selected boards of the frame switch only their own corner', () => {
+    const r = switchButtJoints(['bottom', 'right'], frame)!
+    expect(r.corners).toHaveLength(1)
+    const [bo, to, le, ri] = r.parts
+    expect(ri.length).toBe(555) // runs down to the floor now
+    expect(bo.length).toBe(955)
+    expect([to.length, le.length]).toEqual([1000, 510]) // untouched
+    expect(outer(r.parts)).toEqual(outer(frame))
   })
 })

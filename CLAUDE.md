@@ -65,14 +65,6 @@ comments in English).
   search link (user reads the price and enters it as "Eget pris") or asking
   Hornbach for a partner feed/API.
 
-- **Improve "⇄ Byt stötfog"** (todo, owner 2026-11-18 — owner tests it
-  first; not top priority). Known weak spots: (1) the sliding board moves
-  at both ends, so in a closed four-board frame it pulls away from the
-  next corner; (2) the outer size changes by one board thickness per
-  switch; (3) only two boards at a time — no whole-frame switch ("sides
-  run through, top/bottom between"). Idea: keep the outer size fixed and
-  adjust the far corner too. Ask the owner which cases bit before starting.
-
 ## Model conventions
 
 - All lengths in **millimetres**, scene units are mm too.
@@ -153,10 +145,18 @@ comments in English).
   through and the partner ends against it (`cornerButt`). **Lengths never
   change** (owner 2026-11-18: "1 meter is still 1 meter after being
   cut"): a board that doesn't reach is slid along its length (`slideEnd`),
-  so its far end moves instead. **"⇄ Byt stötfog"** (owner 2026-11-18): in
-  the Bygg action bar when exactly two boards meeting in a square corner
-  are selected (`switchButt`; not for miters) — swaps which board runs
-  through; both only slide, lengths unchanged, a second tap switches back.
+  so its far end moves instead. **"⇄ Byt stötfog"** (owner 2026-11-18,
+  reworked after testing): **keeps the outer size and re-cuts** — the one
+  exception to "lengths never change". `recutButt` puts the runner's end at
+  the outer corner and stops the other at the runner's near side; both far
+  ends stay put, so neighbouring corners never come apart. Scope
+  (`switchButtJoints`): two selected boards sharing a square corner → that
+  corner only (toggle); anything else → the selection's whole frame
+  (`frameCorners`: square corners reachable board to board; miters and
+  sheets skipped), where every corner gets the boards along one axis
+  running through — the axis that mostly stops now (ties: standing
+  boards), so the button reads "⇄ Låt de stående gå igenom (4 hörn)" and
+  toggles back. Bygg action bar.
   `part.rip` = one half of a lengthwise angled rip (French cleat); both
   halves share `rip.id`, keep the original size/position, and count once
   in the cut list and shopping list (`stockPieces`). Overlaps inside

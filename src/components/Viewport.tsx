@@ -23,7 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getProfile, hasGrain } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
-import { switchButt } from '../lib/corner'
+import { AXIS_BOARDS, switchButtJoints } from '../lib/corner'
 import { endName, endPoint } from '../lib/ends'
 import { reorientOptions } from '../lib/place'
 import { overlapsOf, unionBox } from '../lib/joints'
@@ -892,11 +892,12 @@ function ActionBar() {
   const clearSelection = useStore((s) => s.clearSelection)
   const setMoveMode = useStore((s) => s.setMoveMode)
   const setRotateMode = useStore((s) => s.setRotateMode)
-  const switchButtJoint = useStore((s) => s.switchButtJoint)
+  const switchButt = useStore((s) => s.switchButtJoints)
   const ids = new Set(selection)
   const chosen = parts.filter((p) => ids.has(p.id))
   // Two boards meeting in a square corner: offer to swap which runs through
-  const canSwitch = chosen.length === 2 && switchButt(chosen[0], chosen[1]) !== null
+  // What ⇄ Byt stötfog would do: one corner (two boards) or the whole frame
+  const butt = useMemo(() => (chosen.length ? switchButtJoints(selection, parts) : null), [selection, parts, chosen.length])
   // One placed board: the same "Annan riktning" as while placing
   const reorientSelection = useStore((s) => s.reorientSelection)
   const choice = useStore((s) => s.placeChoice)
@@ -944,13 +945,15 @@ function ActionBar() {
             Ta bort
           </button>
         </div>
-        {canSwitch && (
+        {butt && (
           <button
             className="switch-butt"
-            onClick={() => switchButtJoint(chosen[0].id, chosen[1].id)}
-            title="Den bräda som stannade mot den andra går igenom hörnet i stället. Längderna ändras inte — brädorna flyttas."
+            onClick={switchButt}
+            title="Yttermåttet behålls: brädorna som går igenom blir längre, de andra kortare."
           >
-            ⇄ Byt stötfog
+            {butt.axis === undefined
+              ? '⇄ Byt stötfog i hörnet'
+              : `⇄ Låt ${AXIS_BOARDS[butt.axis]} gå igenom (${butt.corners.length} hörn)`}
           </button>
         )}
         {canReorient && (

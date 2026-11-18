@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
 import { partBox, rotatePart } from './geometry'
-import { cornerButt, cornerMiter, findCornerPartner, switchButt } from './corner'
+import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
 import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
 import {
@@ -130,7 +130,8 @@ interface State {
   setEndCut: (partId: string, end: 0 | 1, cut: EndCut | null) => void
   miterWith: (partId: string, otherId: string) => void
   /** Swap which of two boards meeting in a square corner runs through (they only slide) */
-  switchButtJoint: (aId: string, bId: string) => void
+  /** ⇄ Byt stötfog: the selection's corner (two boards) or its whole frame, re-cut so the outer size stays */
+  switchButtJoints: () => void
   /** Rip the part lengthwise at an angle into two (French cleat) */
   frenchCleat: (partId: string, angle: number) => void
 
@@ -548,7 +549,12 @@ export const useStore = create<State>()(
             }),
           )
         },
-        switchButtJoint: (aId, bId) => joint(aId, bId, switchButt),
+        switchButtJoints: () => {
+          const r = switchButtJoints(get().selection, get().project.parts)
+          if (!r) return
+          const changed = new Map(r.parts.map((p) => [p.id, p]))
+          editParts((ps) => ps.map((p) => changed.get(p.id) ?? p))
+        },
         miterWith: (partId, otherId) =>
           joint(partId, otherId, (a, b) => {
             const box = overlapBox(a, b)
