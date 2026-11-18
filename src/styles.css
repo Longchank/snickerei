@@ -1540,3 +1540,15 @@ button.analysis-view.on {
   margin-top: 12px;
   font-style: italic;
 }
+
+.own-load {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 2px;
+  font-size: 14px;
+}
+.own-load input {
+  width: 110px;
+  font-size: 16px;
+}

@@ -23,6 +23,8 @@ const TOL = 1
 export interface Material {
   /** Characteristic bending strength, MPa */
   fm: number
+  /** Characteristic compression strength along the grain, MPa */
+  fc: number
   /** Mean modulus of elasticity, MPa */
   E: number
   /** Mean density, kg/m³ */
@@ -34,13 +36,13 @@ export interface Material {
 
 /** Typical values per category (rounded, from general knowledge, not per product) */
 export const MATERIALS: Record<ProfileCategory, Material> = {
-  konstruktion: { fm: 24, E: 11000, density: 420, kdef: 0.6, label: 'C24' },
-  tryckimpregnerat: { fm: 24, E: 11000, density: 480, kdef: 0.6, label: 'C24, impregnerat' },
-  hyvlat: { fm: 18, E: 9000, density: 400, kdef: 0.6, label: 'ca C18' },
-  lakt: { fm: 14, E: 7000, density: 350, kdef: 0.6, label: 'ca C14' },
-  plywood: { fm: 25, E: 8000, density: 550, kdef: 0.8, label: 'plywood' },
-  osb: { fm: 16, E: 4900, density: 600, kdef: 1.5, label: 'OSB/3' },
-  mdf: { fm: 18, E: 2500, density: 750, kdef: 2.25, label: 'MDF' },
+  konstruktion: { fm: 24, fc: 21, E: 11000, density: 420, kdef: 0.6, label: 'C24' },
+  tryckimpregnerat: { fm: 24, fc: 21, E: 11000, density: 480, kdef: 0.6, label: 'C24, impregnerat' },
+  hyvlat: { fm: 18, fc: 18, E: 9000, density: 400, kdef: 0.6, label: 'ca C18' },
+  lakt: { fm: 14, fc: 16, E: 7000, density: 350, kdef: 0.6, label: 'ca C14' },
+  plywood: { fm: 25, fc: 20, E: 8000, density: 550, kdef: 0.8, label: 'plywood' },
+  osb: { fm: 16, fc: 15, E: 4900, density: 600, kdef: 1.5, label: 'OSB/3' },
+  mdf: { fm: 18, fc: 12, E: 2500, density: 750, kdef: 2.25, label: 'MDF' },
 }
 
 /** Share of the characteristic strength we allow (≈ kmod 0.8 / γM 1.3) */
@@ -213,6 +215,21 @@ export interface BeamResult {
   status: Status
 }
 
+export interface PostResult {
+  partId: string
+  name: string
+  /** Free height (buckling length), mm */
+  height: number
+  /** Load from above, own weight included, kg */
+  loadKg: number
+  /** What it takes before buckling or crushing, kg */
+  capacityKg: number
+  /** Buckling (bends out sideways) or crushing (the wood itself) sets the limit */
+  capacityBy: 'buckling' | 'crushing'
+  utilisation: number
+  status: Status
+}
+
 export interface TipResult {
   /** Least sideways push at the top that tips it, kg (0 = falls by itself) */
   pushKg: number
@@ -233,6 +250,8 @@ export interface Analysis {
   centre: [number, number, number]
   onFloor: boolean
   beams: BeamResult[]
+  /** Standing boards: legs and posts */
+  posts: PostResult[]
   /** Horizontal parts that touch nothing below them */
   floating: string[]
   tip: TipResult | null
@@ -262,6 +281,7 @@ export function analyse(parts: Part[], purpose: Purpose): Analysis {
     return received.get(id)!
   }
   const beams: BeamResult[] = []
+  const posts: PostResult[] = []
   const floating: string[] = []
   const order = [...parts].sort((a, b) => boxes.get(b.id)!.max[1] - boxes.get(a.id)!.max[1])
 
@@ -274,12 +294,15 @@ export function analyse(parts: Part[], purpose: Purpose): Analysis {
     const horizontal = isHorizontal(p, b)
     const onFloor = b.min[1] <= 0.5
     const exposed = horizontal && topCovered(p, b, parts) < 0.5
-    const liveSpread = exposed ? preset.kgPerM2 * (s[0] * s[2] * 1e-6) * G : 0
+    // An own load set on the part replaces the preset there (and no person load)
+    const own_kg = horizontal ? p.loadKg : undefined
+    const liveSpread = own_kg !== undefined ? own_kg * G : exposed ? preset.kgPerM2 * (s[0] * s[2] * 1e-6) * G : 0
+    const personKg = own_kg !== undefined ? 0 : exposed ? preset.pointKg : 0
 
     // Which way does it span? Boards: their length. Sheets: the shorter gap between supports.
     const lengthAxis: Axis = s[0] >= s[2] ? 0 : 2
     let axis: Axis = lengthAxis
-    let supports = horizontal && !onFloor ? supportsOf(p, b, axis, parts) : []
+    let supports = !onFloor ? supportsOf(p, b, axis, parts) : []
     if (horizontal && !onFloor && kindOf(p) === 'sheet') {
       const other: Axis = lengthAxis === 0 ? 2 : 0
       const gapOf = (ax: Axis, cs: Contact[]) => spans(merge(cs), b.max[ax] - b.min[ax]).inner.reduce((m, sp) => Math.max(m, sp.to - sp.from), 0)
@@ -307,6 +330,8 @@ export function analyse(parts: Part[], purpose: Purpose): Analysis {
       passDown(own, 'dead')
       got.dead.forEach((l) => passDown(l.N, 'dead'))
       got.live.forEach((l) => passDown(l.N, 'live'))
+      const carried = got.dead.reduce((t, l) => t + l.N, 0) + got.live.reduce((t, l) => t + l.N, 0)
+      if (kindOf(p) === 'board' && carried > 0) posts.push(checkPost(p, s, mat, own + carried))
       continue
     }
     if (onFloor) continue
@@ -353,7 +378,7 @@ export function analyse(parts: Part[], purpose: Purpose): Analysis {
       const dead = simpleSpan(len, wDead, shift(deadPts), EI)
       const live = simpleSpan(len, wLive, shift(livePts), EI)
       // A person (or heavy thing) in the middle, instead of the spread load
-      const person = exposed && preset.pointKg ? simpleSpan(len, 0, [{ at: len / 2, P: preset.pointKg * G }], EI) : { M: 0, d: 0 }
+      const person = personKg ? simpleSpan(len, 0, [{ at: len / 2, P: personKg * G }], EI) : { M: 0, d: 0 }
       const liveM = Math.max(live.M, person.M)
       const liveD = Math.max(live.d * creepLive, person.d)
       const sag = dead.d * creepDead + liveD
@@ -377,7 +402,7 @@ export function analyse(parts: Part[], purpose: Purpose): Analysis {
         ls.map((l) => ({ at: oh.side === 'start' ? oh.support - l.at : l.at - oh.support, P: l.P }))
       const dead = cantilever(len, wDead, fromSupport(deadPts), EI)
       const live = cantilever(len, wLive, fromSupport(livePts), EI)
-      const person = exposed && preset.pointKg ? cantilever(len, 0, [{ at: len, P: preset.pointKg * G }], EI) : { M: 0, d: 0 }
+      const person = personKg ? cantilever(len, 0, [{ at: len, P: personKg * G }], EI) : { M: 0, d: 0 }
       const liveM = Math.max(live.M, person.M)
       const liveD = Math.max(live.d * creepLive, person.d)
       const sag = dead.d * creepDead + liveD
@@ -423,11 +448,11 @@ export function analyse(parts: Part[], purpose: Purpose): Analysis {
 
   // ---- wobble: frames need something stiff in each vertical plane
   let rack: RackResult | null = null
-  const posts = parts.filter((p) => {
+  const uprights = parts.filter((p) => {
     const s = size(boxes.get(p.id)!)
     return kindOf(p) === 'board' && s[1] >= Math.max(s[0], s[2])
   })
-  if (height >= 300 && posts.length >= 2) {
+  if (height >= 300 && uprights.length >= 2) {
     const standingSheet = (thicknessAxis: 0 | 2) =>
       parts.some((p) => {
         if (kindOf(p) !== 'sheet') return false
@@ -441,7 +466,40 @@ export function analyse(parts: Part[], purpose: Purpose): Analysis {
     rack = { unbraced, status: unbraced.length ? 'warn' : 'ok' }
   }
 
-  return { weightKg, centre, onFloor: floorParts.length > 0, beams, floating, tip, rack }
+  return { weightKg, centre, onFloor: floorParts.length > 0, beams, posts, floating, tip, rack }
+}
+
+// ---------------------------------------------------------------- posts
+
+/** E_0,05 is about two thirds of the mean modulus for structural timber */
+const E05_SHARE = 0.67
+
+/**
+ * A standing board under load N (newton): crushing (A·fc) and Euler buckling
+ * about its weak axis, with both ends taken as hinged (buckling length = its
+ * height — on the safe side for legs fixed to rails), combined with the
+ * Rankine formula 1/N = 1/Nc + 1/Ncr.
+ */
+function checkPost(p: Part, s: number[], mat: Material, N: number): PostResult {
+  const height = s[1]
+  const [t, w] = [s[0], s[2]].sort((a, b) => a - b)
+  const A = t * w
+  const I = (w * t ** 3) / 12
+  const Nc = A * mat.fc * STRENGTH_SHARE
+  const Ncr = (Math.PI ** 2 * mat.E * E05_SHARE * I) / height ** 2 / 1.3
+  const Nrd = 1 / (1 / Nc + 1 / Ncr)
+  const utilisation = N / Nrd
+  const status: Status = utilisation <= 0.7 ? 'ok' : utilisation <= 1 ? 'warn' : 'bad'
+  return {
+    partId: p.id,
+    name: p.name,
+    height,
+    loadKg: N / G,
+    capacityKg: Nrd / G,
+    capacityBy: Ncr < Nc ? 'buckling' : 'crushing',
+    utilisation,
+    status,
+  }
 }
 
 // ---------------------------------------------------------------- spans

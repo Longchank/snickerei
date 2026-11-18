@@ -656,6 +656,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     const a = analyse(parts, purpose)
     const m = new Map<string, string>(parts.map((p) => [p.id, '#d6d3d1']))
     for (const b of a.beams) m.set(b.partId, STATUS_COLOR[b.status])
+    for (const p of a.posts) m.set(p.partId, STATUS_COLOR[p.status])
     for (const id of a.floating) m.set(id, STATUS_COLOR.bad)
     return m
   }, [analysisView, parts, purpose])

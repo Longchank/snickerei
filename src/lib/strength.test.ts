@@ -102,3 +102,40 @@ describe('wobble', () => {
     expect(analyse([postL, postR, shelf, back], 'bokhylla').rack?.unbraced).toEqual(['framåt–bakåt'])
   })
 })
+
+describe('legs and posts', () => {
+  it('a short post is limited by the wood itself, carrying half the shelf (hand-checked)', () => {
+    const p = analyse([postL, postR, shelf], 'bokhylla').posts.find((x) => x.partId === 'postL')!
+    // Half of (shelf 1.80 kg + books 12.35 kg) plus its own 0.90 kg
+    expect(p.loadKg).toBeCloseTo(7.97, 1)
+    // A·fc·0.6 = 53.9 kN, Euler 161 kN (E05 = 0.67·E, /1.3) → Rankine ≈ 40.4 kN ≈ 4117 kg
+    expect(p.capacityKg).toBeGreaterThan(4050)
+    expect(p.capacityKg).toBeLessThan(4180)
+    expect(p.capacityBy).toBe('crushing')
+    expect(p.status).toBe('ok')
+  })
+
+  it('a tall slender post is limited by buckling', () => {
+    const l = at('l', 'konstruktion-45x45', 2400, UP, [0, 0, 0])
+    const r = at('r', 'konstruktion-45x45', 2400, UP, [955, 0, 0])
+    const top = at('top', 'konstruktion-45x95', 1000, [0, 0, 0], [0, 2400, 0])
+    const p = analyse([l, r, top], 'forvaring').posts.find((x) => x.partId === 'l')!
+    expect(p.capacityBy).toBe('buckling')
+    // Euler 3.32 kN, crushing 25.5 kN → Rankine ≈ 2.94 kN ≈ 299 kg
+    expect(p.capacityKg).toBeGreaterThan(290)
+    expect(p.capacityKg).toBeLessThan(308)
+  })
+})
+
+describe('own load per part', () => {
+  it('replaces the preset on that part and flows down to the posts', () => {
+    const heavy = { ...shelf, loadKg: 200 }
+    const a = analyse([postL, postR, heavy], 'bokhylla')
+    const r = a.beams.find((b) => b.partId === 'shelf')!
+    expect(r.loadKg).toBeCloseTo(200, 0)
+    expect(r.sag).toBeGreaterThan(r.sagLimit)
+    const p = a.posts.find((x) => x.partId === 'postL')!
+    // Half of 200 kg + half the shelf + the post itself
+    expect(p.loadKg).toBeCloseTo(100 + 0.9 + 0.9, 0)
+  })
+})

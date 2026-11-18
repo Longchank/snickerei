@@ -42,6 +42,8 @@ export type Vec3 = [number, number, number]
  * width along Z, with the origin at one corner (spans 0..L, 0..T, 0..W).
  */
 export interface Part {
+  /** Own load on this part for the strength analysis, kg (replaces the purpose preset there) */
+  loadKg?: number
   id: string
   name: string
   profileId: string

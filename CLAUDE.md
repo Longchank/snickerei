@@ -65,6 +65,12 @@ comments in English).
   search link (user reads the price and enters it as "Eget pris") or asking
   Hornbach for a partner feed/API.
 
+- **Strength analysis — known gaps** (todo, owner 2026-11-18): screws,
+  glue, notches and angled cuts are not taken into account; each span is
+  treated as simply resting on its supports, which is on the safe side.
+  Diagonal braces can't be modelled, since the model only has right
+  angles — only a standing sheet counts as bracing against wobble.
+
 ## Model conventions
 
 - All lengths in **millimetres**, scene units are mm too.
@@ -232,6 +238,14 @@ comments in English).
   model is axis-aligned, so no diagonal braces exist). "Visa i 3D" tints
   parts green/yellow/red (`analysisView`, grey = not checked). Not
   modelled: joints, screws, glue, notches, angled cuts, two-way plates.
+  **Legs/posts** (`checkPost`): standing boards that carry load get
+  crushing (A·fc·0.6, `fc` per category) and Euler buckling about the weak
+  axis (E05 ≈ 0.67·E, /1.3, buckling length = height, hinged ends —
+  safe side), combined with Rankine; listed under "Ben och stolpar".
+  Standing parts on top of a shelf now pass their load down too. **Own
+  load per part** (`part.loadKg`, "Egen last" field on each lying part in
+  Analys; empty = follow the purpose): replaces the preset spread load
+  and the person load on that part.
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
   were editable in the 3D view): the Del panel shows no position. Moving and turning happen in the 3D view (Bygg: arrows,
   rings, editable green gaps, Avancerat free gizmo).
