@@ -43,19 +43,6 @@ function Placement({ parts }: { parts: Part[] }) {
   )
 }
 
-function Actions() {
-  const duplicateSelection = useStore((s) => s.duplicateSelection)
-  const removeSelection = useStore((s) => s.removeSelection)
-  return (
-    <div className="buttons">
-      <button onClick={duplicateSelection}>Kopiera</button>
-      <button className="danger" onClick={removeSelection}>
-        Ta bort
-      </button>
-    </div>
-  )
-}
-
 function SinglePart({ part }: { part: Part }) {
   const updatePart = useStore((s) => s.updatePart)
   const clearSelection = useStore((s) => s.clearSelection)
@@ -137,7 +124,6 @@ function SinglePart({ part }: { part: Part }) {
         </div>
       )}
 
-      <Actions />
       <Ends part={part} />
       <Rip part={part} />
       <Joints part={part} />
@@ -387,7 +373,6 @@ function MultipleParts({ parts }: { parts: Part[] }) {
       )}
 
       <Placement parts={parts} />
-      <Actions />
       <Shortcuts />
     </div>
   )

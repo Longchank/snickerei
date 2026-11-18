@@ -206,7 +206,8 @@ comments in English).
 - **Del panel** (owner 2026-11-18): no name field (names still exist in
   data and lists, just not edited here); the header is one line,
   "45×95 × [length] mm" (sheets: "Plywood 12 · [L] × [W] mm"); no
-  Yttermått for a single part (kept for several). **Ändar** are named by
+  Yttermått for a single part (kept for several); no Kopiera/Ta bort
+  buttons (they live in the Bygg action bar; Ctrl+D / Delete still work). **Ändar** are named by
   where they point (`src/lib/ends.ts`: Vänstra/Högra = x, Nedre/Övre = y,
   Bakre/Främre = z, world-based), with matching purple labels on the
   board's ends in the 3D view (`EndLabels`, Redigera, one board) and a
