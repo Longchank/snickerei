@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cornerButt, cornerMiter, findCornerPartner } from './corner'
+import { cornerButt, cornerMiter, findCornerPartner, switchButt } from './corner'
 import { partBox, toAxisBox } from './geometry'
 import { overlapsOf } from './joints'
 import { placeOnPart } from './place'
@@ -55,5 +55,28 @@ describe('cornerButt', () => {
     expect(s.length).toBe(sill.length)
     expect(p.length).toBe(post.length)
     expect(overlapsOf(s, [p])).toEqual([])
+  })
+})
+
+describe('switchButt', () => {
+  it('swaps which board runs through, only sliding them, and switches back', () => {
+    // The sill runs through; the post stands on it
+    const [s1, p1] = switchButt(sill, post)!
+    // Now the post runs to the floor and the sill stops against it
+    expect(box(p1)).toEqual({ min: [1155, 0, 0], max: [1200, 1000, 95] })
+    expect(box(s1)).toEqual({ min: [-45, 0, 0], max: [1155, 45, 95] })
+    expect(s1.length).toBe(sill.length)
+    expect(p1.length).toBe(post.length)
+    expect(overlapsOf(s1, [p1])).toEqual([])
+    // And back again (argument order doesn't matter)
+    const [p2, s2] = switchButt(p1, s1)!
+    expect(box(s2)).toEqual(box(sill))
+    expect(box(p2)).toEqual(box(post))
+  })
+
+  it('does nothing for boards that do not meet at a corner, or a miter', () => {
+    expect(switchButt(sill, { ...rail, position: [0, 2000, 0] })).toBeNull()
+    const [ms, mp] = cornerMiter(sill, 1, { part: post, end: 0 })!
+    expect(switchButt(ms, mp)).toBeNull()
   })
 })

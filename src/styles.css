@@ -1347,3 +1347,10 @@ button.primary {
   margin-right: 5px;
   vertical-align: 1px;
 }
+
+.action-bar .switch-butt {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 6px;
+  font-size: 15px;
+}

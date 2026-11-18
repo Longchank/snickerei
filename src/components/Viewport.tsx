@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getProfile, hasGrain } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
+import { switchButt } from '../lib/corner'
 import { overlapsOf, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -873,8 +874,11 @@ function ActionBar() {
   const clearSelection = useStore((s) => s.clearSelection)
   const setMoveMode = useStore((s) => s.setMoveMode)
   const setRotateMode = useStore((s) => s.setRotateMode)
+  const switchButtJoint = useStore((s) => s.switchButtJoint)
   const ids = new Set(selection)
   const chosen = parts.filter((p) => ids.has(p.id))
+  // Two boards meeting in a square corner: offer to swap which runs through
+  const canSwitch = chosen.length === 2 && switchButt(chosen[0], chosen[1]) !== null
   // Exactly one whole group selected?
   const gid = chosen[0]?.groupId
   const group =
@@ -916,6 +920,15 @@ function ActionBar() {
             Ta bort
           </button>
         </div>
+        {canSwitch && (
+          <button
+            className="switch-butt"
+            onClick={() => switchButtJoint(chosen[0].id, chosen[1].id)}
+            title="Den bräda som stannade mot den andra går igenom hörnet i stället. Längderna ändras inte — brädorna flyttas."
+          >
+            ⇄ Byt stötfog
+          </button>
+        )}
         {chosen.length === 1 && !group && <span className="action-hint">Tryck på fler delar för att markera dem också</span>}
       </div>
     </div>

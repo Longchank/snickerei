@@ -142,7 +142,10 @@ comments in English).
   through and the partner ends against it (`cornerButt`). **Lengths never
   change** (owner 2026-11-18: "1 meter is still 1 meter after being
   cut"): a board that doesn't reach is slid along its length (`slideEnd`),
-  so its far end moves instead.
+  so its far end moves instead. **"⇄ Byt stötfog"** (owner 2026-11-18): in
+  the Bygg action bar when exactly two boards meeting in a square corner
+  are selected (`switchButt`; not for miters) — swaps which board runs
+  through; both only slide, lengths unchanged, a second tap switches back.
   `part.rip` = one half of a lengthwise angled rip (French cleat); both
   halves share `rip.id`, keep the original size/position, and count once
   in the cut list and shopping list (`stockPieces`). Overlaps inside

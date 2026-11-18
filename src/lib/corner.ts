@@ -145,3 +145,36 @@ export function cornerButt(p: Part, pe: 0 | 1, partner: CornerPartner): [Part, P
   return [p2, q2]
 }
 
+
+/** The two ends where boards a and b meet at a corner, or null. */
+export function cornerEnds(a: Part, b: Part): { ae: 0 | 1; be: 0 | 1 } | null {
+  for (const ae of [0, 1] as const) {
+    const partner = findCornerPartner(a, ae, [a, b])
+    if (partner) return { ae, be: partner.end }
+  }
+  return null
+}
+
+/** Does this end of `p` run through to the far side of `other` (the outer corner)? */
+function runsThrough(p: Part, end: 0 | 1, other: Part): boolean {
+  return Math.abs(reach(p, end, farSide(p, end, box(other), lengthAxis(p)))) < 0.5
+}
+
+/**
+ * Switch which board of a square (butt) corner runs through: the one that
+ * stopped against the other now runs to the outer corner, and the other
+ * stops against it. Both boards only slide along their length — lengths
+ * never change. Null if they don't meet at a corner, or a meeting end has
+ * an angled cut (that's a miter, not a butt joint).
+ */
+export function switchButt(a: Part, b: Part): [Part, Part] | null {
+  const ends = cornerEnds(a, b)
+  if (!ends) return null
+  const { ae, be } = ends
+  if (a.ends?.[ae]?.angle || b.ends?.[be]?.angle) return null
+  if (runsThrough(a, ae, b)) {
+    const [nb, na] = cornerButt(b, be, { part: a, end: ae })
+    return [na, nb]
+  }
+  return cornerButt(a, ae, { part: b, end: be })
+}
