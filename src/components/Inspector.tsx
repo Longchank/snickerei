@@ -314,7 +314,7 @@ function Ends({ part }: { part: Part }) {
             </div>
             {partners[i] && (
               <p className="hint small end-partner">
-                Möter <strong>{partners[i]!.part.name}</strong> i ett hörn — båda ändarna anpassas så de möts
+                Möter <strong>{partners[i]!.part.name}</strong> i ett hörn — båda ändarna anpassas så de möts (längderna ändras inte, en bräda kan flyttas)
                 {kind === 'rak' ? ' (den här brädan går igenom)' : ''}.
               </p>
             )}

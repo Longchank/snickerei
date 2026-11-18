@@ -7,7 +7,7 @@ import { Euler, Vector3 } from 'three'
 import { miterCorner } from './cuts'
 import { eulerOf, partBox, round, toAxisBox, type AxisBox } from './geometry'
 import { intersect, toLocalBox } from './joints'
-import type { EndCut, Part, Vec3 } from './types'
+import type { EndCut, Part } from './types'
 
 /** How close (mm) two boards must be to count as meeting */
 const TOL = 2
@@ -35,23 +35,15 @@ function endCoord(p: Part, end: 0 | 1): number {
   return (end === 0) === sign > 0 ? b.min[a] : b.max[a]
 }
 
-/** Lengthen (d > 0) or shorten (d < 0) a part at one end, keeping the other end in place. */
-export function extendEnd(p: Part, end: 0 | 1, d: number): Part {
+/**
+ * Slide a part along its length so that one end moves outwards by d (inwards
+ * if negative). The length never changes: a cut comes off the end, it doesn't
+ * add wood (owner 2026-11-18: "1 meter is still 1 meter after being cut").
+ */
+export function slideEnd(p: Part, end: 0 | 1, d: number): Part {
   if (Math.abs(d) < 0.01) return p
-  const length = round(p.length + d)
-  if (end === 1) return { ...p, length }
-  // Growing at the start moves the part's origin back along its length
-  const dir = lengthDir(p).multiplyScalar(-d)
-  return {
-    ...p,
-    length,
-    position: [round(p.position[0] + dir.x), round(p.position[1] + dir.y), round(p.position[2] + dir.z)],
-    notches: p.notches?.map((n) => ({
-      ...n,
-      min: [n.min[0] + d, n.min[1], n.min[2]] as Vec3,
-      max: [n.max[0] + d, n.max[1], n.max[2]] as Vec3,
-    })),
-  }
+  const dir = lengthDir(p).multiplyScalar(end === 1 ? d : -d)
+  return { ...p, position: [round(p.position[0] + dir.x), round(p.position[1] + dir.y), round(p.position[2] + dir.z)] }
 }
 
 const near = (v: number, lo: number, hi: number) => v >= lo - TOL && v <= hi + TOL
@@ -91,7 +83,7 @@ export function findCornerPartner(p: Part, end: 0 | 1, parts: Part[]): CornerPar
   return best ? { part: best.part, end: best.end } : null
 }
 
-/** How far to move an end so it reaches `target` (positive = longer) */
+/** How far to move an end so it reaches `target` (positive = outwards) */
 function reach(p: Part, end: 0 | 1, target: number): number {
   const a = lengthAxis(p)
   const b = box(p)
@@ -113,8 +105,9 @@ function farSide(p: Part, end: 0 | 1, other: AxisBox, axis: Axis): number {
 }
 
 /**
- * A mitered corner: both boards run to the outer corner and are cut along the
- * diagonal, so the ends meet. The angle follows from the boards' widths.
+ * A mitered corner: both boards reach the outer corner and are cut along the
+ * diagonal, so the ends meet. The angle follows from the boards' widths. A
+ * board that stops short is slid out to the corner, never lengthened.
  */
 export function cornerMiter(p: Part, pe: 0 | 1, partner: CornerPartner): [Part, Part] | null {
   const q = partner.part
@@ -125,16 +118,16 @@ export function cornerMiter(p: Part, pe: 0 | 1, partner: CornerPartner): [Part, 
   const qBox = box(q)
   let p2 = setEnd(p, pe, null)
   let q2 = setEnd(q, qe, null)
-  p2 = extendEnd(p2, pe, reach(p2, pe, farSide(p, pe, qBox, a)))
-  q2 = extendEnd(q2, qe, reach(q2, qe, farSide(q, qe, pBox, b)))
+  p2 = slideEnd(p2, pe, reach(p2, pe, farSide(p, pe, qBox, a)))
+  q2 = slideEnd(q2, qe, reach(q2, qe, farSide(q, qe, pBox, b)))
   const overlap = intersect(box(p2), box(q2))
   if (!overlap) return null
   return miterCorner(p2, q2, overlap, toLocalBox)
 }
 
 /**
- * A square butt joint: `p` runs through to the outer corner, the partner is
- * shortened to end against it. Both ends square.
+ * A square butt joint: `p` runs through to the outer corner and the partner
+ * is slid back to end against it. Both ends square, lengths unchanged.
  */
 export function cornerButt(p: Part, pe: 0 | 1, partner: CornerPartner): [Part, Part] {
   const q = partner.part
@@ -143,12 +136,12 @@ export function cornerButt(p: Part, pe: 0 | 1, partner: CornerPartner): [Part, P
   const b = lengthAxis(q)
   let p2 = setEnd(p, pe, null)
   let q2 = setEnd(q, qe, null)
-  p2 = extendEnd(p2, pe, reach(p2, pe, farSide(p, pe, box(q), a)))
+  p2 = slideEnd(p2, pe, reach(p2, pe, farSide(p, pe, box(q), a)))
   // The partner ends at the near side of p
   const pBox = box(p2)
   const qAtMax = endCoord(q2, qe) === box(q2).max[b]
   const target = qAtMax ? pBox.min[b] : pBox.max[b]
-  q2 = extendEnd(q2, qe, reach(q2, qe, target))
+  q2 = slideEnd(q2, qe, reach(q2, qe, target))
   return [p2, q2]
 }
 

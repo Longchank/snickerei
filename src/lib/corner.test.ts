@@ -29,11 +29,13 @@ describe('findCornerPartner', () => {
 })
 
 describe('cornerMiter', () => {
-  it('runs both boards to the outer corner and miters them on the diagonal', () => {
+  it('slides the short board to the outer corner and miters both, keeping lengths', () => {
     const [s, p] = cornerMiter(sill, 1, { part: post, end: 0 })!
-    // The post now reaches down to the floor (the outer corner)
-    expect(box(p)).toEqual({ min: [1155, 0, 0], max: [1200, 1045, 95] })
-    expect(p.length).toBe(1045)
+    // The post slides down to the floor (the outer corner); it doesn't grow
+    expect(box(p)).toEqual({ min: [1155, 0, 0], max: [1200, 1000, 95] })
+    expect(p.length).toBe(post.length)
+    expect(s.length).toBe(sill.length)
+    expect(box(s)).toEqual(box(sill))
     expect(Math.abs(s.ends![1]!.angle)).toBe(45)
     expect(Math.abs(p.ends![0]!.angle)).toBe(45)
     // The two cuts fit: no collision left at the corner
@@ -42,14 +44,16 @@ describe('cornerMiter', () => {
 })
 
 describe('cornerButt', () => {
-  it('lets one board run through and shortens the other against it', () => {
+  it('lets one board run through and slides the other back against it', () => {
     const [s0, p0] = cornerMiter(sill, 1, { part: post, end: 0 })!
     // Back to square from the post's side: the post runs through, the sill stops at it
     const [p, s] = cornerButt(p0, 0, { part: s0, end: 1 })
     expect(p.ends).toBeUndefined()
     expect(s.ends).toBeUndefined()
-    expect(box(p)).toEqual({ min: [1155, 0, 0], max: [1200, 1045, 95] })
+    expect(box(p)).toEqual({ min: [1155, 0, 0], max: [1200, 1000, 95] })
     expect(box(s).max[0]).toBe(1155)
+    expect(s.length).toBe(sill.length)
+    expect(p.length).toBe(post.length)
     expect(overlapsOf(s, [p])).toEqual([])
   })
 })

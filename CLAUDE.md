@@ -131,10 +131,13 @@ comments in English).
 - **Corners match** (`src/lib/corner.ts`, owner 2026-11-17: "if 2 lumber
   have matching end cuts they should match up"): setting an end cut on an
   end that meets another board's end at a corner (`findCornerPartner`;
-  not a T) changes both boards: Gering/Högkant → both run to the outer
+  not a T) changes both boards: Gering/Högkant → both reach the outer
   corner and get the diagonal miter (`cornerMiter`, angle from the
   widths, user angle ignored); Rak → butt joint, the edited board runs
-  through and the partner is shortened against it (`cornerButt`).
+  through and the partner ends against it (`cornerButt`). **Lengths never
+  change** (owner 2026-11-18: "1 meter is still 1 meter after being
+  cut"): a board that doesn't reach is slid along its length (`slideEnd`),
+  so its far end moves instead.
   `part.rip` = one half of a lengthwise angled rip (French cleat); both
   halves share `rip.id`, keep the original size/position, and count once
   in the cut list and shopping list (`stockPieces`). Overlaps inside
