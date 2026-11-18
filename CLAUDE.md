@@ -178,8 +178,10 @@ comments in English).
   sides, other rail directions); "⟳ Annan riktning" cycles them without an
   undo step, so "↶ Ångra" in the banner removes the board in one go. Move
   arrows are hidden while placing; the Del tab doesn't auto-open.
-- Position fields show the selection's bounding-box min corner, not the
-  part's internal origin.
+- **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
+  were editable in the 3D view): the Del panel only shows the selection's
+  outer size. Moving and turning happen in the 3D view (Bygg: arrows,
+  rings, editable green gaps, Avancerat free gizmo).
 - Snapping (`src/lib/snap.ts`, toggles in `settings.snapTypes`):
   measuring taps get candidates on the tapped face of the part's bounding
   box (corners, edge midpoints, nearest edge point, face centre, part

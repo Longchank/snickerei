@@ -6,11 +6,10 @@ import type { AxisBox } from '../lib/geometry'
 import { describeNotch, overlapsOf, toLocalBox, trimAgainst, unionBox } from '../lib/joints'
 import { activePrices, useSelectedParts, useStore } from '../lib/store'
 import { stockOptions } from '../lib/cutlist'
-import type { EndCut, Part, Profile, Vec3 } from '../lib/types'
+import type { EndCut, Part, Profile } from '../lib/types'
 import { MeasurePanel, SpaceInfo } from './MeasurePanel'
 import { NumberField } from './NumberField'
 
-const AXES = ['X', 'Y', 'Z'] as const
 const fmt = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',')
 
 export function Inspector() {
@@ -31,54 +30,15 @@ export function Inspector() {
   return selected.length === 1 ? <SinglePart part={selected[0]} /> : <MultipleParts parts={selected} />
 }
 
-/** Position (min corner of the selection) with −/+ nudges, and quarter-turn rotation. */
+/** Outer size of the selection. Moving and turning happen in the 3D view (Bygg). */
 function Placement({ parts }: { parts: Part[] }) {
-  const moveSelection = useStore((s) => s.moveSelection)
-  const rotateSelection = useStore((s) => s.rotateSelection)
-  const snap = useStore((s) => s.settings.snap)
   const box = unionBox(parts)!
-  const step = Math.max(1, snap)
   const size = [0, 1, 2].map((i) => box.max[i] - box.min[i])
-  const moveAxis = (i: number, by: number) => {
-    const d: Vec3 = [0, 0, 0]
-    d[i] = by
-    moveSelection(d)
-  }
-
   return (
-    <>
-      <div className="field top">
-        <span>Position</span>
-        <div className="xyz">
-          {AXES.map((a, i) => (
-            <div key={a} className="axis-row">
-              <em className={`axis-${a.toLowerCase()}`}>{a}</em>
-              <button className="step" aria-label={`${a} minus ${step} mm`} onClick={() => moveAxis(i, -step)}>
-                −
-              </button>
-              <NumberField value={box.min[i]} onCommit={(v) => moveAxis(i, v - box.min[i])} />
-              <button className="step" aria-label={`${a} plus ${step} mm`} onClick={() => moveAxis(i, step)}>
-                +
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="field">
-        <span>Rotera 90°</span>
-        <div className="buttons">
-          {AXES.map((a, i) => (
-            <button key={a} onClick={() => rotateSelection(i as 0 | 1 | 2)}>
-              ↻ {a}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="field">
-        <span>Yttermått</span>
-        <span className="muted">{size.map(fmt).join(' × ')} mm</span>
-      </div>
-    </>
+    <div className="field">
+      <span>Yttermått</span>
+      <span className="muted">{size.map(fmt).join(' × ')} mm</span>
+    </div>
   )
 }
 

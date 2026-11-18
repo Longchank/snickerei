@@ -239,45 +239,6 @@ button:focus-visible {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.xyz {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.axis-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.axis-row .number-field input {
-  width: 72px;
-}
-button.step {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  font-size: 16px;
-}
-.xyz em {
-  font-style: normal;
-  font-weight: 700;
-  width: 14px;
-}
-.axis-x {
-  color: #dc2626;
-}
-.axis-y {
-  color: #16a34a;
-}
-.axis-z {
-  color: #2563eb;
-}
-.field.top {
-  align-items: start;
-}
-.field.top > span:first-child {
-  padding-top: 6px;
-}
 .buttons {
   display: flex;
   gap: 6px;
@@ -654,10 +615,6 @@ td {
 }
 .app.mobile .chip {
   padding: 8px 12px;
-}
-.app.mobile button.step {
-  width: 40px;
-  height: 40px;
 }
 .app.mobile .buttons button {
   padding: 9px 14px;

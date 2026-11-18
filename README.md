@@ -16,7 +16,7 @@ Byggd för mobilen först — fungerar även på dator.
   början, mitten eller änden; på en brädas ände vrids den 90° (som en
   överliggare). Längden anpassas: en stolpe fyller upp till delen ovanför,
   en överliggare spänner över stolparna. En ram tar fem tryck.
-- Flytta med pilarna i 3D-vyn eller med −/+-knappar. Delar **fäster mot
+- Flytta med pilarna i 3D-vyn. Delar **fäster mot
   varandra** (kant mot kant, i liv) och mot ett rutnät på 1–100 mm.
 - **Mått i 3D-vyn** för markerad del, eller totalmått när inget är markerat.
 - Rotera i 90°-steg, duplicera, ångra/gör om, "visa hela modellen".
