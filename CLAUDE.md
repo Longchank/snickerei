@@ -65,6 +65,14 @@ comments in English).
   search link (user reads the price and enters it as "Eget pris") or asking
   Hornbach for a partner feed/API.
 
+- **Improve "⇄ Byt stötfog"** (todo, owner 2026-11-18 — owner tests it
+  first; not top priority). Known weak spots: (1) the sliding board moves
+  at both ends, so in a closed four-board frame it pulls away from the
+  next corner; (2) the outer size changes by one board thickness per
+  switch; (3) only two boards at a time — no whole-frame switch ("sides
+  run through, top/bottom between"). Idea: keep the outer size fixed and
+  adjust the far corner too. Ask the owner which cases bit before starting.
+
 ## Model conventions
 
 - All lengths in **millimetres**, scene units are mm too.
