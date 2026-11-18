@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { describeNotch, halfLap, notchAgainst, overlapsOf, rotateParts, toLocalBox, toWorldBox, trimAgainst, unionBox } from './joints'
+import { describeNotch, halfLap, notchAgainst, overlapsOf, rotateParts, rotatePartsInPlace, toLocalBox, toWorldBox, trimAgainst, unionBox } from './joints'
 import { useStore } from './store'
 import type { Part } from './types'
 
@@ -84,6 +84,37 @@ describe('rotateParts', () => {
     expect(after.min).toEqual(before.min)
     // 1000 x 45 x 545 becomes 545 x 45 x 1000
     expect(after.max.map((v, i) => v - after.min[i])).toEqual([545, 45, 1000])
+  })
+})
+
+describe('rotatePartsInPlace', () => {
+  const p1 = part('p1', 'konstruktion-45x45', 1000, { position: [100, 0, 0] })
+  const p2 = part('p2', 'konstruktion-45x45', 1000, { position: [100, 0, 500] })
+  const centre = (ps: Part[]) => {
+    const b = unionBox(ps)!
+    return [0, 1, 2].map((i) => (b.min[i] + b.max[i]) / 2)
+  }
+
+  it('keeps a selection on the floor when tipping it up', () => {
+    const turned = rotatePartsInPlace([p1], 0, 1)
+    expect(unionBox(turned)!.min[1]).toBe(0)
+    const tipped = rotatePartsInPlace([p1], 2, 1)
+    expect(unionBox(tipped)!.min[1]).toBe(0)
+  })
+
+  it('turns around the centre, so the selection stays in place', () => {
+    const turned = rotatePartsInPlace([p1, p2], 1, 1)
+    expect(centre(turned)).toEqual(centre([p1, p2]))
+    const b = unionBox(turned)!
+    expect(b.max.map((v, i) => v - b.min[i])).toEqual([545, 45, 1000])
+  })
+
+  it('one step back undoes one step forward, four steps are a full turn', () => {
+    const back = rotatePartsInPlace(rotatePartsInPlace([p1, p2], 0, 1), 0, -1)
+    expect(unionBox(back)).toEqual(unionBox([p1, p2]))
+    let t = [p1, p2]
+    for (let i = 0; i < 4; i++) t = rotatePartsInPlace(t, 2, 1)
+    expect(unionBox(t)).toEqual(unionBox([p1, p2]))
   })
 })
 

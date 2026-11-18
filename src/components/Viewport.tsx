@@ -315,6 +315,68 @@ function MoveArrows({ box }: { box: AxisBox }) {
   )
 }
 
+/**
+ * Three rings around the selection, one per axis (same colours as the move
+ * arrows), each with two arrow handles: tap one to turn the selection 90°
+ * that way. Constant size on screen; large invisible tap zones.
+ */
+function RotateRings({ box }: { box: AxisBox }) {
+  const rotateStep = useStore((s) => s.rotateSelectionStep)
+  const camera = useThree((s) => s.camera)
+  const centre = [0, 1, 2].map((i) => (box.min[i] + box.max[i]) / 2) as Vec3
+  const ref = useRef<Group>(null)
+  useFrame(() => {
+    const g = ref.current
+    if (g) g.scale.setScalar(camera.position.distanceTo(g.position) * (isTouch ? 0.0011 : 0.0008))
+  })
+  const R = 60
+  // Ring around local z; these turn local z onto each world axis
+  const ringRot: Record<0 | 1 | 2, Vec3> = { 0: [0, Math.PI / 2, 0], 1: [-Math.PI / 2, 0, 0], 2: [0, 0, 0] }
+  // Where each axis's handles sit on its ring, spread out so they don't overlap
+  const handleAt: Record<0 | 1 | 2, number> = { 0: Math.PI / 2, 1: Math.PI / 4, 2: 0 }
+  const ARC = (55 * Math.PI) / 180
+  return (
+    <group ref={ref} position={centre}>
+      {([0, 1, 2] as const).map((axis) => (
+        <group key={axis} rotation={ringRot[axis]}>
+          {/* Thin full ring */}
+          <mesh renderOrder={5}>
+            <torusGeometry args={[R, 0.8, 6, 64]} />
+            <meshBasicMaterial color={AXIS_COLOR[axis]} depthTest={false} transparent opacity={0.5} />
+          </mesh>
+          {/* Two handles opposite each other: one turns forward, one back */}
+          {([1, -1] as const).map((dir) => {
+            const start = handleAt[axis] + (dir > 0 ? 0 : Math.PI)
+            const head = dir > 0 ? start + ARC : start
+            const headRot = dir > 0 ? head : head + Math.PI
+            const go = (e: ThreeEvent<MouseEvent>) => {
+              e.stopPropagation()
+              rotateStep(axis, dir)
+            }
+            return (
+              <group key={dir}>
+                <mesh rotation={[0, 0, start]} renderOrder={6}>
+                  <torusGeometry args={[R, 3, 8, 24, ARC]} />
+                  <meshBasicMaterial color={AXIS_COLOR[axis]} depthTest={false} transparent opacity={0.95} />
+                </mesh>
+                <mesh position={[R * Math.cos(head), R * Math.sin(head), 0]} rotation={[0, 0, headRot]} renderOrder={6}>
+                  <coneGeometry args={[8, 15, 16]} />
+                  <meshBasicMaterial color={AXIS_COLOR[axis]} depthTest={false} transparent opacity={0.95} />
+                </mesh>
+                {/* Large invisible tap zone along the handle */}
+                <mesh rotation={[0, 0, start - 0.1]} onClick={go}>
+                  <torusGeometry args={[R, 16, 8, 16, ARC + 0.2]} />
+                  <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+                </mesh>
+              </group>
+            )
+          })}
+        </group>
+      ))}
+    </group>
+  )
+}
+
 /** Red see-through box where the selected part collides with another. */
 function OverlapBox({ box }: { box: AxisBox }) {
   const size = [0, 1, 2].map((i) => box.max[i] - box.min[i]) as Vec3
@@ -495,6 +557,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const placeTap = useStore((s) => s.placeTap)
   const moveMode = useStore((s) => s.moveMode)
   const moveTap = useStore((s) => s.moveTap)
+  const rotateMode = useStore((s) => s.rotateMode)
   const { freeMove, mode } = useStore((s) => s.settings)
   const pendingPoint = useStore((s) => s.pendingPoint)
   const measureHover = useStore((s) => s.measureHover)
@@ -624,7 +687,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       <primitive object={pivot} />
       {/* The free 3D drag gizmo is an advanced option (off by default), only in
           Bygg mode and never while placing, measuring or using the move arrows */}
-      {selBox && freeMove && mode === 'bygg' && !placing && !moveMode && !measureMode && (
+      {selBox && freeMove && mode === 'bygg' && !placing && !moveMode && !rotateMode && !measureMode && (
         <TransformControls
           ref={(c: unknown) => {
             ;(tc as React.MutableRefObject<unknown>).current = c
@@ -647,6 +710,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       )}
 
       {moveMode && selBox && !capturing && <MoveArrows box={selBox} />}
+      {rotateMode && selBox && !capturing && <RotateRings box={selBox} />}
       {showDimensions && !capturing && dimBox && <Dimensions box={dimBox} offset={selBox ? 60 : 120} />}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}
@@ -744,6 +808,7 @@ function ActionBar() {
   const removeSelection = useStore((s) => s.removeSelection)
   const clearSelection = useStore((s) => s.clearSelection)
   const setMoveMode = useStore((s) => s.setMoveMode)
+  const setRotateMode = useStore((s) => s.setRotateMode)
   const ids = new Set(selection)
   const chosen = parts.filter((p) => ids.has(p.id))
   // Exactly one whole group selected?
@@ -777,7 +842,12 @@ function ActionBar() {
           <button className="primary" onClick={() => setMoveMode(true)}>
             ✥ Flytta
           </button>
-          <button onClick={duplicateSelection}>Duplicera</button>
+          <button className="primary" onClick={() => setRotateMode(true)}>
+            ↻ Vrid
+          </button>
+          <button onClick={duplicateSelection} title="Duplicera">
+            Kopiera
+          </button>
           <button className="danger" onClick={removeSelection}>
             Ta bort
           </button>
@@ -794,7 +864,6 @@ const STEPS = [1, 5, 10, 50, 100]
 function MoveBar() {
   const step = useStore((s) => s.settings.moveStep)
   const setSettings = useStore((s) => s.setSettings)
-  const rotateSelection = useStore((s) => s.rotateSelection)
   const undo = useStore((s) => s.undo)
   const canUndo = useStore((s) => s.past.length > 0)
   const setMoveMode = useStore((s) => s.setMoveMode)
@@ -814,19 +883,45 @@ function MoveBar() {
           </label>
         </div>
         <div className="place-actions">
-          <button onClick={() => rotateSelection(1)} title="Vrid 90° runt lodlinjen">
-            ↻ 90°
-          </button>
-          <button onClick={() => rotateSelection(0)} title="Vrid 90° framåt">
-            ↻ X
-          </button>
-          <button onClick={() => rotateSelection(2)} title="Vrid 90° åt sidan">
-            ↻ Z
-          </button>
           <button onClick={undo} disabled={!canUndo} aria-label="Ångra">
             ↶
           </button>
           <button className="primary" onClick={() => setMoveMode(false)}>
+            Klar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Turning: 90° per tap on the rings in the view; plain buttons as a fallback. */
+function RotateBar() {
+  const rotateStep = useStore((s) => s.rotateSelectionStep)
+  const undo = useStore((s) => s.undo)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const setRotateMode = useStore((s) => s.setRotateMode)
+  return (
+    <div className="measure-top place-top">
+      <div className="place-banner move-bar" role="toolbar" aria-label="Vrid">
+        <strong>Vrid 90°</strong>
+        <span>Tryck på pilarna på ringarna — eller här:</span>
+        <div className="rotate-buttons">
+          <button onClick={() => rotateStep(1, 1)} title="Vrid runt lodlinjen (grön ring)">
+            <span className="ring-dot" style={{ background: AXIS_COLOR[1] }} />↻ Vrid
+          </button>
+          <button onClick={() => rotateStep(0, 1)} title="Tippa framåt/bakåt (röd ring)">
+            <span className="ring-dot" style={{ background: AXIS_COLOR[0] }} />↻ Tippa
+          </button>
+          <button onClick={() => rotateStep(2, 1)} title="Tippa åt sidan (blå ring)">
+            <span className="ring-dot" style={{ background: AXIS_COLOR[2] }} />↻ Sida
+          </button>
+        </div>
+        <div className="place-actions">
+          <button onClick={undo} disabled={!canUndo} aria-label="Ångra">
+            ↶ Ångra
+          </button>
+          <button className="primary" onClick={() => setRotateMode(false)}>
             Klar
           </button>
         </div>
@@ -924,6 +1019,7 @@ export function Viewport({
   const clearSelection = useStore((s) => s.clearSelection)
   const measureMode = useStore((s) => s.measureMode)
   const moveMode = useStore((s) => s.moveMode)
+  const rotateMode = useStore((s) => s.rotateMode)
   const mode = useStore((s) => s.settings.mode)
   const setMeasureMode = useStore((s) => s.setMeasureMode)
   const pending = useStore((s) => s.pendingPoint !== null)
@@ -932,7 +1028,7 @@ export function Viewport({
   const cycleSnap = useStore((s) => s.cycleSnap)
   const count = useStore((s) => s.selection.length)
   const lastDrag = useRef(0)
-  const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode
+  const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode
 
   return (
     <>
@@ -961,6 +1057,7 @@ export function Viewport({
     </div>
     {placeProfile && <PlaceBanner profileId={placeProfile} />}
     {moveMode && count > 0 && <MoveBar />}
+    {rotateMode && count > 0 && <RotateBar />}
     {showActions && <ActionBar />}
     {measureMode && (
       <div className="measure-top">

@@ -6,7 +6,17 @@ import { partBox, rotatePart } from './geometry'
 import { cornerButt, cornerMiter, findCornerPartner } from './corner'
 import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
-import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, toLocalBox, trimAgainst, unionBox } from './joints'
+import {
+  halfLap,
+  moveParts,
+  notchAgainst,
+  overlapsOf,
+  rotateParts,
+  rotatePartsInPlace,
+  toLocalBox,
+  trimAgainst,
+  unionBox,
+} from './joints'
 import { mergePrices, supplierEntries } from './prices'
 import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, type Placement } from './place'
 import { DEFAULT_SNAP_TYPES } from './snap'
@@ -98,6 +108,11 @@ interface State {
 
   moveSelection: (d: Vec3) => void
   rotateSelection: (axis: 0 | 1 | 2) => void
+  /** Turn the selection 90° either way around an axis, in place */
+  rotateSelectionStep: (axis: 0 | 1 | 2, dir: 1 | -1) => void
+  /** Turning the selection: rings in the view, 90° per tap */
+  rotateMode: boolean
+  setRotateMode: (on: boolean) => void
   duplicateSelection: () => void
   removeSelection: () => void
   groupSelection: (name: string) => void
@@ -281,11 +296,15 @@ export const useStore = create<State>()(
           set((s) => ({
             settings: { ...s.settings, mode },
             moveMode: false,
+            rotateMode: false,
             // Redigera works on one part at a time
             selection: mode === 'redigera' ? s.selection.slice(0, 1) : s.selection,
           })),
         setMoveMode: (moveMode) =>
-          set({ moveMode, ...(moveMode ? { measureMode: false, placeProfile: null, pendingPoint: null } : {}) }),
+          set({
+            moveMode,
+            ...(moveMode ? { rotateMode: false, measureMode: false, placeProfile: null, pendingPoint: null } : {}),
+          }),
         moveTap: (target) => {
           const ids = new Set(get().selection)
           const sel = unionBox(get().project.parts.filter((p) => ids.has(p.id)))
@@ -302,6 +321,7 @@ export const useStore = create<State>()(
           set((s) => ({
             placeProfile,
             moveMode: false,
+            rotateMode: false,
             // Placing is building
             ...(placeProfile && s.settings.mode !== 'bygg' ? { settings: { ...s.settings, mode: 'bygg' as const } } : {}),
             placeNote: null,
@@ -352,6 +372,7 @@ export const useStore = create<State>()(
         setMeasureMode: (on) =>
           set({
             moveMode: false,
+            rotateMode: false,
             placeProfile: null,
             measureMode: on,
             pendingPoint: null,
@@ -401,6 +422,13 @@ export const useStore = create<State>()(
         moveSelection: (d) => editSelection((ps) => moveParts(ps, d)),
         rotateSelection: (axis) =>
           editSelection((ps) => (ps.length === 1 ? [rotatePart(ps[0], axis)] : rotateParts(ps, axis))),
+        rotateSelectionStep: (axis, dir) => editSelection((ps) => rotatePartsInPlace(ps, axis, dir)),
+        rotateMode: false,
+        setRotateMode: (rotateMode) =>
+          set({
+            rotateMode,
+            ...(rotateMode ? { moveMode: false, measureMode: false, placeProfile: null, pendingPoint: null } : {}),
+          }),
 
         duplicateSelection: () => {
           const src = selected()

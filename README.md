@@ -22,11 +22,14 @@ Byggd för mobilen först — fungerar även på dator.
 - Rotera i 90°-steg, duplicera, ångra/gör om, "visa hela modellen".
 - **Två lägen: Bygg och Redigera.** I *Bygg* markerar varje tryck en hel
   grupp och lägger till den i markeringen; en list längst ner har
-  Gruppera, Flytta, Duplicera och Ta bort. I *Redigera* väljer ett tryck
+  Gruppera, Flytta, Vrid, Kopiera och Ta bort. I *Redigera* väljer ett tryck
   en enskild del och visar dess detaljer (längd, ändar, fogar).
 - **Flytta** med pilar direkt i 3D-modellen (ett steg per tryck, 1–100 mm
   eller valfritt), eller tryck på en bräda för att flytta dit, kant i kant.
   Fri dragning finns under Avancerat i menyn.
+- **Vrid** i steg om 90° — tryck på pilarna på ringarna runt markeringen
+  i 3D-vyn, eller på Vrid / Tippa / Sida i listen. Det som står på golvet
+  blir stående på golvet.
 - **Grupper** (t.ex. "Ben", "Sits"): ett tryck markerar hela gruppen.
 - **Fogar** när delar går in i varandra: *Kapa mot* (stumt, kortar
   kaplängden), *Urtag*, *Halvt i halvt* och *Gering* (hörn som möts i

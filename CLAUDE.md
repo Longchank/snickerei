@@ -103,6 +103,15 @@ comments in English).
   The free TransformControls gizmo is an "Avancerat" menu option
   (`settings.freeMove`, off by default), smaller, with the two-axis plane
   handles removed (`stripPlaneHandles`).
+- **Rotating** (`rotateMode`, owner 2026-11-18: "in steps so no freeform
+  rotation"): 90° steps only (the model is axis-aligned). `RotateRings`
+  draws one ring per axis around the selection (red X / green Y / blue Z,
+  constant on-screen size) with two arrow handles each (±90°); `RotateBar`
+  has the same as buttons (Vrid = Y, Tippa = X, Sida = Z). Turns use
+  `rotatePartsInPlace` (about the selection's centre), except a selection
+  resting on the floor stays on it, and one above is never turned through
+  it. Move, rotate and place close the phone panel so the rings/arrows
+  aren't hidden.
 - Selection is `selection: string[]`; the parts list selects single parts. A tap that misses
   every part runs the same fuzzy ring pick as placing (`fuzzyPickRef`,
   36 px touch / 16 px mouse) and selects the nearest board; only a clear

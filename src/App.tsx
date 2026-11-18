@@ -54,10 +54,13 @@ export function App() {
   // (except while picking several parts, so the list stays open)
   const measureMode = useStore((s) => s.measureMode)
   const placing = useStore((s) => s.placeProfile !== null)
-  // Placing boards: get the panel out of the way so the model can be tapped
+  // Placing, moving or turning: get the panel out of the way so the model
+  // (and the arrows or rings on it) can be tapped
+  const moving = useStore((s) => s.moveMode)
+  const turning = useStore((s) => s.rotateMode)
   useEffect(() => {
-    if (placing && mobile) setSheetOpen(false)
-  }, [placing, mobile])
+    if ((placing || moving || turning) && mobile) setSheetOpen(false)
+  }, [placing, moving, turning, mobile])
   // Switching mode: Bygg shows the model and its action bar, so the details
   // panel closes; Redigera opens the details of what's selected
   const mode = useStore((s) => s.settings.mode)
@@ -85,7 +88,7 @@ export function App() {
     const st = useStore.getState()
     // Not while picking several parts or placing boards: keep the view clear
     // In Bygg the action bar handles the selection; Redigera opens the details
-    if (hasSelection && st.settings.mode === 'redigera' && !st.placeProfile && !st.moveMode) {
+    if (hasSelection && st.settings.mode === 'redigera' && !st.placeProfile && !st.moveMode && !st.rotateMode) {
       setTab('del')
       setSheetOpen(true)
     }

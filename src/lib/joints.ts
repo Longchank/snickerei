@@ -244,3 +244,22 @@ export function rotateParts(parts: Part[], axis: 0 | 1 | 2): Part[] {
   const after = unionBox(rotated)!
   return moveParts(rotated, [0, 1, 2].map((i) => before.min[i] - after.min[i]) as Vec3)
 }
+
+/**
+ * Turn several parts 90° (dir 1) or −90° (dir −1) around a world axis as one
+ * body, about the centre of their bounding box, so they turn in place.
+ */
+export function rotatePartsInPlace(parts: Part[], axis: 0 | 1 | 2, dir: 1 | -1): Part[] {
+  const before = unionBox(parts)
+  if (!before) return parts
+  let turned = parts
+  for (let i = 0; i < (dir > 0 ? 1 : 3); i++) turned = rotateParts(turned, axis)
+  const after = unionBox(turned)!
+  const centre = (b: AxisBox, i: number) => (b.min[i] + b.max[i]) / 2
+  const shift = [0, 1, 2].map((i) => centre(before, i) - centre(after, i)) as Vec3
+  // Floor rule: a selection resting on the floor stays on it (so tipping a board up
+  // stands it on the floor), and one above the floor is never turned through it.
+  const onFloor = Math.abs(before.min[1]) < 0.5
+  if (onFloor || (before.min[1] >= 0 && after.min[1] + shift[1] < 0)) shift[1] = -after.min[1]
+  return moveParts(turned, shift)
+}
