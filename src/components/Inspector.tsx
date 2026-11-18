@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { getProfile, hasGrain } from '../lib/catalog'
 import { findCornerPartner } from '../lib/corner'
+import { endName } from '../lib/ends'
 import { miterCorner } from '../lib/cuts'
 import type { AxisBox } from '../lib/geometry'
 import { describeNotch, overlapsOf, toLocalBox, trimAgainst, unionBox } from '../lib/joints'
 import { activePrices, useSelectedParts, useStore } from '../lib/store'
 import { stockOptions } from '../lib/cutlist'
 import type { EndCut, Part, Profile } from '../lib/types'
-import { MeasurePanel, SpaceInfo } from './MeasurePanel'
+import { MeasurePanel } from './MeasurePanel'
 import { NumberField } from './NumberField'
 
 const fmt = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',')
@@ -47,7 +48,7 @@ function Actions() {
   const removeSelection = useStore((s) => s.removeSelection)
   return (
     <div className="buttons">
-      <button onClick={duplicateSelection}>Duplicera</button>
+      <button onClick={duplicateSelection}>Kopiera</button>
       <button className="danger" onClick={removeSelection}>
         Ta bort
       </button>
@@ -66,19 +67,34 @@ function SinglePart({ part }: { part: Part }) {
 
   return (
     <div className="inspector">
-      <div className="inspector-head">
-        <input
-          key={`${part.id}|${part.name}`}
-          className="part-name"
-          aria-label="Namn"
-          defaultValue={part.name}
-          onBlur={(e) => e.target.value !== part.name && updatePart(part.id, { name: e.target.value })}
-          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-        />
+      <div className="inspector-head dim-head">
+        {prof.kind === 'sheet' ? (
+          <div className="dim-line" aria-label="Mått">
+            <strong>{prof.name}</strong>
+            <span className="dim-x">·</span>
+            <NumberField value={part.length} min={1} onCommit={(length) => updatePart(part.id, { length })} />
+            <span className="dim-x">×</span>
+            <NumberField
+              value={part.width ?? prof.width}
+              min={1}
+              suffix="mm"
+              onCommit={(width) => updatePart(part.id, { width })}
+            />
+          </div>
+        ) : (
+          <div className="dim-line" aria-label="Mått">
+            <strong title="Tvärsnittet är låst">{prof.name}</strong>
+            <span className="dim-x">×</span>
+            <NumberField value={part.length} min={1} suffix="mm" onCommit={(length) => updatePart(part.id, { length })} />
+          </div>
+        )}
         <button className="icon" onClick={clearSelection} aria-label="Avmarkera">
           ✕
         </button>
       </div>
+      <p className="hint small dim-hint">
+        {prof.kind === 'sheet' ? 'Längd × bredd. Tjockleken är låst.' : 'Tvärsnittet är låst — längden går att ändra.'}
+      </p>
       {group && (
         <p className="hint small">
           Del av gruppen <strong>{group.name}</strong>.{' '}
@@ -91,28 +107,6 @@ function SinglePart({ part }: { part: Part }) {
         </p>
       )}
 
-      <div className="field">
-        <span>{prof.kind === 'sheet' ? 'Material' : 'Dimension'}</span>
-        <strong>
-          {prof.kind === 'sheet' ? prof.name : `${prof.name} mm`}{' '}
-          <span className="muted">({prof.kind === 'sheet' ? 'tjocklek låst' : 'låst'})</span>
-        </strong>
-      </div>
-      <label className="field">
-        <span>Längd</span>
-        <NumberField value={part.length} min={1} suffix="mm" onCommit={(length) => updatePart(part.id, { length })} />
-      </label>
-      {prof.kind === 'sheet' && (
-        <label className="field">
-          <span>Bredd</span>
-          <NumberField
-            value={part.width ?? prof.width}
-            min={1}
-            suffix="mm"
-            onCommit={(width) => updatePart(part.id, { width })}
-          />
-        </label>
-      )}
       {prof.kind === 'sheet' && sheetSizes.length > 0 && (
         <p className="hint small">
           Skivan säljs i {sheetSizes.map((x) => x.join(' × ')).join(', ')} mm.
@@ -143,9 +137,7 @@ function SinglePart({ part }: { part: Part }) {
         </div>
       )}
 
-      <Placement parts={[part]} />
       <Actions />
-      <SpaceInfo parts={[part]} />
       <Ends part={part} />
       <Rip part={part} />
       <Joints part={part} />
@@ -232,6 +224,12 @@ const canMiter = (a: Part, b: Part, box: AxisBox) => miterCorner(a, b, box, toLo
 
 type EndKind = 'rak' | 'face' | 'edge'
 
+const END_HELP: Record<EndKind, string> = {
+  rak: 'Rakt kapad, 90°.',
+  face: 'Snett kapad över bredsidan, som i hörnet på en tavelram.',
+  edge: 'Snett kapad över smalsidan — sågas med brädan på högkant.',
+}
+
 /** Square, miter or bevel at each end, with an angle and which side keeps the long point. */
 function Ends({ part }: { part: Part }) {
   const setEndCut = useStore((s) => s.setEndCut)
@@ -245,16 +243,20 @@ function Ends({ part }: { part: Part }) {
   return (
     <section className="ends">
       <h3>Ändar</h3>
+      <p className="hint small">Ändarna är märkta på brädan i 3D-vyn.</p>
       {([0, 1] as const).map((i) => {
         const cut = ends[i]
         const kind: EndKind = cut?.angle ? cut.plane : 'rak'
         const angle = Math.abs(cut?.angle ?? 45)
         const sign = (cut?.angle ?? 1) < 0 ? -1 : 1
         const set = (plane: EndCut['plane'], a: number, sg: number) => setEndCut(part.id, i, { plane, angle: a * sg })
+        const name = `${endName(part, i)} änden`
         return (
-          <div key={i} className="end-row">
-            <span className="end-label">{i === 0 ? 'Början' : 'Slutet'}</span>
-            <div className="segmented" role="group" aria-label={i === 0 ? 'Början' : 'Slutet'}>
+          <div key={i} className="end-row named">
+            <span className="end-label">
+              <span className="end-tag">{endName(part, i)}</span> änden
+            </span>
+            <div className="segmented" role="group" aria-label={name}>
               {(
                 [
                   ['rak', 'Rak'],
@@ -272,12 +274,16 @@ function Ends({ part }: { part: Part }) {
                 </button>
               ))}
             </div>
-            {partners[i] && (
-              <p className="hint small end-partner">
-                Möter <strong>{partners[i]!.part.name}</strong> i ett hörn — båda ändarna anpassas så de möts (längderna ändras inte, en bräda kan flyttas)
-                {kind === 'rak' ? ' (den här brädan går igenom)' : ''}.
-              </p>
-            )}
+            <p className="hint small end-partner">
+              {END_HELP[kind]}
+              {partners[i] && (
+                <>
+                  {' '}
+                  Möter <strong>{partners[i]!.part.name}</strong> i ett hörn, så båda ändarna anpassas
+                  {kind === 'rak' ? ' (den här brädan går igenom)' : ''}. Längderna ändras inte — en bräda kan flyttas.
+                </>
+              )}
+            </p>
             {kind !== 'rak' && cut && !partners[i] && (
               <div className="end-angle">
                 <NumberField value={angle} min={0} suffix="°" onCommit={(a) => set(cut.plane, Math.min(80, a), sign)} />
@@ -382,7 +388,6 @@ function MultipleParts({ parts }: { parts: Part[] }) {
 
       <Placement parts={parts} />
       <Actions />
-      <SpaceInfo parts={parts} />
       <Shortcuts />
     </div>
   )

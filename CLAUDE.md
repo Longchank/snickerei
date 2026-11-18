@@ -203,9 +203,17 @@ comments in English).
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the
   phone the panel closes when a board has been added.
+- **Del panel** (owner 2026-11-18): no name field (names still exist in
+  data and lists, just not edited here); the header is one line,
+  "45×95 × [length] mm" (sheets: "Plywood 12 · [L] × [W] mm"); no
+  Yttermått for a single part (kept for several). **Ändar** are named by
+  where they point (`src/lib/ends.ts`: Vänstra/Högra = x, Nedre/Övre = y,
+  Bakre/Främre = z, world-based), with matching purple labels on the
+  board's ends in the 3D view (`EndLabels`, Redigera, one board) and a
+  one-line explanation of Rak/Gering/Högkant. **Analys tab** (◎, both
+  modes): free space + riktvärden (`SpaceInfo`) moved out of Del.
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
-  were editable in the 3D view): the Del panel only shows the selection's
-  outer size. Moving and turning happen in the 3D view (Bygg: arrows,
+  were editable in the 3D view): the Del panel shows no position. Moving and turning happen in the 3D view (Bygg: arrows,
   rings, editable green gaps, Avancerat free gizmo).
 - Snapping (`src/lib/snap.ts`, toggles in `settings.snapTypes`):
   measuring taps get candidates on the tapped face of the part's bounding

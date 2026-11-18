@@ -1395,3 +1395,62 @@ button.primary {
   color: var(--accent);
   font-weight: 500;
 }
+
+/* Del panel header: profile × length on one line */
+.dim-head {
+  align-items: center;
+  margin-bottom: 2px;
+}
+.dim-line {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 17px;
+}
+.dim-line .number-field input {
+  width: 84px;
+}
+.dim-x {
+  color: var(--muted);
+}
+.dim-hint {
+  margin-top: 0;
+}
+
+/* Ends named by where they point; the tag matches the label in the 3D view */
+.end-row.named {
+  grid-template-columns: 1fr;
+}
+.end-row.named > * {
+  grid-column: 1;
+}
+.end-row.named .end-label {
+  color: inherit;
+  font-weight: 600;
+}
+.end-tag,
+.end-label-3d {
+  display: inline-block;
+  background: #7c3aed;
+  color: #fff;
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-weight: 600;
+}
+.end-label-3d {
+  font-size: 12px;
+  white-space: nowrap;
+  user-select: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+.end-row.named .end-partner {
+  margin: 0;
+}
+
+.analysis-measure {
+  margin-top: 12px;
+  width: 100%;
+  min-height: 44px;
+}

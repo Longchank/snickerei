@@ -24,6 +24,7 @@ import { getProfile, hasGrain } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
 import { switchButt } from '../lib/corner'
+import { endName, endPoint } from '../lib/ends'
 import { reorientOptions } from '../lib/place'
 import { overlapsOf, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
@@ -517,6 +518,21 @@ function GapInput({ space, onDone }: { space: FreeSpace; onDone: (gap: number | 
   )
 }
 
+/** The selected board's ends, named as in the Ändar menu ("Övre", "Vänstra" …). */
+function EndLabels({ partId }: { partId: string }) {
+  const part = useStore((s) => s.project.parts.find((p) => p.id === partId))
+  if (!part || getProfile(part.profileId).kind === 'sheet') return null
+  return (
+    <>
+      {([0, 1] as const).map((i) => (
+        <Html key={i} position={endPoint(part, i)} center zIndexRange={[7, 0]} style={{ pointerEvents: 'none' }}>
+          <span className="end-label-3d">{endName(part, i)}</span>
+        </Html>
+      ))}
+    </>
+  )
+}
+
 /** Dimension line with a label in the middle. */
 function Dim({ from, to, value }: { from: Vec3; to: Vec3; value: number }) {
   if (value <= 0) return null
@@ -779,6 +795,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       {rotateMode && selBox && !capturing && <RotateRings box={selBox} />}
       {showDimensions && !capturing && dimBox && <Dimensions box={dimBox} offset={selBox ? 60 : 120} />}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
+      {!capturing && mode === 'redigera' && selection.length === 1 && <EndLabels partId={selection[0]} />}
       {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}
       {!capturing && pendingPoint && <PointMarker at={pendingPoint.point} kind={pendingPoint.snap} size={14} />}
       {!capturing && measureHover && <PointMarker at={measureHover.point} kind={measureHover.snap} size={12} ghost />}

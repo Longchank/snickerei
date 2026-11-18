@@ -2,17 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { Catalog } from './components/Catalog'
 import { CutList } from './components/CutList'
 import { Inspector } from './components/Inspector'
+import { Analysis } from './components/Analysis'
 import { PriceList } from './components/PriceList'
 import { PrintReport } from './components/PrintReport'
 import { Toolbar } from './components/Toolbar'
 import { fitView, snapshotRef, Viewport } from './components/Viewport'
 import { loadSupplierPrices, useStore } from './lib/store'
 
-type Tab = 'lagg' | 'del' | 'lista' | 'priser'
+type Tab = 'lagg' | 'del' | 'analys' | 'lista' | 'priser'
 
 const TABS: { id: Tab; label: string; icon: string; desktop: boolean }[] = [
   { id: 'lagg', label: 'Lägg till', icon: '＋', desktop: false },
   { id: 'del', label: 'Del', icon: '✎', desktop: true },
+  { id: 'analys', label: 'Analys', icon: '◎', desktop: true },
   { id: 'lista', label: 'Listor', icon: '☰', desktop: true },
   { id: 'priser', label: 'Priser', icon: 'kr', desktop: true },
 ]
@@ -130,6 +132,7 @@ export function App() {
     <>
       {activeTab === 'lagg' && <Catalog />}
       {activeTab === 'del' && <Inspector />}
+      {activeTab === 'analys' && <Analysis />}
       {activeTab === 'lista' && <CutList onPrint={print} />}
       {activeTab === 'priser' && <PriceList />}
     </>
@@ -183,7 +186,7 @@ export function App() {
             <nav className="tabs">
               {tabs.filter((t) => t.desktop).map((t) => (
                 <button key={t.id} className={activeTab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
-                  {t.id === 'del' ? 'Egenskaper' : t.id === 'lista' ? 'Såglista' : 'Prislista'}
+                  {t.id === 'del' ? 'Egenskaper' : t.id === 'analys' ? 'Analys' : t.id === 'lista' ? 'Såglista' : 'Prislista'}
                 </button>
               ))}
             </nav>
