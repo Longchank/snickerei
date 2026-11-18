@@ -89,7 +89,11 @@ comments in English).
   selection (several at a time, no "Flera" toggle); a floating action bar
   offers Gruppera/Dela upp · Flytta · Duplicera · Ta bort; tap-to-place
   switches to Bygg. Redigera: a tap picks one part (even inside a group)
-  and opens the Del panel. `pickPart` routes taps by mode.
+  and opens the Del panel. `pickPart` routes taps by mode. Switching to
+  Bygg closes the details panel (it hid the action bar, so the switch
+  looked broken); switching to Redigera with a selection opens it. With
+  the phone panel open, the action/move/place bars sit at the top
+  (`.sheet-open .place-top`) instead of behind the panel.
 - **Moving** (`moveMode`, `src/lib/move.ts`): diegetic arrows in the 3D
   scene on the selection's six faces (`MoveArrows`, constant on-screen
   size via `useFrame`, big invisible tap zones) move one step

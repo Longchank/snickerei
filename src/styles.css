@@ -1324,3 +1324,11 @@ button.primary {
 .move-custom .number-field input {
   width: 64px;
 }
+
+/* With the bottom panel open, the action/move/place bars go to the top of
+   the view instead of hiding behind the panel (clear of the view buttons) */
+.app.mobile.sheet-open .place-top {
+  bottom: auto;
+  top: calc(66px + env(safe-area-inset-top));
+  right: 70px;
+}

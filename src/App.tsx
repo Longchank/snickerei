@@ -58,6 +58,23 @@ export function App() {
   useEffect(() => {
     if (placing && mobile) setSheetOpen(false)
   }, [placing, mobile])
+  // Switching mode: Bygg shows the model and its action bar, so the details
+  // panel closes; Redigera opens the details of what's selected
+  const mode = useStore((s) => s.settings.mode)
+  const firstMode = useRef(true)
+  useEffect(() => {
+    if (firstMode.current) {
+      firstMode.current = false
+      return
+    }
+    if (mode === 'bygg') {
+      if (mobile) setSheetOpen(false)
+      setTab('lagg')
+    } else if (useStore.getState().selection.length) {
+      setTab('del')
+      setSheetOpen(true)
+    }
+  }, [mode, mobile])
   useEffect(() => {
     if (measureMode) {
       setTab('del')
@@ -104,7 +121,11 @@ export function App() {
 
   return (
     <>
-      <div className={`app ${mobile ? 'mobile' : 'desktop'}${immersive ? ' immersive' : ''}`}>
+      <div
+        className={`app ${mobile ? 'mobile' : 'desktop'}${immersive ? ' immersive' : ''}${
+          mobile && sheetOpen && !immersive ? ' sheet-open' : ''
+        }`}
+      >
         {!immersive && <Toolbar onPrint={print} />}
         {!mobile && !immersive && (
           <aside className="panel left">
