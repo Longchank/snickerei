@@ -138,3 +138,43 @@ describe('store: selection and groups', () => {
     expect(s().project.parts).toHaveLength(4)
   })
 })
+
+describe('store: modes', () => {
+  beforeEach(() => useStore.getState().newProject())
+
+  it('Bygg adds each tapped group to the selection; Redigera picks one part', () => {
+    const s = useStore.getState
+    s().setMode('bygg')
+    for (let i = 0; i < 3; i++) s().addPart('konstruktion-45x70')
+    const [a, b, c] = s().project.parts
+    s().select([a.id, b.id])
+    s().groupSelection('Ben')
+    s().clearSelection()
+
+    s().pickPart(a.id) // whole group
+    s().pickPart(c.id) // added
+    expect(s().selection.sort()).toEqual([a.id, b.id, c.id].sort())
+    s().pickPart(c.id) // toggled off again
+    expect(s().selection.sort()).toEqual([a.id, b.id].sort())
+
+    s().setMode('redigera')
+    s().pickPart(b.id) // just this part, even though it's in a group
+    expect(s().selection).toEqual([b.id])
+  })
+
+  it('moves the selection next to a tapped board', () => {
+    const s = useStore.getState
+    s().setMode('bygg')
+    s().addPart('konstruktion-45x95')
+    s().addPart('konstruktion-45x95')
+    const [sill, other] = s().project.parts
+    s().updatePart(sill.id, { length: 1200, position: [0, 0, 0] })
+    s().select([other.id])
+    s().setMoveMode(true)
+    // Tap the top of the sill near its end
+    s().moveTap({ partId: sill.id, hit: [1180, 45, 40], normal: [0, 1, 0] })
+    const moved = s().project.parts.find((p) => p.id === other.id)!
+    expect(moved.position[1]).toBe(45)
+    expect(moved.position[0] + moved.length).toBe(1200)
+  })
+})

@@ -67,7 +67,8 @@ export function App() {
   useEffect(() => {
     const st = useStore.getState()
     // Not while picking several parts or placing boards: keep the view clear
-    if (hasSelection && !st.multiSelect && !st.placeProfile) {
+    // In Bygg the action bar handles the selection; Redigera opens the details
+    if (hasSelection && st.settings.mode === 'redigera' && !st.placeProfile && !st.moveMode) {
       setTab('del')
       setSheetOpen(true)
     }

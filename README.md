@@ -3,7 +3,7 @@
 En webblösning som skapar 3D-modeller och såglistor, samt har inbyggd prislista.
 Byggd för hobbysnickare.
 
-## Vad finns nu (v0.9)
+## Vad finns nu (v0.10)
 
 Byggd för mobilen först — fungerar även på dator.
 
@@ -20,8 +20,13 @@ Byggd för mobilen först — fungerar även på dator.
   varandra** (kant mot kant, i liv) och mot ett rutnät på 1–100 mm.
 - **Mått i 3D-vyn** för markerad del, eller totalmått när inget är markerat.
 - Rotera i 90°-steg, duplicera, ångra/gör om, "visa hela modellen".
-- **Markera flera** ("Flera" i 3D-vyn, eller Shift/Ctrl+klick) och flytta,
-  rotera, duplicera eller ta bort dem tillsammans.
+- **Två lägen: Bygg och Redigera.** I *Bygg* markerar varje tryck en hel
+  grupp och lägger till den i markeringen; en list längst ner har
+  Gruppera, Flytta, Duplicera och Ta bort. I *Redigera* väljer ett tryck
+  en enskild del och visar dess detaljer (längd, ändar, fogar).
+- **Flytta** med pilar direkt i 3D-modellen (ett steg per tryck, 1–100 mm
+  eller valfritt), eller tryck på en bräda för att flytta dit, kant i kant.
+  Fri dragning finns under Avancerat i menyn.
 - **Grupper** (t.ex. "Ben", "Sits"): ett tryck markerar hela gruppen.
 - **Fogar** när delar går in i varandra: *Kapa mot* (stumt, kortar
   kaplängden), *Urtag*, *Halvt i halvt* och *Gering* (hörn som möts i

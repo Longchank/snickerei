@@ -84,8 +84,22 @@ comments in English).
 - Boards: `packCuts` tries each stock length as bin size with first-fit and
   a subset-sum "best fill", then gives each board its cheapest fitting
   length; keeps the cheapest total (without prices: least timber).
-- Selection is `selection: string[]`; a tap in 3D selects the part's whole
-  group (`tapPart`), the parts list selects single parts. A tap that misses
+- **Modes "Bygg | Redigera"** (owner 2026-11-18, `settings.mode`, switch in
+  the toolbar). Bygg: a tap toggles the part's whole group in the
+  selection (several at a time, no "Flera" toggle); a floating action bar
+  offers Gruppera/Dela upp · Flytta · Duplicera · Ta bort; tap-to-place
+  switches to Bygg. Redigera: a tap picks one part (even inside a group)
+  and opens the Del panel. `pickPart` routes taps by mode.
+- **Moving** (`moveMode`, `src/lib/move.ts`): diegetic arrows in the 3D
+  scene on the selection's six faces (`MoveArrows`, constant on-screen
+  size via `useFrame`, big invisible tap zones) move one step
+  (`settings.moveStep`, 1–100 mm or typed); tapping another board moves
+  the selection flush against the tapped face at its start/centre/end
+  (`moveNextTo`); tapping the floor sets it down there (`moveToFloor`).
+  The free TransformControls gizmo is an "Avancerat" menu option
+  (`settings.freeMove`, off by default), smaller, with the two-axis plane
+  handles removed (`stripPlaneHandles`).
+- Selection is `selection: string[]`; the parts list selects single parts. A tap that misses
   every part runs the same fuzzy ring pick as placing (`fuzzyPickRef`,
   36 px touch / 16 px mouse) and selects the nearest board; only a clear
   miss deselects (owner 2026-11-18: boards are thinner than a thumb). One gizmo moves

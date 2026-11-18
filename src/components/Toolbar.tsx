@@ -23,6 +23,7 @@ export function Toolbar({ onPrint }: { onPrint: () => void }) {
         onChange={(e) => setProjectName(e.target.value)}
         aria-label="Projektnamn"
       />
+      <ModeSwitch />
       <div className="group">
         <button className="icon" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
           ↶
@@ -33,6 +34,26 @@ export function Toolbar({ onPrint }: { onPrint: () => void }) {
         <Menu onPrint={onPrint} />
       </div>
     </header>
+  )
+}
+
+/** Bygg: whole groups, several at a time, add and move. Redigera: one part's details. */
+function ModeSwitch() {
+  const mode = useStore((s) => s.settings.mode)
+  const setMode = useStore((s) => s.setMode)
+  return (
+    <div className="segmented mode-switch" role="group" aria-label="Läge">
+      <button className={mode === 'bygg' ? 'on' : ''} aria-pressed={mode === 'bygg'} onClick={() => setMode('bygg')}>
+        Bygg
+      </button>
+      <button
+        className={mode === 'redigera' ? 'on' : ''}
+        aria-pressed={mode === 'redigera'}
+        onClick={() => setMode('redigera')}
+      >
+        Redigera
+      </button>
+    </div>
   )
 }
 
@@ -115,6 +136,16 @@ function Menu({ onPrint }: { onPrint: () => void }) {
               onChange={(e) => setSettings({ showDimensions: e.target.checked })}
             />
             Visa mått
+          </label>
+          <hr />
+          <span className="menu-heading">Avancerat</span>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={settings.freeMove}
+              onChange={(e) => setSettings({ freeMove: e.target.checked })}
+            />
+            Fri flytt (dragpilar i 3D)
           </label>
           <label className="check">
             <input

@@ -1244,3 +1244,83 @@ button.primary {
   grid-column: 2;
   margin: 0;
 }
+
+/* Bygg | Redigera */
+.mode-switch button {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.app.mobile .mode-switch button {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.app.mobile .toolbar .project-name {
+  min-width: 0;
+  width: 0;
+  flex: 1;
+}
+.menu-heading {
+  padding: 4px 12px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+/* Bygg mode: actions for the selection */
+.action-bar {
+  background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(94vw, 460px);
+}
+.action-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.action-buttons button {
+  padding: 9px 4px;
+}
+.action-hint {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.app.mobile .action-bar {
+  max-width: none;
+}
+
+/* Moving */
+.move-steps {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.move-steps button {
+  min-width: 40px;
+  padding: 7px 6px;
+}
+.move-steps button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.move-custom .number-field input {
+  width: 64px;
+}

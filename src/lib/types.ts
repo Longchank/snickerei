@@ -162,6 +162,12 @@ export interface Settings {
   snapToParts: boolean
   /** Which features to snap to, when moving parts and when measuring */
   snapTypes: SnapTypes
+  /** Bygg: taps pick whole groups, several at a time. Redigera: one part, its details. */
+  mode: 'bygg' | 'redigera'
+  /** Advanced: the free 3D drag gizmo (off by default) */
+  freeMove: boolean
+  /** How far one tap on a move arrow moves the selection, mm */
+  moveStep: number
 }
 
 export interface SnapTypes {

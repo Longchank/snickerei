@@ -1,5 +1,5 @@
 import { Edges, GizmoHelper, GizmoViewport, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
-import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
+import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import {
   BoxGeometry,
   BufferGeometry,
@@ -27,6 +27,7 @@ import { overlapsOf, unionBox } from '../lib/joints'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
 import { chooseSnaps, pointCandidates, SNAP_LABEL, snapMove, type SnapGuide } from '../lib/snap'
 import { useStore, type SnapChoice } from '../lib/store'
+import { NumberField } from './NumberField'
 import type { MeasurePoint, Measurement, Part, SnapKind, Vec3 } from '../lib/types'
 
 /**
@@ -138,8 +139,9 @@ function useGrainTexture(part: Part, size: Vec3): CanvasTexture | null {
 }
 
 function PartMesh({ part, selected, register }: { part: Part; selected: boolean; register: Register }) {
-  const tapPart = useStore((s) => s.tapPart)
-  const multiSelect = useStore((s) => s.multiSelect)
+  const pickPart = useStore((s) => s.pickPart)
+  const moving = useStore((s) => s.moveMode)
+  const moveTap = useStore((s) => s.moveTap)
   const measureMode = useStore((s) => s.measureMode)
   const measureTap = useStore((s) => s.measureTap)
   const placing = useStore((s) => s.placeProfile !== null)
@@ -204,8 +206,14 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
             setHover(null)
             return
           }
+          if (moving) {
+            if (!e.face) return
+            const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
+            moveTap({ partId: part.id, hit: e.point.toArray() as Vec3, normal: n.toArray() as Vec3 })
+            return
+          }
           const ne = e.nativeEvent
-          tapPart(part.id, multiSelect || ne.shiftKey || ne.ctrlKey || ne.metaKey)
+          pickPart(part.id, ne.shiftKey || ne.ctrlKey || ne.metaKey)
         }}
         onPointerOver={(e) => {
           e.stopPropagation()
@@ -233,6 +241,77 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         <Edges color={selected ? '#1d4ed8' : '#6b4f2a'} />
       </mesh>
     </group>
+  )
+}
+
+/** Remove the gizmo's two-axis plane handles: they're the easiest to grab by mistake. */
+function stripPlaneHandles(controls: unknown) {
+  const g = (controls as { gizmo?: { gizmo?: Record<string, Object3D>; picker?: Record<string, Object3D> } }).gizmo
+  for (const group of [g?.gizmo?.translate, g?.picker?.translate]) {
+    if (!group) continue
+    for (const child of [...group.children]) if (['XY', 'YZ', 'XZ', 'XYZ'].includes(child.name)) group.remove(child)
+  }
+}
+
+const AXIS_COLOR = ['#dc2626', '#16a34a', '#2563eb']
+
+/**
+ * Six arrows on the sides of the selection, part of the 3D scene. A tap
+ * moves the selection one step that way. They keep the same size on screen
+ * at any zoom, and have large invisible tap zones for a thumb.
+ */
+function MoveArrows({ box }: { box: AxisBox }) {
+  const moveSelection = useStore((s) => s.moveSelection)
+  const step = useStore((s) => s.settings.moveStep)
+  const camera = useThree((s) => s.camera)
+  const centre = [0, 1, 2].map((i) => (box.min[i] + box.max[i]) / 2) as Vec3
+  const groups = useRef<(Group | null)[]>([])
+  // Constant on-screen size: scale with the distance to the camera every frame
+  useFrame(() => {
+    for (const g of groups.current) {
+      if (!g) continue
+      const d = camera.position.distanceTo(g.position)
+      g.scale.setScalar(d * (isTouch ? 0.0011 : 0.0008))
+    }
+  })
+  const arrows: { axis: 0 | 1 | 2; sign: 1 | -1 }[] = []
+  for (const axis of [0, 1, 2] as const) for (const sign of [1, -1] as const) arrows.push({ axis, sign })
+
+  return (
+    <>
+      {arrows.map(({ axis, sign }, i) => {
+        const pos = [...centre] as Vec3
+        pos[axis] = sign > 0 ? box.max[axis] : box.min[axis]
+        // Point the arrow (modelled along +y) out of the face
+        const rot: Vec3 = axis === 0 ? [0, 0, -sign * Math.PI / 2] : axis === 2 ? [sign * Math.PI / 2, 0, 0] : [sign > 0 ? 0 : Math.PI, 0, 0]
+        const go = (e: ThreeEvent<MouseEvent>) => {
+          e.stopPropagation()
+          const d: Vec3 = [0, 0, 0]
+          d[axis] = sign * step
+          moveSelection(d)
+        }
+        return (
+          <group key={i} position={pos} ref={(g) => (groups.current[i] = g)}>
+            <group rotation={rot}>
+              {/* Shaft and head, offset a little out from the face */}
+              <mesh position={[0, 22, 0]} renderOrder={5}>
+                <cylinderGeometry args={[3, 3, 24, 12]} />
+                <meshBasicMaterial color={AXIS_COLOR[axis]} depthTest={false} transparent opacity={0.9} />
+              </mesh>
+              <mesh position={[0, 40, 0]} renderOrder={5}>
+                <coneGeometry args={[9, 16, 16]} />
+                <meshBasicMaterial color={AXIS_COLOR[axis]} depthTest={false} transparent opacity={0.95} />
+              </mesh>
+              {/* Large invisible tap zone */}
+              <mesh position={[0, 30, 0]} onClick={go}>
+                <cylinderGeometry args={[20, 20, 44, 8]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              </mesh>
+            </group>
+          </group>
+        )
+      })}
+    </>
   )
 }
 
@@ -414,6 +493,9 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const measureTap = useStore((s) => s.measureTap)
   const placing = useStore((s) => s.placeProfile !== null)
   const placeTap = useStore((s) => s.placeTap)
+  const moveMode = useStore((s) => s.moveMode)
+  const moveTap = useStore((s) => s.moveTap)
+  const { freeMove, mode } = useStore((s) => s.settings)
   const pendingPoint = useStore((s) => s.pendingPoint)
   const measureHover = useStore((s) => s.measureHover)
   const snapTypes = useStore((s) => s.settings.snapTypes)
@@ -540,14 +622,18 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       {!capturing && !delta && overlaps.map((b, i) => <OverlapBox key={i} box={b} />)}
 
       <primitive object={pivot} />
-      {/* No move arrows while placing boards: they'd sit right where you tap */}
-      {selBox && !placing && (
+      {/* The free 3D drag gizmo is an advanced option (off by default), only in
+          Bygg mode and never while placing, measuring or using the move arrows */}
+      {selBox && freeMove && mode === 'bygg' && !placing && !moveMode && !measureMode && (
         <TransformControls
-          ref={tc as never}
+          ref={(c: unknown) => {
+            ;(tc as React.MutableRefObject<unknown>).current = c
+            if (c) stripPlaneHandles(c)
+          }}
           object={pivot}
           mode="translate"
           translationSnap={snap}
-          size={isTouch ? 1.5 : 0.8}
+          size={isTouch ? 0.75 : 0.6}
           onObjectChange={onDrag}
           onMouseDown={() => (lastDrag.current = Infinity)}
           onMouseUp={() => {
@@ -560,6 +646,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         />
       )}
 
+      {moveMode && selBox && !capturing && <MoveArrows box={selBox} />}
       {showDimensions && !capturing && dimBox && <Dimensions box={dimBox} offset={selBox ? 60 : 120} />}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}
@@ -598,7 +685,14 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         receiveShadow
         // Only a click target while measuring, so a tap on empty floor still deselects otherwise
         onClick={
-          placing
+          moveMode
+            ? (e) => {
+                e.stopPropagation()
+                const near = fuzzyPickRef.current?.(e.nativeEvent.clientX, e.nativeEvent.clientY, FUZZY_PX)
+                if (near && !useStore.getState().selection.includes(near.partId)) return moveTap(near)
+                moveTap({ floor: [e.point.x, 0, e.point.z] })
+              }
+            : placing
             ? (e) => {
                 e.stopPropagation()
                 // A tap that just misses a board counts as a tap on it
@@ -636,6 +730,108 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         </GizmoHelper>
       )}
     </>
+  )
+}
+
+/** Bygg mode: what to do with the selection. */
+function ActionBar() {
+  const selection = useStore((s) => s.selection)
+  const parts = useStore((s) => s.project.parts)
+  const groups = useStore((s) => s.project.groups)
+  const groupSelection = useStore((s) => s.groupSelection)
+  const ungroup = useStore((s) => s.ungroup)
+  const duplicateSelection = useStore((s) => s.duplicateSelection)
+  const removeSelection = useStore((s) => s.removeSelection)
+  const clearSelection = useStore((s) => s.clearSelection)
+  const setMoveMode = useStore((s) => s.setMoveMode)
+  const ids = new Set(selection)
+  const chosen = parts.filter((p) => ids.has(p.id))
+  // Exactly one whole group selected?
+  const gid = chosen[0]?.groupId
+  const group =
+    gid && chosen.every((p) => p.groupId === gid) && parts.filter((p) => p.groupId === gid).length === chosen.length
+      ? groups.find((g) => g.id === gid)
+      : undefined
+  const label = group ? group.name : chosen.length === 1 ? chosen[0].name : `${chosen.length} delar`
+  return (
+    <div className="measure-top place-top">
+      <div className="action-bar" role="toolbar" aria-label="Markerat">
+        <div className="action-title">
+          <strong>{label}</strong>
+          <button className="link" onClick={clearSelection} aria-label="Avmarkera">
+            ✕
+          </button>
+        </div>
+        <div className="action-buttons">
+          {group ? (
+            <button onClick={() => ungroup(group.id)}>Dela upp</button>
+          ) : (
+            <button
+              disabled={chosen.length < 2}
+              onClick={() => groupSelection(`Grupp ${groups.length + 1}`)}
+              title={chosen.length < 2 ? 'Tryck på fler delar för att gruppera' : undefined}
+            >
+              Gruppera
+            </button>
+          )}
+          <button className="primary" onClick={() => setMoveMode(true)}>
+            ✥ Flytta
+          </button>
+          <button onClick={duplicateSelection}>Duplicera</button>
+          <button className="danger" onClick={removeSelection}>
+            Ta bort
+          </button>
+        </div>
+        {chosen.length === 1 && !group && <span className="action-hint">Tryck på fler delar för att markera dem också</span>}
+      </div>
+    </div>
+  )
+}
+
+const STEPS = [1, 5, 10, 50, 100]
+
+/** Moving: step size, rotation, undo and done. The arrows are in the 3D view. */
+function MoveBar() {
+  const step = useStore((s) => s.settings.moveStep)
+  const setSettings = useStore((s) => s.setSettings)
+  const rotateSelection = useStore((s) => s.rotateSelection)
+  const undo = useStore((s) => s.undo)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const setMoveMode = useStore((s) => s.setMoveMode)
+  return (
+    <div className="measure-top place-top">
+      <div className="place-banner move-bar" role="toolbar" aria-label="Flytta">
+        <strong>Flytta</strong>
+        <span>Tryck på pilarna — eller på en bräda där delen ska sitta</span>
+        <div className="move-steps" role="group" aria-label="Steg">
+          {STEPS.map((s) => (
+            <button key={s} className={step === s ? 'on' : ''} aria-pressed={step === s} onClick={() => setSettings({ moveStep: s })}>
+              {s}
+            </button>
+          ))}
+          <label className="move-custom">
+            <NumberField value={step} min={1} suffix="mm" onCommit={(v) => setSettings({ moveStep: v })} />
+          </label>
+        </div>
+        <div className="place-actions">
+          <button onClick={() => rotateSelection(1)} title="Vrid 90° runt lodlinjen">
+            ↻ 90°
+          </button>
+          <button onClick={() => rotateSelection(0)} title="Vrid 90° framåt">
+            ↻ X
+          </button>
+          <button onClick={() => rotateSelection(2)} title="Vrid 90° åt sidan">
+            ↻ Z
+          </button>
+          <button onClick={undo} disabled={!canUndo} aria-label="Ångra">
+            ↶
+          </button>
+          <button className="primary" onClick={() => setMoveMode(false)}>
+            Klar
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -726,9 +922,9 @@ export function Viewport({
   onImmersive?: (on: boolean) => void
 }) {
   const clearSelection = useStore((s) => s.clearSelection)
-  const multiSelect = useStore((s) => s.multiSelect)
-  const setMultiSelect = useStore((s) => s.setMultiSelect)
   const measureMode = useStore((s) => s.measureMode)
+  const moveMode = useStore((s) => s.moveMode)
+  const mode = useStore((s) => s.settings.mode)
   const setMeasureMode = useStore((s) => s.setMeasureMode)
   const pending = useStore((s) => s.pendingPoint !== null)
   const placeProfile = useStore((s) => s.placeProfile)
@@ -736,6 +932,7 @@ export function Viewport({
   const cycleSnap = useStore((s) => s.cycleSnap)
   const count = useStore((s) => s.selection.length)
   const lastDrag = useRef(0)
+  const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode
 
   return (
     <>
@@ -754,14 +951,6 @@ export function Viewport({
         </button>
       )}
       <button
-        className={`multi-toggle ${multiSelect ? 'on' : ''}`}
-        aria-pressed={multiSelect}
-        onClick={() => setMultiSelect(!multiSelect)}
-        title="Tryck på delar för att markera flera"
-      >
-        {multiSelect ? '☑' : '☐'} Flera{count > 1 ? ` (${count})` : ''}
-      </button>
-      <button
         className={`multi-toggle ${measureMode ? 'on measure' : ''}`}
         aria-pressed={measureMode}
         onClick={() => setMeasureMode(!measureMode)}
@@ -771,6 +960,8 @@ export function Viewport({
       </button>
     </div>
     {placeProfile && <PlaceBanner profileId={placeProfile} />}
+    {moveMode && count > 0 && <MoveBar />}
+    {showActions && <ActionBar />}
     {measureMode && (
       <div className="measure-top">
         <div className="measure-hint" role="status">
@@ -797,11 +988,17 @@ export function Viewport({
           if (near) st.placeTap(near)
           return
         }
+        // Moving: a tap next to a board moves the selection there
+        if (st.moveMode && e.type === 'click') {
+          const near = fuzzyPickRef.current?.(e.clientX, e.clientY, FUZZY_PX)
+          if (near && !st.selection.includes(near.partId)) st.moveTap(near)
+          return
+        }
         if (e.type !== 'click' || Date.now() - lastDrag.current <= 200 || st.measureMode) return
         // A tap that just misses a thin board selects it — boards seen from an
         // angle are often thinner than a thumb. Only a clear miss deselects.
         const near = fuzzyPickRef.current?.(e.clientX, e.clientY, FUZZY_PX)
-        if (near) st.tapPart(near.partId, st.multiSelect || e.shiftKey || e.ctrlKey || e.metaKey)
+        if (near) st.pickPart(near.partId, e.shiftKey || e.ctrlKey || e.metaKey)
         else clearSelection()
       }}
     >

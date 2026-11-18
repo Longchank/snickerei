@@ -5,6 +5,7 @@ import { useMemo } from 'react'
 import { partBox, rotatePart } from './geometry'
 import { cornerButt, cornerMiter, findCornerPartner } from './corner'
 import { miterCorner, ripPart } from './cuts'
+import { moveNextTo, moveToFloor } from './move'
 import { halfLap, moveParts, notchAgainst, overlapsOf, rotateParts, toLocalBox, trimAgainst, unionBox } from './joints'
 import { mergePrices, supplierEntries } from './prices'
 import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, type Placement } from './place'
@@ -37,6 +38,8 @@ interface State {
   multiSelect: boolean
   /** Measuring tool on: taps pick points instead of selecting */
   measureMode: boolean
+  /** Moving the selection: arrows in the view, taps put it next to a board */
+  moveMode: boolean
   /** Placing boards of this profile: taps on the model place one each */
   placeProfile: string | null
   /** What the last placement did, for the banner */
@@ -69,6 +72,12 @@ interface State {
   select: (ids: string[]) => void
   clearSelection: () => void
   setMultiSelect: (on: boolean) => void
+  /** A tap on a part in the view, by mode: Bygg toggles its group, Redigera picks just it */
+  pickPart: (id: string, modifier?: boolean) => void
+  setMode: (mode: Settings['mode']) => void
+  setMoveMode: (on: boolean) => void
+  /** A tap while moving: next to a board's face, or onto the floor */
+  moveTap: (target: { partId: string; hit: Vec3; normal: Vec3 } | { floor: Vec3 }) => void
   setMeasureMode: (on: boolean) => void
   setPlaceProfile: (profileId: string | null) => void
   /** A tap while placing: on a part's face (with outward normal) or the floor */
@@ -132,6 +141,9 @@ const DEFAULT_SETTINGS: Settings = {
   showDimensions: true,
   snapToParts: true,
   snapTypes: DEFAULT_SNAP_TYPES,
+  mode: 'bygg',
+  freeMove: false,
+  moveStep: 10,
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -216,6 +228,7 @@ export const useStore = create<State>()(
         pickCount: 0,
         multiSelect: false,
         measureMode: false,
+        moveMode: false,
         placeProfile: null,
         placeNote: null,
         placeChoice: null,
@@ -259,14 +272,42 @@ export const useStore = create<State>()(
         },
         select: (selection) => set((s) => ({ selection, pickCount: s.pickCount + 1 })),
         clearSelection: () => set({ selection: [] }),
+        pickPart: (id, modifier = false) => {
+          if (get().settings.mode === 'bygg') return get().tapPart(id, true)
+          if (modifier) return get().tapPart(id, true)
+          set((s) => ({ selection: [id], pickCount: s.pickCount + 1 }))
+        },
+        setMode: (mode) =>
+          set((s) => ({
+            settings: { ...s.settings, mode },
+            moveMode: false,
+            // Redigera works on one part at a time
+            selection: mode === 'redigera' ? s.selection.slice(0, 1) : s.selection,
+          })),
+        setMoveMode: (moveMode) =>
+          set({ moveMode, ...(moveMode ? { measureMode: false, placeProfile: null, pendingPoint: null } : {}) }),
+        moveTap: (target) => {
+          const ids = new Set(get().selection)
+          const sel = unionBox(get().project.parts.filter((p) => ids.has(p.id)))
+          if (!sel) return
+          if ('floor' in target) return get().moveSelection(moveToFloor(sel, target.floor))
+          if (ids.has(target.partId)) return
+          const on = get().project.parts.find((p) => p.id === target.partId)
+          if (!on) return
+          const { delta } = moveNextTo(sel, on, target.hit, target.normal)
+          if (delta.some((v) => v !== 0)) get().moveSelection(delta)
+        },
         setMultiSelect: (multiSelect) => set({ multiSelect, ...(multiSelect ? { measureMode: false, pendingPoint: null } : {}) }),
         setPlaceProfile: (placeProfile) =>
-          set({
+          set((s) => ({
             placeProfile,
+            moveMode: false,
+            // Placing is building
+            ...(placeProfile && s.settings.mode !== 'bygg' ? { settings: { ...s.settings, mode: 'bygg' as const } } : {}),
             placeNote: null,
             placeChoice: null,
             ...(placeProfile ? { measureMode: false, pendingPoint: null, snapChoice: null, multiSelect: false } : {}),
-          }),
+          })),
         placeTap: (target) => {
           const profileId = get().placeProfile
           if (!profileId) return
@@ -310,6 +351,7 @@ export const useStore = create<State>()(
         },
         setMeasureMode: (on) =>
           set({
+            moveMode: false,
             placeProfile: null,
             measureMode: on,
             pendingPoint: null,
