@@ -24,6 +24,7 @@ import { getProfile, hasGrain } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
 import { overlapsOf, unionBox } from '../lib/joints'
+import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
 import { chooseSnaps, pointCandidates, SNAP_LABEL, snapMove, type SnapGuide } from '../lib/snap'
 import { useStore, type SnapChoice } from '../lib/store'
@@ -432,22 +433,85 @@ function PointMarker({ at, kind, size = 9, ghost = false }: { at: Vec3; kind?: S
   )
 }
 
-/** Free space from the selection to the nearest part or the floor, as green dashed lines. */
+/**
+ * Free space from the selection to the nearest part or the floor, as green
+ * dashed lines. Tapping a number lets you type the gap you want; the
+ * selection moves to make it so.
+ */
 function FreeSpaceLines({ spaces }: { spaces: FreeSpace[] }) {
+  const moveSelection = useStore((s) => s.moveSelection)
+  const [editing, setEditing] = useState<FreeSpace['direction'] | null>(null)
   return (
     <>
       {spaces.map((f) => {
         const mid: Vec3 = [(f.from[0] + f.end[0]) / 2, (f.from[1] + f.end[1]) / 2, (f.from[2] + f.end[2]) / 2]
+        const open = editing === f.direction
         return (
           <group key={f.direction}>
             <Line points={[f.from, f.end]} color="#16a34a" lineWidth={2} dashed dashSize={25} gapSize={15} />
-            <Html position={mid} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
-              <span className="free-label">{fmtMm(f.gap)}</span>
+            <Html position={mid} center zIndexRange={open ? [20, 10] : [5, 0]}>
+              {open ? (
+                <GapInput
+                  space={f}
+                  onDone={(gap) => {
+                    setEditing(null)
+                    if (gap === null) return
+                    const d = moveToGap(f, gap)
+                    if (d.some((v) => v !== 0)) moveSelection(d)
+                  }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="free-label editable"
+                  title={`Fritt ${f.direction} till ${f.to} — tryck för att ändra`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditing(f.direction)
+                  }}
+                >
+                  {fmtMm(f.gap)}
+                </button>
+              )}
             </Html>
           </group>
         )
       })}
     </>
+  )
+}
+
+/** Typing field for a free-space gap; commits on Enter or blur, Esc cancels. */
+function GapInput({ space, onDone }: { space: FreeSpace; onDone: (gap: number | null) => void }) {
+  const [text, setText] = useState(fmtMm(space.gap))
+  const done = useRef(false)
+  const finish = (commit: boolean) => {
+    if (done.current) return
+    done.current = true
+    const v = Number(text.replace(',', '.'))
+    onDone(commit && Number.isFinite(v) && v >= 0 && v !== space.gap ? v : null)
+  }
+  return (
+    <form
+      className="gap-edit"
+      onSubmit={(e) => {
+        e.preventDefault()
+        finish(true)
+      }}
+    >
+      <input
+        autoFocus
+        inputMode="decimal"
+        enterKeyHint="done"
+        aria-label={`Fritt ${space.direction} till ${space.to} (mm)`}
+        value={text}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => finish(true)}
+        onKeyDown={(e) => e.key === 'Escape' && finish(false)}
+      />
+      <span>mm</span>
+    </form>
   )
 }
 

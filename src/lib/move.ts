@@ -4,6 +4,7 @@
  */
 import { Euler, Vector3 } from 'three'
 import { eulerOf, partBox, toAxisBox, type AxisBox } from './geometry'
+import type { FreeSpace } from './measure'
 import type { Anchor } from './place'
 import type { Part, Vec3 } from './types'
 
@@ -66,4 +67,16 @@ export function moveToFloor(sel: AxisBox, hit: Vec3): Vec3 {
   const cx = (sel.min[0] + sel.max[0]) / 2
   const cz = (sel.min[2] + sel.max[2]) / 2
   return [Math.round((hit[0] - cx) / 5) * 5, -sel.min[1], Math.round((hit[2] - cz) / 5) * 5]
+}
+
+/**
+ * The move that makes a free-space gap (the green number in the view) exactly
+ * `gap` mm: the selection slides along the gap's direction, towards or away
+ * from what it measures to. Never closer than touching.
+ */
+export function moveToGap(space: FreeSpace, gap: number): Vec3 {
+  const sign = Math.sign(space.end[space.axis] - space.from[space.axis]) || 1
+  const d: Vec3 = [0, 0, 0]
+  d[space.axis] = Math.round(sign * (space.gap - Math.max(0, gap)) * 10) / 10
+  return d
 }

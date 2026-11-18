@@ -103,6 +103,11 @@ comments in English).
   The free TransformControls gizmo is an "Avancerat" menu option
   (`settings.freeMove`, off by default), smaller, with the two-axis plane
   handles removed (`stripPlaneHandles`).
+- **Editable gaps** (owner 2026-11-18): the green free-space numbers
+  (`FreeSpaceLines`) are buttons; tapping one opens a number field
+  (`GapInput`, Enter/blur commits, Esc cancels) and the selection slides
+  along that gap's axis so the gap becomes the typed value (`moveToGap`,
+  never past touching). One undo step.
 - **Rotating** (`rotateMode`, owner 2026-11-18: "in steps so no freeform
   rotation"): 90° steps only (the model is axis-aligned). `RotateRings`
   draws one ring per axis around the selection (red X / green Y / blue Z,

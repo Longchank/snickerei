@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { moveNextTo, moveToFloor } from './move'
+import { moveNextTo, moveToFloor, moveToGap } from './move'
 import type { Part, Vec3 } from './types'
 
 // Sill along X: x 0..1200, y 0..45, z 0..95
@@ -32,5 +32,15 @@ describe('moveToFloor', () => {
   it('sets the selection on the floor centred on the tap', () => {
     const lifted = { min: [0, 300, 0] as Vec3, max: [100, 345, 100] as Vec3 }
     expect(apply(lifted, moveToFloor(lifted, [500, 0, 500]))).toEqual({ min: [450, 0, 450], max: [550, 45, 550] })
+  })
+})
+
+describe('moveToGap', () => {
+  it('moves towards the obstacle to shrink the gap and away to grow it', () => {
+    const up = { direction: 'över', axis: 1, gap: 300, to: 'Hylla', from: [0, 100, 0], end: [0, 400, 0] } as const
+    expect(moveToGap(up as never, 200)).toEqual([0, 100, 0])
+    const down = { direction: 'under', axis: 1, gap: 300, to: 'golvet', from: [0, 300, 0], end: [0, 0, 0] } as const
+    expect(moveToGap(down as never, 450)).toEqual([0, 150, 0])
+    expect(moveToGap(down as never, -20)).toEqual([0, -300, 0])
   })
 })

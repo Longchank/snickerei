@@ -27,6 +27,9 @@ Byggd för mobilen först — fungerar även på dator.
 - **Flytta** med pilar direkt i 3D-modellen (ett steg per tryck, 1–100 mm
   eller valfritt), eller tryck på en bräda för att flytta dit, kant i kant.
   Fri dragning finns under Avancerat i menyn.
+- **Ändra avstånd direkt i 3D-vyn**: tryck på ett grönt mått (fritt
+  avstånd till golvet eller nästa del) och skriv in hur stort det ska vara —
+  markeringen flyttas dit.
 - **Vrid** i steg om 90° — tryck på pilarna på ringarna runt markeringen
   i 3D-vyn, eller på Vrid / Tippa / Sida i listen. Det som står på golvet
   blir stående på golvet.
