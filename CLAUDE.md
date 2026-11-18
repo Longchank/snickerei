@@ -85,7 +85,10 @@ comments in English).
   a subset-sum "best fill", then gives each board its cheapest fitting
   length; keeps the cheapest total (without prices: least timber).
 - Selection is `selection: string[]`; a tap in 3D selects the part's whole
-  group (`tapPart`), the parts list selects single parts. One gizmo moves
+  group (`tapPart`), the parts list selects single parts. A tap that misses
+  every part runs the same fuzzy ring pick as placing (`fuzzyPickRef`,
+  36 px touch / 16 px mouse) and selects the nearest board; only a clear
+  miss deselects (owner 2026-11-18: boards are thinner than a thumb). One gizmo moves
   an invisible pivot at the selection's min corner; parts follow live and
   are committed with `moveSelection`. Groups (`project.groups`,
   `part.groupId`) with <2 parts are pruned automatically.

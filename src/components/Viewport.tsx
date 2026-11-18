@@ -797,7 +797,12 @@ export function Viewport({
           if (near) st.placeTap(near)
           return
         }
-        if (e.type === 'click' && Date.now() - lastDrag.current > 200 && !st.measureMode) clearSelection()
+        if (e.type !== 'click' || Date.now() - lastDrag.current <= 200 || st.measureMode) return
+        // A tap that just misses a thin board selects it — boards seen from an
+        // angle are often thinner than a thumb. Only a clear miss deselects.
+        const near = fuzzyPickRef.current?.(e.clientX, e.clientY, FUZZY_PX)
+        if (near) st.tapPart(near.partId, st.multiSelect || e.shiftKey || e.ctrlKey || e.metaKey)
+        else clearSelection()
       }}
     >
       <Scene lastDrag={lastDrag} capturing={capturing} />
