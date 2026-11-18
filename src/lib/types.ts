@@ -104,12 +104,17 @@ export interface Group {
   name: string
 }
 
+/** What the build is for: picks the load preset for the strength analysis */
+export type Purpose = 'bokhylla' | 'forvaring' | 'bord' | 'bank' | 'arbetsbank'
+
 export interface Project {
   name: string
   parts: Part[]
   groups: Group[]
   /** Measurements the user has made with the measuring tool */
   measurements: Measurement[]
+  /** What it's for (Analys); unset = Förvaring */
+  purpose?: Purpose
 }
 
 /** A point picked on a surface (or the floor) and which way that surface faces. */

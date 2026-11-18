@@ -213,6 +213,25 @@ comments in English).
   board's ends in the 3D view (`EndLabels`, Redigera, one board) and a
   one-line explanation of Rak/Gering/Högkant. **Analys tab** (◎, both
   modes): free space + riktvärden (`SpaceInfo`) moved out of Del.
+- **Strength analysis** (`src/lib/strength.ts`, Analys tab, owner
+  2026-11-18: "strength, bends etc."). Owner chose: sag + capacity,
+  weight + tipping, wobble; loads from **presets** (`project.purpose`:
+  Bokhylla/Förvaring/Bord/Bänk/Arbetsbänk → kg/m² on free top surfaces,
+  a point load for people, long-term = creep). Material values per
+  category (`MATERIALS`: C24/C18/C14 from EN 338, rough sheet values) and
+  load presets are **typical figures from general knowledge, not
+  sourced** — the UI calls it all "uppskattning". Method: bounding boxes;
+  a horizontal part is held up by parts under it or beside it reaching
+  lower (legs); loads flow top-down (own weight + preset on free tops,
+  passed to supports, point loads to the nearest support); each free span
+  is checked as simply supported (overhangs as cantilevers) with
+  utilisation vs 0.6·fm and sag vs span/300 (overhang /150); status
+  ok/warn/bad; "klarar X kg mitt på" says whether sag or strength sets
+  it. Tipping: push at the top vs floor footprint (empty build). Wobble:
+  ≥2 posts and height ≥300 with no standing sheet in a plane → warn (the
+  model is axis-aligned, so no diagonal braces exist). "Visa i 3D" tints
+  parts green/yellow/red (`analysisView`, grey = not checked). Not
+  modelled: joints, screws, glue, notches, angled cuts, two-way plates.
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
   were editable in the 3D view): the Del panel shows no position. Moving and turning happen in the 3D view (Bygg: arrows,
   rings, editable green gaps, Avancerat free gizmo).

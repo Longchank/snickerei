@@ -31,6 +31,7 @@ import type {
   Settings,
   SupplierPriceFile,
   Vec3,
+  Purpose,
 } from './types'
 
 const HISTORY_LIMIT = 100
@@ -48,6 +49,10 @@ interface State {
   multiSelect: boolean
   /** Measuring tool on: taps pick points instead of selecting */
   measureMode: boolean
+  /** Colour the model by the strength analysis (Analys tab) */
+  analysisView: boolean
+  setAnalysisView: (on: boolean) => void
+  setPurpose: (purpose: Purpose) => void
   /** Moving the selection: arrows in the view, taps put it next to a board */
   moveMode: boolean
   /** Placing boards of this profile: taps on the model place one each */
@@ -248,6 +253,9 @@ export const useStore = create<State>()(
         pickCount: 0,
         multiSelect: false,
         measureMode: false,
+        analysisView: false,
+        setAnalysisView: (analysisView) => set({ analysisView }),
+        setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),
         moveMode: false,
         placeProfile: null,
         placeNote: null,

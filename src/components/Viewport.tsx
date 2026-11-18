@@ -26,6 +26,7 @@ import { cutters, type Cutter } from '../lib/cuts'
 import { AXIS_BOARDS, switchButtJoints } from '../lib/corner'
 import { endName, endPoint } from '../lib/ends'
 import { reorientOptions } from '../lib/place'
+import { analyse, STATUS_COLOR } from '../lib/strength'
 import { overlapsOf, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -142,7 +143,7 @@ function useGrainTexture(part: Part, size: Vec3): CanvasTexture | null {
   return texture
 }
 
-function PartMesh({ part, selected, register }: { part: Part; selected: boolean; register: Register }) {
+function PartMesh({ part, selected, register, tint }: { part: Part; selected: boolean; register: Register; tint?: string }) {
   const pickPart = useStore((s) => s.pickPart)
   const moving = useStore((s) => s.moveMode)
   const moveTap = useStore((s) => s.moveTap)
@@ -235,9 +236,9 @@ function PartMesh({ part, selected, register }: { part: Part; selected: boolean;
         }}
       >
         <meshStandardMaterial
-          key={grainMap ? grainMap.uuid : 'plain'}
-          map={grainMap}
-          color={prof.color}
+          key={grainMap && !tint ? grainMap.uuid : tint ?? 'plain'}
+          map={tint ? null : grainMap}
+          color={tint ?? prof.color}
           emissive={selected ? '#3b82f6' : hovered && !isTouch && !measureMode ? '#555' : '#000'}
           emissiveIntensity={selected ? 0.35 : 0.15}
           roughness={0.8}
@@ -647,6 +648,17 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   /** What snapped while dragging, drawn as guide lines */
   const [guides, setGuides] = useState<SnapGuide[]>([])
   const measurements = useStore((s) => s.project.measurements)
+  // Analys → "Visa i 3D": colour horizontal parts by how they hold up
+  const analysisView = useStore((s) => s.analysisView)
+  const purpose = useStore((s) => s.project.purpose ?? 'forvaring')
+  const tints = useMemo(() => {
+    if (!analysisView) return null
+    const a = analyse(parts, purpose)
+    const m = new Map<string, string>(parts.map((p) => [p.id, '#d6d3d1']))
+    for (const b of a.beams) m.set(b.partId, STATUS_COLOR[b.status])
+    for (const id of a.floating) m.set(id, STATUS_COLOR.bad)
+    return m
+  }, [analysisView, parts, purpose])
   const spaces = useMemo(
     () => (selBox ? freeSpace(selBox, otherBoxes(parts, new Set(selection))).filter((f) => f.gap <= 3000) : []),
     [selBox, parts, selection],
@@ -762,7 +774,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       </directionalLight>
 
       {parts.map((p) => (
-        <PartMesh key={p.id} part={p} selected={selection.includes(p.id)} register={register} />
+        <PartMesh key={p.id} part={p} selected={selection.includes(p.id)} register={register} tint={tints?.get(p.id)} />
       ))}
       {!capturing && !delta && overlaps.map((b, i) => <OverlapBox key={i} box={b} />)}
 
