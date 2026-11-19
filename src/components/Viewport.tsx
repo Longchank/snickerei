@@ -203,7 +203,15 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
           if (placing) {
             if (!e.face) return
             const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
-            placeTap({ partId: part.id, hit: e.point.toArray() as Vec3, normal: n.toArray() as Vec3 })
+            // Sheets go corner to corner: snap the tap to the board's corners and edges
+            const armed = useStore.getState().placeProfile
+            const snap = armed && getProfile(armed).kind === 'sheet' ? snapOptions(e)[0] : undefined
+            placeTap({
+              partId: part.id,
+              hit: snap ? snap.point : (e.point.toArray() as Vec3),
+              normal: n.toArray() as Vec3,
+              snapped: !!snap && snap.snap !== 'face',
+            })
             return
           }
           if (measureMode) {
@@ -699,6 +707,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const rotateMode = useStore((s) => s.rotateMode)
   const { freeMove, mode } = useStore((s) => s.settings)
   const pendingPoint = useStore((s) => s.pendingPoint)
+  const sheetCorner = useStore((s) => s.sheetCorner)
   const measureHover = useStore((s) => s.measureHover)
   const snapTypes = useStore((s) => s.settings.snapTypes)
   /** What snapped while dragging, drawn as guide lines */
@@ -875,6 +884,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       {!capturing && mode === 'redigera' && selection.length === 1 && <EndLabels partId={selection[0]} />}
       {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}
       {!capturing && pendingPoint && <PointMarker at={pendingPoint.point} kind={pendingPoint.snap} size={14} />}
+      {!capturing && sheetCorner && <PointMarker at={sheetCorner.point} kind="vertex" size={16} />}
       {!capturing && measureHover && <PointMarker at={measureHover.point} kind={measureHover.snap} size={12} ghost />}
       {!capturing && guides.map((g, i) => (
         <Line key={i} points={[g.from, g.to]} color={g.kind === 'center' ? '#db2777' : '#0891b2'} lineWidth={2} dashed dashSize={20} gapSize={12} depthTest={false} />
@@ -1134,7 +1144,12 @@ function PlaceBanner({ profileId }: { profileId: string }) {
     <div className="measure-top place-top">
       <div className="place-banner" role="status">
         <strong>Placera {prof.kind === 'sheet' ? prof.name : prof.name}</strong>
-        <span>{note ?? 'Tryck på en bräda – vid början, mitten eller änden – eller på golvet'}</span>
+        <span>
+          {note ??
+            (prof.kind === 'sheet'
+              ? 'Tryck på ett hörn där skivan ska börja — på golvet eller på en bräda. Sedan på motsatta hörnet.'
+              : 'Tryck på en bräda – vid början, mitten eller änden – eller på golvet')}
+        </span>
         {choice && choice.options.length > 1 && (
           <button className="place-cycle" onClick={cyclePlacement}>
             ⟳ Annan riktning{' '}
@@ -1155,7 +1170,7 @@ function PlaceBanner({ profileId }: { profileId: string }) {
           <button
             onClick={() => {
               undo()
-              useStore.setState({ placeNote: 'Ångrat — tryck igen där brädan ska sitta', placeChoice: null })
+              useStore.setState({ placeNote: 'Ångrat — tryck igen där den ska sitta', placeChoice: null, sheetCorner: null })
             }}
             disabled={!canUndo}
             aria-label="Ångra senaste"

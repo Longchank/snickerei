@@ -1569,3 +1569,14 @@ button.dim-label.editable::after {
   content: ' ✎';
   opacity: 0.8;
 }
+/* Keep the label colours on hover (the general button hover would turn them white) */
+button.dim-label.editable,
+button.dim-label.editable:hover:not(:disabled) {
+  background: rgba(31, 41, 55, 0.88);
+  color: #fff;
+}
+button.free-label.editable,
+button.free-label.editable:hover:not(:disabled) {
+  background: #16a34a;
+  color: #fff;
+}

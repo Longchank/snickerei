@@ -19,7 +19,7 @@ import {
   unionBox,
 } from './joints'
 import { mergePrices, supplierEntries } from './prices'
-import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, reorientOptions, samePlacement, type Placement } from './place'
+import { describePlacement, floorTapTarget, placementOptions, placeOnFloor, reorientOptions, samePlacement, sheetBetween, type Placement, type SheetCorner } from './place'
 import { DEFAULT_SNAP_TYPES } from './snap'
 import type {
   EndCut,
@@ -62,6 +62,8 @@ interface State {
   placeNote: string | null
   /** Other ways the last placed board could go, to cycle through */
   placeChoice: { partId: string; options: Placement[]; index: number } | null
+  /** Placing a sheet: the first corner tapped, waiting for the opposite one */
+  sheetCorner: SheetCorner | null
   /** First point of a measurement in progress */
   pendingPoint: MeasurePoint | null
   /** Snap alternatives for the most recent tap, which the user can cycle through */
@@ -99,7 +101,7 @@ interface State {
   /** A tap while placing: on a part's face (with outward normal) or the floor */
   /** `margin`: how far (mm) from a part a floor tap still counts as a tap on it */
   placeTap: (
-    target: { partId: string; hit: Vec3; normal: Vec3; missed?: boolean } | { floor: Vec3; margin?: number },
+    target: { partId: string; hit: Vec3; normal: Vec3; missed?: boolean; snapped?: boolean } | { floor: Vec3; margin?: number },
   ) => void
   /** Put the last placed board the next way instead */
   cyclePlacement: () => void
@@ -263,6 +265,7 @@ export const useStore = create<State>()(
         placeProfile: null,
         placeNote: null,
         placeChoice: null,
+        sheetCorner: null,
         pendingPoint: null,
         snapChoice: null,
         measureHover: null,
@@ -342,12 +345,49 @@ export const useStore = create<State>()(
             ...(placeProfile && s.settings.mode !== 'bygg' ? { settings: { ...s.settings, mode: 'bygg' as const } } : {}),
             placeNote: null,
             placeChoice: null,
+            sheetCorner: null,
             ...(placeProfile ? { measureMode: false, pendingPoint: null, snapChoice: null, multiSelect: false } : {}),
           })),
         placeTap: (target) => {
           const profileId = get().placeProfile
           if (!profileId) return
           const parts = get().project.parts
+          // Sheets: two taps, corner to corner
+          if (getProfile(profileId).kind === 'sheet') {
+            let point: Vec3
+            let axis: 0 | 1 | 2 = 1
+            let sign: 1 | -1 = 1
+            if ('floor' in target) point = [...target.floor] as Vec3
+            else {
+              const n = target.normal
+              axis = n.map(Math.abs).indexOf(Math.max(...n.map(Math.abs))) as 0 | 1 | 2
+              sign = n[axis] < 0 ? -1 : 1
+              point = [...target.hit] as Vec3
+            }
+            // Off the snap points, round to the grid along the surface
+            const grid = get().settings.snap
+            if (grid > 0 && !('partId' in target && target.snapped))
+              for (const i of [0, 1, 2]) if (i !== axis) point[i] = Math.round(point[i] / grid) * grid
+            const corner = get().sheetCorner
+            if (!corner) {
+              set({ sheetCorner: { point, axis, sign }, placeNote: 'Tryck nu på motsatta hörnet', placeChoice: null })
+              return
+            }
+            const placed = sheetBetween(profileId, corner, point)
+            if (!placed) {
+              set({ placeNote: 'För liten — tryck på motsatta hörnet en bit bort' })
+              return
+            }
+            const prof = getProfile(profileId)
+            const part: Part = { ...placed, id: uid(), name: `${prof.name} #${parts.filter((p) => p.profileId === profileId).length + 1}` }
+            editParts((ps) => [...ps, part], [part.id])
+            set({
+              sheetCorner: null,
+              placeChoice: null,
+              placeNote: `${part.length} × ${part.width} mm lagd — tryck på nästa skivas första hörn, eller Klar`,
+            })
+            return
+          }
           let options: Placement[]
           if ('floor' in target) {
             // A near miss next to a part on the floor goes on that part

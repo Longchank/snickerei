@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { CATEGORY_NAMES, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
+import { CATEGORY_NAMES, getProfile, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
 import type { Part, ProfileCategory } from '../lib/types'
 
@@ -50,8 +50,9 @@ function Category({ cat }: { cat: ProfileCategory }) {
   const setPlaceProfile = useStore((s) => s.setPlaceProfile)
   // With parts in the model, choosing a board starts placing it by tapping;
   // the very first board just goes in
+  // Sheets are always placed corner to corner, even in an empty model
   const choose = (id: string) =>
-    !hasParts ? addPart(id) : setPlaceProfile(placeProfile === id ? null : id)
+    !hasParts && getProfile(id).kind !== 'sheet' ? addPart(id) : setPlaceProfile(placeProfile === id ? null : id)
   const profiles = PROFILES.filter((p) => p.category === cat)
   const armed = profiles.some((p) => p.id === placeProfile)
   return (

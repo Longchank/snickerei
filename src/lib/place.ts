@@ -352,3 +352,41 @@ export function reorientOptions(board: Part, parts: Part[]): Placement[] {
 /** Same position, turn and length? */
 export const samePlacement = (a: Omit<Part, 'id' | 'name'>, b: Omit<Part, 'id' | 'name'>) =>
   JSON.stringify([a.position, a.rotation, a.length]) === JSON.stringify([b.position, b.rotation, b.length])
+
+/** The first corner tapped when placing a sheet, and the surface it lies on */
+export interface SheetCorner {
+  point: Vec3
+  /** The surface's normal axis and which way it faces */
+  axis: Axis
+  sign: 1 | -1
+}
+
+/**
+ * A sheet spanning the rectangle between two tapped corners, lying on the
+ * first corner's surface (on the floor, on top of a frame, against the side
+ * of a post). The second corner is projected onto that surface. The longer
+ * side becomes the sheet's length. Null if the rectangle is too small.
+ */
+export function sheetBetween(profileId: string, a: SheetCorner, b: Vec3, minSize = 20): Omit<Part, 'id' | 'name'> | null {
+  const prof = getProfile(profileId)
+  const [u, v] = AXES.filter((i) => i !== a.axis)
+  const du = Math.abs(b[u] - a.point[u])
+  const dv = Math.abs(b[v] - a.point[v])
+  if (du < minSize || dv < minSize) return null
+  const [lengthAxis, widthAxis] = du >= dv ? [u, v] : [v, u]
+  const rotation = rotationFor(lengthAxis, widthAxis)
+  const min = [0, 0, 0] as Vec3
+  min[u] = Math.min(a.point[u], b[u])
+  min[v] = Math.min(a.point[v], b[v])
+  min[a.axis] = a.sign > 0 ? a.point[a.axis] : a.point[a.axis] - prof.thickness
+  const part: Omit<Part, 'id' | 'name'> = {
+    profileId,
+    length: Math.round(Math.max(du, dv)),
+    width: Math.round(Math.min(du, dv)),
+    position: [0, 0, 0],
+    rotation,
+  }
+  const box = toAxisBox(partBox({ ...part, id: '', name: '' }))
+  part.position = [0, 1, 2].map((i) => Math.round((min[i] - box.min[i]) * 10) / 10) as Vec3
+  return part
+}

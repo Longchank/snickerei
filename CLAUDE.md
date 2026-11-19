@@ -205,6 +205,14 @@ comments in English).
   `placementOptions` from there. First tap = one undo step, further taps
   replace it (`placeChoice` reused while the board stays where the last
   tap put it). Notes read "Stående/Liggande/På högkant, vid änden · …".
+- **Sheets are placed with two taps** (owner 2026-11-19): arming a sheet
+  (even in an empty model) waits for a first corner (`sheetCorner`,
+  marker in 3D), then the opposite one; `sheetBetween` fills the
+  rectangle on the first tap's surface (floor, top of a frame, side of a
+  post — thickness on the outside of that face), second corner projected
+  onto it, longer side = length. Taps on boards snap to their corners and
+  edges (the measuring snaps); otherwise rounded to `settings.snap`.
+  Stays armed for the next sheet until Klar.
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

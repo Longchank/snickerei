@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { contactOf, describePlacement, floorTapTarget, placementOptions, placeOnFloor, placeOnPart, reorientOptions, rotationFor, samePlacement } from './place'
+import { contactOf, describePlacement, floorTapTarget, placementOptions, placeOnFloor, placeOnPart, reorientOptions, rotationFor, samePlacement, sheetBetween } from './place'
 import type { Part, Vec3 } from './types'
 
 let n = 0
@@ -139,5 +139,28 @@ describe('reorientOptions (Annan riktning for a placed board)', () => {
   it('has nothing to offer for a board touching nothing', () => {
     const lone = make({ ...sill, position: [0, 0, 3000] })
     expect(reorientOptions(lone, [sill, lone])).toEqual([])
+  })
+})
+
+describe('sheetBetween (two-tap sheets)', () => {
+  it('lays a sheet on the floor between two corners, longer side as length', () => {
+    const p = sheetBetween('plywood-12', { point: [1200, 0, 600], axis: 1, sign: 1 }, [0, 0, 0])!
+    expect(box(p)).toEqual({ min: [0, 0, 0], max: [1200, 12, 600] })
+    expect([p.length, p.width]).toEqual([1200, 600])
+  })
+
+  it('lies on top of a frame and runs the length the long way', () => {
+    const p = sheetBetween('plywood-18', { point: [0, 745, 0], axis: 1, sign: 1 }, [600, 900, 1500])!
+    expect(box(p)).toEqual({ min: [0, 745, 0], max: [600, 763, 1500] })
+    expect(p.length).toBe(1500)
+  })
+
+  it('stands against the side of a post, and refuses a sliver', () => {
+    const p = sheetBetween('osb-12', { point: [0, 0, 95], axis: 2, sign: 1 }, [800, 1200, 95])!
+    expect(box(p)).toEqual({ min: [0, 0, 95], max: [800, 1200, 107] })
+    // Facing the other way it goes behind the face
+    const q = sheetBetween('osb-12', { point: [0, 0, 0], axis: 2, sign: -1 }, [800, 1200, 0])!
+    expect(box(q).min[2]).toBe(-12)
+    expect(sheetBetween('osb-12', { point: [0, 0, 0], axis: 1, sign: 1 }, [800, 0, 5])).toBeNull()
   })
 })
