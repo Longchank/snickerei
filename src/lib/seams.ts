@@ -2,7 +2,7 @@
  * "Smartast": where to split a framed sheet over its joists so the project's
  * sheets of that material need the fewest / cheapest store sheets.
  */
-import { purchasePlan, type OwnSheetSizes, type SheetPlan } from './cutlist'
+import { purchasePlan, type OwnStock, type SheetPlan } from './cutlist'
 import { splitSheet } from './frame'
 import type { Part, PriceEntry } from './types'
 
@@ -38,7 +38,7 @@ export function sheetPlanWith(
   parts: Part[],
   prices: PriceEntry[],
   kerf: number,
-  sizes: OwnSheetSizes = {},
+  sizes: OwnStock = {},
 ): SheetPlan | null {
   const sheet = parts.find((p) => p.id === sheetId)
   if (!sheet?.frame) return null
@@ -58,7 +58,7 @@ export function sheetPlanWith(
  * seams. The project's other sheets of the same material count too, since
  * they share the store sheets.
  */
-export function bestSeams(sheetId: string, parts: Part[], prices: PriceEntry[], kerf: number, sizes: OwnSheetSizes = {}): SeamChoice {
+export function bestSeams(sheetId: string, parts: Part[], prices: PriceEntry[], kerf: number, sizes: OwnStock = {}): SeamChoice {
   const sheet = parts.find((p) => p.id === sheetId)
   if (!sheet?.frame || sheet.frame.joists < 1) return { seams: [], plan: null }
   let best: (SeamChoice & { score: number[] }) | null = null

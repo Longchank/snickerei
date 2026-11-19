@@ -4,7 +4,7 @@ import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
 import { partBox, rotatePart, round, toAxisBox } from './geometry'
 import { setSizeAlong, stretchParts } from './resize'
-import type { OwnSheetSizes } from './cutlist'
+import type { OwnSheetSizes, OwnStockLengths } from './cutlist'
 import { defaultJoists, frameUnder, isLyingSheet, longAxis, sheetForFrame } from './frame'
 import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
 import { miterCorner, ripPart } from './cuts'
@@ -167,6 +167,9 @@ interface State {
   /** Store sheet sizes you entered, per material; none = the standard sizes */
   ownSheetSizes: OwnSheetSizes
   setOwnSheetSizes: (category: ProfileCategory, sizes: [number, number][] | null) => void
+  /** Board lengths you entered, per timber category; none = the standard lengths */
+  ownStockLengths: OwnStockLengths
+  setOwnStockLengths: (category: ProfileCategory, lengths: number[] | null) => void
   addSupplierFile: (file: SupplierPriceFile) => void
   setSupplierEnabled: (supplier: string, enabled: boolean) => void
 }
@@ -745,6 +748,14 @@ export const useStore = create<State>()(
             else delete next[category]
             return { ownSheetSizes: next }
           }),
+        ownStockLengths: {},
+        setOwnStockLengths: (category, lengths) =>
+          set((s) => {
+            const next = { ...s.ownStockLengths }
+            if (lengths?.length) next[category] = [...lengths].sort((a, b) => a - b)
+            else delete next[category]
+            return { ownStockLengths: next }
+          }),
 
         addSupplierFile: (file) =>
           set((s) => ({ supplierFiles: [...s.supplierFiles.filter((f) => f.supplier !== file.supplier), file] })),
@@ -782,6 +793,7 @@ export const useStore = create<State>()(
         useExamplePrices: s.useExamplePrices,
         disabledSuppliers: s.disabledSuppliers,
         ownSheetSizes: s.ownSheetSizes,
+        ownStockLengths: s.ownStockLengths,
       }),
     },
   ),

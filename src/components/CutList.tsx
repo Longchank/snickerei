@@ -12,11 +12,15 @@ export function usePlan() {
   const supplierFiles = useStore((s) => s.supplierFiles)
   const disabledSuppliers = useStore((s) => s.disabledSuppliers)
   const ownSheetSizes = useStore((s) => s.ownSheetSizes)
+  const ownStockLengths = useStore((s) => s.ownStockLengths)
   const rows = useMemo(() => cutList(parts), [parts])
   const plan = useMemo(
     () =>
-      purchasePlan(parts, activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers }), kerf, ownSheetSizes),
-    [parts, ownPrices, useExamplePrices, supplierFiles, disabledSuppliers, kerf, ownSheetSizes],
+      purchasePlan(parts, activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers }), kerf, {
+        sheets: ownSheetSizes,
+        lengths: ownStockLengths,
+      }),
+    [parts, ownPrices, useExamplePrices, supplierFiles, disabledSuppliers, kerf, ownSheetSizes, ownStockLengths],
   )
   // Only warn about example prices when one is actually used
   const usesExamples = plan.some((r) => r.items.some((i) => i.offer?.supplier === 'Exempel'))

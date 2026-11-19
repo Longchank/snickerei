@@ -203,7 +203,7 @@ function useSheetSizes(prof: Profile): [number, number][] {
     if (prof.kind !== 'sheet') return []
     const prices = activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers })
     // Largest first, at most three
-    return [...stockOptions(prof, prices, ownSheetSizes).sheets].sort((a, b) => b[0] * b[1] - a[0] * a[1]).slice(0, 3)
+    return [...stockOptions(prof, prices, { sheets: ownSheetSizes }).sheets].sort((a, b) => b[0] * b[1] - a[0] * a[1]).slice(0, 3)
   }, [prof, ownPrices, useExamplePrices, supplierFiles, disabledSuppliers, ownSheetSizes])
 }
 

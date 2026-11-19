@@ -50,7 +50,10 @@ comments in English).
   `ownSheetSizes` (persisted per device) and they win over shop and
   catalog sizes in `stockOptions`; passed through `purchasePlan`,
   `sheetPlanWith`/`bestSeams` and the Del panel's size hint. Prices stay
-  per profile (kr/skiva, any size).
+  per profile (kr/skiva, any size). **Own board lengths** (owner
+  2026-11-19): same for timber — "Längder i butiken" per category
+  (`ownStockLengths`, typed in m or mm). Both travel as
+  `OwnStock = { sheets, lengths }` into `stockOptions`/`purchasePlan`.
 - Local runs need `npm run prices` once to have shop prices (in a proxied
   cloud container: `NODE_USE_ENV_PROXY=1`, as Node's fetch ignores
   HTTPS_PROXY otherwise).

@@ -1161,7 +1161,8 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
   const useExamplePrices = useStore((s) => s.useExamplePrices)
   const supplierFiles = useStore((s) => s.supplierFiles)
   const disabledSuppliers = useStore((s) => s.disabledSuppliers)
-  const sizes = useStore((s) => s.ownSheetSizes)
+  const ownSheetSizes = useStore((s) => s.ownSheetSizes)
+  const sizes = useMemo(() => ({ sheets: ownSheetSizes }), [ownSheetSizes])
   const prices = useMemo(
     () => activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers }),
     [ownPrices, useExamplePrices, supplierFiles, disabledSuppliers],

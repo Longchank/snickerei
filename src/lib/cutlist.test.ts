@@ -169,15 +169,35 @@ describe('own store sheet sizes', () => {
     const plywood = PROFILES.find((p) => p.id === 'plywood-18')!
     const osb = PROFILES.find((p) => p.category === 'osb')!
     expect(stockOptions(plywood, [], {}).sheets).toEqual([[2440, 1220]])
-    expect(stockOptions(plywood, [], { plywood: [[3050, 1220]] }).sheets).toEqual([[3050, 1220]])
-    expect(stockOptions(osb, [], { plywood: [[3050, 1220]] }).sheets).toEqual(osb.stockSheets)
+    expect(stockOptions(plywood, [], { sheets: { plywood: [[3050, 1220]] } }).sheets).toEqual([[3050, 1220]])
+    expect(stockOptions(osb, [], { sheets: { plywood: [[3050, 1220]] } }).sheets).toEqual(osb.stockSheets)
   })
 
   it('are used by the shopping list: a 3000 mm shelf fits a 3050 × 1220 sheet', () => {
     const standard = purchasePlan([shelf], [], 3)[0]
     expect(standard.kind === 'sheet' && standard.tooLarge).toHaveLength(1)
-    const mine = purchasePlan([shelf], [], 3, { plywood: [[3050, 1220]] })[0]
+    const mine = purchasePlan([shelf], [], 3, { sheets: { plywood: [[3050, 1220]] } })[0]
     expect(mine.kind === 'sheet' && mine.tooLarge).toEqual([])
     expect(mine.kind === 'sheet' && mine.sheetSize).toEqual([3050, 1220])
+  })
+})
+
+describe('own store board lengths', () => {
+  const post = (length: number): Part => ({ id: `p${length}`, name: 'Stolpe', profileId: 'konstruktion-45x95', length, position: [0, 0, 0], rotation: [0, 0, 0] })
+
+  it('replace the standard lengths for that timber category only', () => {
+    const k = PROFILES.find((p) => p.id === 'konstruktion-45x95')!
+    const h = PROFILES.find((p) => p.category === 'hyvlat')!
+    expect(stockOptions(k, [], { lengths: { konstruktion: [2400, 2700] } }).lengths).toEqual([2400, 2700])
+    expect(stockOptions(h, [], { lengths: { konstruktion: [2400, 2700] } }).lengths).toEqual(h.stockLengths)
+  })
+
+  it('are used by the shopping list', () => {
+    // Two 1200 mm pieces: from a shop that only sells 2400 they fit one board exactly
+    const plan = purchasePlan([post(1200), post(1195)], [], 3, { lengths: { konstruktion: [2400] } })[0]
+    expect(plan.kind === 'board' && plan.boards.map((b) => b.length)).toEqual([2400])
+    // A piece longer than anything the shop sells is flagged
+    const long = purchasePlan([post(2600)], [], 3, { lengths: { konstruktion: [2400] } })[0]
+    expect(long.kind === 'board' && long.tooLong).toEqual([2600])
   })
 })

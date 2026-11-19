@@ -62,7 +62,7 @@ export function PriceList() {
         return (
           <section key={cat}>
             <h3>{CATEGORY_NAMES[cat]}</h3>
-            {sheet && <SheetSizes category={cat} />}
+            {sheet ? <SheetSizes category={cat} /> : <BoardLengths category={cat} />}
             <table className="price-table">
               <thead>
                 <tr>
@@ -212,6 +212,66 @@ function SheetSizes({ category }: { category: ProfileCategory }) {
         <span>×</span>
         <input inputMode="numeric" placeholder="Bredd" aria-label="Bredd (mm)" value={width} onChange={(e) => setWidth(e.target.value)} />
         <span className="muted small">mm</span>
+        <button type="submit">Lägg till</button>
+      </form>
+    </div>
+  )
+}
+
+const fmtM = (mm: number) => `${String(Math.round(mm) / 1000).replace('.', ',')} m`
+
+/**
+ * The board lengths the shop sells for one timber category, used for the
+ * shopping list and the cutting plan. Starts with the standard lengths; your
+ * own list replaces them until you reset it.
+ */
+function BoardLengths({ category }: { category: ProfileCategory }) {
+  const own = useStore((s) => s.ownStockLengths[category])
+  const setLengths = useStore((s) => s.setOwnStockLengths)
+  const defaults = PROFILES.find((p) => p.category === category)?.stockLengths ?? []
+  const lengths = own ?? defaults
+  const [text, setText] = useState('')
+  const add = () => {
+    const raw = Number(text.replace(',', '.'))
+    if (!(raw > 0)) return
+    // Typed in metres (e.g. 3,6) or millimetres (3600)
+    const mm = Math.round(raw < 20 ? raw * 1000 : raw)
+    if (!lengths.includes(mm)) setLengths(category, [...lengths, mm])
+    setText('')
+  }
+  return (
+    <div className="sheet-sizes">
+      <div className="sheet-sizes-head">
+        <span className="small">
+          <strong>Längder i butiken</strong> {own ? '(dina)' : '(standard — ändra efter din butik)'}
+        </span>
+        {own && (
+          <button className="link" onClick={() => setLengths(category, null)}>
+            Återställ
+          </button>
+        )}
+      </div>
+      <div className="sheet-size-chips">
+        {lengths.map((l) => (
+          <span key={l} className="sheet-size">
+            {fmtM(l)}
+            {lengths.length > 1 && (
+              <button className="link" aria-label={`Ta bort ${fmtM(l)}`} onClick={() => setLengths(category, lengths.filter((x) => x !== l))}>
+                ×
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+      <form
+        className="sheet-size-add"
+        onSubmit={(e) => {
+          e.preventDefault()
+          add()
+        }}
+      >
+        <input inputMode="decimal" placeholder="t.ex. 3,6" aria-label="Längd (m eller mm)" value={text} onChange={(e) => setText(e.target.value)} />
+        <span className="muted small">m</span>
         <button type="submit">Lägg till</button>
       </form>
     </div>
