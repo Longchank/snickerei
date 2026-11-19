@@ -1660,3 +1660,24 @@ button.free-label.editable:hover:not(:disabled) {
   width: 22px;
   height: 22px;
 }
+
+.frame-seams {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.seam-joists {
+  align-items: center;
+}
+.seam-joists .chip {
+  min-width: 44px;
+}
+.chip.smart {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.seam-summary {
+  margin: 2px 0 0;
+  text-align: center;
+}

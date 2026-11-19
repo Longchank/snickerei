@@ -1,3 +1,4 @@
+import { splitSheet } from './frame'
 import { getProfile, hasGrain } from './catalog'
 import { describeCuts } from './cuts'
 import { describeNotch } from './joints'
@@ -22,12 +23,15 @@ const partWidth = (part: Part, prof: Profile) => (prof.kind === 'sheet' ? (part.
  */
 export function stockPieces(parts: Part[]): Part[] {
   const seen = new Set<string>()
-  return parts.filter((p) => {
-    if (!p.rip) return true
-    if (seen.has(p.rip.id)) return false
-    seen.add(p.rip.id)
-    return true
-  })
+  return parts
+    .filter((p) => {
+      if (!p.rip) return true
+      if (seen.has(p.rip.id)) return false
+      seen.add(p.rip.id)
+      return true
+    })
+    // A sheet split over its joists is cut as separate pieces
+    .flatMap(splitSheet)
 }
 
 function ripNote(part: Part, parts: Part[]): string | null {

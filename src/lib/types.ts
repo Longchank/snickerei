@@ -121,6 +121,8 @@ export interface SheetFrame {
   legs?: FrameLegs
   /** The long way the rails run (x or z), fixed when the frame is first built */
   axis?: 0 | 2
+  /** Joists (1…joists) the sheet is split over, so it can be cut from smaller store sheets */
+  seams?: number[]
 }
 
 /** Where the legs go relative to the frame */

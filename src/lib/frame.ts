@@ -5,7 +5,7 @@
  */
 import { getProfile } from './catalog'
 import { partBox, round, toAxisBox } from './geometry'
-import { rotationFor } from './place'
+import { rotationFor, worldAxisOf } from './place'
 import { resizeAlong } from './resize'
 import type { Part, SheetFrame, Vec3 } from './types'
 
@@ -168,4 +168,48 @@ export function frameUnder(sheet: Part, f: SheetFrame): { parts: (Omit<Part, 'id
     }
   }
   return { parts: out, lift }
+}
+
+// ---------------------------------------------------------------- seams
+
+/** Joist i's centre, as a distance from the sheet's edge along the long way */
+function joistCentre(sheet: Part, f: SheetFrame, i: number): number {
+  const b = boxOf(sheet)
+  const A = f.axis ?? longAxis(sheet)
+  const L = b.max[A] - b.min[A]
+  const { plan } = section(f)
+  return plan / 2 + ((L - plan) * i) / (f.joists + 1)
+}
+
+/** The seams in use (joist numbers that still exist), sorted */
+export function validSeams(f: SheetFrame | undefined): number[] {
+  if (!f?.seams?.length) return []
+  return [...new Set(f.seams)].filter((i) => i >= 1 && i <= f.joists).sort((a, b) => a - b)
+}
+
+/** Where the sheet is split: distances from its edge along the long way */
+export function seamOffsets(sheet: Part): number[] {
+  // Whole millimetres: easier to measure and saw, and still over the joist
+  return validSeams(sheet.frame).map((i) => Math.round(joistCentre(sheet, sheet.frame!, i)))
+}
+
+/**
+ * A sheet split over its joists, as the pieces that are actually cut: same
+ * thickness and width across, each a stretch of the long way. Ids
+ * `<sheet id>#<n>`. A sheet without seams is returned as is.
+ */
+export function splitSheet(sheet: Part): Part[] {
+  const cuts = seamOffsets(sheet)
+  if (!cuts.length || !sheet.frame) return [sheet]
+  const A = sheet.frame.axis ?? longAxis(sheet)
+  const field = worldAxisOf(sheet.rotation, 0) === A ? 'length' : 'width'
+  const b = boxOf(sheet)
+  const L = b.max[A] - b.min[A]
+  const edges = [0, ...cuts, L]
+  return edges.slice(1).map((end, k) => ({
+    ...sheet,
+    id: `${sheet.id}#${k + 1}`,
+    name: `${sheet.name} (del ${k + 1})`,
+    [field]: round(end - edges[k]),
+  }))
 }

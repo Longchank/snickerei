@@ -252,6 +252,20 @@ comments in English).
   the original footprint, so the legs end up under the sheet's edge.
   Unticking, another placement, or "Ta bort ramen" narrows it back. The
   frame's long way is stored once (`frame.axis`) so widening can't flip it.
+  **Skarvar i skivan** (owner 2026-11-19: "split the sheet together with
+  the joists" to buy fewer store sheets): `frame.seams` = joist numbers
+  the sheet is split over; the seam is at that joist's centre, rounded to
+  whole mm (`seamOffsets`). The sheet stays ONE part in the model;
+  `stockPieces` → `splitSheet` turns it into its pieces for the cut list
+  and shopping list (ids `<id>#n`, "(del n)"). Seams on joists that no
+  longer exist are ignored. **✦ Smartast** (`bestSeams`, `seams.ts`)
+  tries every seam combination (≤10 joists; else up to 3 seams) together
+  with the project's other sheets of that material and keeps, in order:
+  fewest pieces too large for a store sheet, lowest cost (no prices:
+  least sheet area), fewest seams, most even pieces. UI: "Skarvar i
+  skivan" in FrameBar (Hel / ✦ Smartast / one chip per joist) with a line
+  "2 bitar: … · köp 1 skiva 2440×1220"; dashed lines in 3D (`SeamLines`).
+  Strength analysis ignores seams (they sit on joists).
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

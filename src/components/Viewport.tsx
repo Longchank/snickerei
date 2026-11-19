@@ -25,15 +25,16 @@ import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../l
 import { cutters, type Cutter } from '../lib/cuts'
 import { AXIS_BOARDS, switchButtJoints } from '../lib/corner'
 import { endName, endPoint } from '../lib/ends'
-import { reorientOptions } from '../lib/place'
-import { isLyingSheet, joistSpacing } from '../lib/frame'
+import { reorientOptions, worldAxisOf } from '../lib/place'
+import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
+import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
 import { overlapsOf, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
 import { chooseSnaps, pointCandidates, SNAP_LABEL, snapMove, type SnapGuide } from '../lib/snap'
-import { useStore, type SnapChoice } from '../lib/store'
+import { activePrices, useStore, type SnapChoice } from '../lib/store'
 import { NumberField } from './NumberField'
 import type { LegPlacement, MeasurePoint, Measurement, Part, SnapKind, Vec3 } from '../lib/types'
 
@@ -883,6 +884,9 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       )}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && mode === 'redigera' && selection.length === 1 && <EndLabels partId={selection[0]} />}
+      {parts.filter((p) => p.frame?.seams?.length).map((p) => (
+        <SeamLines key={p.id} part={p} />
+      ))}
       {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}
       {!capturing && pendingPoint && <PointMarker at={pendingPoint.point} kind={pendingPoint.snap} size={14} />}
       {!capturing && sheetCorner && <PointMarker at={sheetCorner.point} kind="vertex" size={16} />}
@@ -1145,6 +1149,93 @@ const FRAME_PROFILES = PROFILES.filter(
   (p) => p.kind === 'board' && (p.category === 'konstruktion' || (p.category === 'hyvlat' && p.thickness >= 28)),
 )
 
+/**
+ * Split the sheet over its joists so it can be cut from smaller store sheets:
+ * whole, the best split for the shopping list, or seams picked by hand.
+ */
+function SeamPicker({ sheetId }: { sheetId: string }) {
+  const parts = useStore((s) => s.project.parts)
+  const applyFrame = useStore((s) => s.applyFrame)
+  const kerf = useStore((s) => s.settings.kerf)
+  const ownPrices = useStore((s) => s.ownPrices)
+  const useExamplePrices = useStore((s) => s.useExamplePrices)
+  const supplierFiles = useStore((s) => s.supplierFiles)
+  const disabledSuppliers = useStore((s) => s.disabledSuppliers)
+  const prices = useMemo(
+    () => activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers }),
+    [ownPrices, useExamplePrices, supplierFiles, disabledSuppliers],
+  )
+  const sheet = parts.find((p) => p.id === sheetId)
+  const f = sheet?.frame
+  const seams = validSeams(f)
+  const plan = useMemo(() => (f ? sheetPlanWith(sheetId, seams, parts, prices, kerf) : null), [sheetId, seams.join(), parts, prices, kerf, f])
+  if (!sheet || !f) return null
+  const setSeams = (next: number[]) => applyFrame({ ...f, seams: next })
+  const pieces = splitSheet(sheet).map((p) => {
+    const A = f.axis ?? 0
+    return Math.round(worldAxisOf(p.rotation, 0) === A ? p.length : p.width ?? 0)
+  })
+  const bought = plan ? plan.sheets.length : 0
+  return (
+    <div className="frame-seams">
+      <span className="frame-label">Skarvar i skivan</span>
+      <div className="frame-legs-options" role="group" aria-label="Skarvar">
+        <button className={`chip ${seams.length === 0 ? 'on' : ''}`} aria-pressed={seams.length === 0} onClick={() => setSeams([])}>
+          Hel
+        </button>
+        <button className="chip smart" onClick={() => setSeams(bestSeams(sheetId, parts, prices, kerf).seams)}>
+          ✦ Smartast
+        </button>
+      </div>
+      <div className="frame-legs-options seam-joists" role="group" aria-label="Skarv över tvärregel">
+        <span className="muted small">Skarv över tvärregel:</span>
+        {Array.from({ length: f.joists }, (_, k) => k + 1).map((i) => {
+          const on = seams.includes(i)
+          return (
+            <button
+              key={i}
+              className={`chip ${on ? 'on' : ''}`}
+              aria-pressed={on}
+              aria-label={`Skarv över tvärregel ${i}`}
+              onClick={() => setSeams(on ? seams.filter((x) => x !== i) : [...seams, i])}
+            >
+              {i}
+            </button>
+          )
+        })}
+      </div>
+      <p className="hint small seam-summary">
+        {pieces.length > 1 ? `${pieces.length} bitar: ${pieces.join(' + ')} mm` : `Hel skiva: ${pieces[0]} mm`}
+        {plan &&
+          (plan.tooLarge.length
+            ? ` · ${plan.tooLarge.length} ${plan.tooLarge.length === 1 ? 'bit ryms' : 'bitar ryms'} inte på en skiva ${plan.sheetSize.join('×')}`
+            : ` · köp ${bought} ${bought === 1 ? 'skiva' : 'skivor'} ${plan.sheetSize.join('×')}${plan.cost !== null ? ` (${Math.round(plan.cost)} kr)` : ''}`)}
+      </p>
+    </div>
+  )
+}
+
+/** Dashed lines across a split sheet's top where its pieces meet (over a joist). */
+function SeamLines({ part }: { part: Part }) {
+  const offsets = seamOffsets(part)
+  if (!offsets.length || !part.frame) return null
+  const b = toAxisBox(partBox(part))
+  const A = part.frame.axis ?? 0
+  const B = A === 0 ? 2 : 0
+  return (
+    <>
+      {offsets.map((o) => {
+        const p = [0, b.max[1] + 0.8, 0] as Vec3
+        const q = [0, b.max[1] + 0.8, 0] as Vec3
+        p[A] = q[A] = b.min[A] + o
+        p[B] = b.min[B]
+        q[B] = b.max[B]
+        return <Line key={o} points={[p, q]} color="#1f2937" lineWidth={2} dashed dashSize={18} gapSize={10} />
+      })}
+    </>
+  )
+}
+
 const LEG_OPTIONS: [LegPlacement | null, string][] = [
   [null, 'Inga'],
   ['inside', 'Innanför'],
@@ -1197,6 +1288,7 @@ function FrameBar() {
           </button>
           <span className="muted small">c/c {fmtMm(Math.round(spacing))} mm</span>
         </div>
+        {f.joists > 0 && <SeamPicker sheetId={sheet.id} />}
         <div className="frame-legs">
           <span className="frame-label">Ben</span>
           <div className="frame-legs-options" role="group" aria-label="Ben">
