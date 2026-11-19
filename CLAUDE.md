@@ -246,6 +246,18 @@ comments in English).
   load per part** (`part.loadKg`, "Egen last" field on each lying part in
   Analys; empty = follow the purpose): replaces the preset spread load
   and the person load on that part.
+- **Editable size labels / stretching** (owner 2026-11-19,
+  `src/lib/resize.ts`): the dark size labels in 3D are buttons
+  (`Dim` + `LabelInput`, same field as the green gaps). One board selected
+  → only its length is shown; one sheet → length and width (thickness
+  locked); several parts, a group or nothing selected → outer
+  width/height/depth. Typing a size: one part changes size keeping its
+  lower end (`setSizeAlong`); several **stretch** (`stretchParts`,
+  `resizeSelection`): parts that can't change size along that axis (a
+  board across it, a sheet's thickness) only move — near end stays, far
+  end moves the full difference, in between keep their relative place —
+  while boards along the axis and sheets get longer/shorter, each end
+  following a moving part it butts against. Profiles never change.
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
   were editable in the 3D view): the Del panel shows no position. Moving and turning happen in the 3D view (Bygg: arrows,
   rings, editable green gaps, Avancerat free gizmo).

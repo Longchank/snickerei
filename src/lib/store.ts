@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
 import { partBox, rotatePart } from './geometry'
+import { setSizeAlong, stretchParts } from './resize'
 import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
 import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
@@ -114,6 +115,8 @@ interface State {
   clearMeasurements: () => void
 
   moveSelection: (d: Vec3) => void
+  /** A size label in the view: one part changes size, several (or none = all) stretch */
+  resizeSelection: (axis: 0 | 1 | 2, size: number) => void
   rotateSelection: (axis: 0 | 1 | 2) => void
   /** Turn the selection 90° either way around an axis, in place */
   rotateSelectionStep: (axis: 0 | 1 | 2, dir: 1 | -1) => void
@@ -452,6 +455,16 @@ export const useStore = create<State>()(
           set((s) => ({ project: { ...s.project, measurements: [] }, pendingPoint: null, snapChoice: null })),
 
         moveSelection: (d) => editSelection((ps) => moveParts(ps, d)),
+        resizeSelection: (axis, size) => {
+          const { selection, project } = get()
+          const ids = new Set(selection.length ? selection : project.parts.map((p) => p.id))
+          const chosen = project.parts.filter((p) => ids.has(p.id))
+          if (!chosen.length) return
+          const changed =
+            chosen.length === 1 ? [setSizeAlong(chosen[0], axis, size)] : stretchParts(chosen, axis, size)
+          const byId = new Map(changed.map((p) => [p.id, p]))
+          editParts((ps) => ps.map((p) => byId.get(p.id) ?? p))
+        },
         rotateSelection: (axis) =>
           editSelection((ps) => (ps.length === 1 ? [rotatePart(ps[0], axis)] : rotateParts(ps, axis))),
         rotateSelectionStep: (axis, dir) => editSelection((ps) => rotatePartsInPlace(ps, axis, dir)),

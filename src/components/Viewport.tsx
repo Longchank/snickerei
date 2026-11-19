@@ -26,6 +26,7 @@ import { cutters, type Cutter } from '../lib/cuts'
 import { AXIS_BOARDS, switchButtJoints } from '../lib/corner'
 import { endName, endPoint } from '../lib/ends'
 import { reorientOptions } from '../lib/place'
+import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
 import { overlapsOf, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
@@ -455,8 +456,9 @@ function FreeSpaceLines({ spaces }: { spaces: FreeSpace[] }) {
             <Line points={[f.from, f.end]} color="#16a34a" lineWidth={2} dashed dashSize={25} gapSize={15} />
             <Html position={mid} center zIndexRange={open ? [20, 10] : [5, 0]}>
               {open ? (
-                <GapInput
-                  space={f}
+                <LabelInput
+                  value={f.gap}
+                  label={`Fritt ${f.direction} till ${f.to} (mm)`}
                   onDone={(gap) => {
                     setEditing(null)
                     if (gap === null) return
@@ -485,15 +487,15 @@ function FreeSpaceLines({ spaces }: { spaces: FreeSpace[] }) {
   )
 }
 
-/** Typing field for a free-space gap; commits on Enter or blur, Esc cancels. */
-function GapInput({ space, onDone }: { space: FreeSpace; onDone: (gap: number | null) => void }) {
-  const [text, setText] = useState(fmtMm(space.gap))
+/** Typing field for a number label in the view; commits on Enter or blur, Esc cancels. */
+function LabelInput({ value, label, min = 0, onDone }: { value: number; label: string; min?: number; onDone: (v: number | null) => void }) {
+  const [text, setText] = useState(fmtMm(value))
   const done = useRef(false)
   const finish = (commit: boolean) => {
     if (done.current) return
     done.current = true
     const v = Number(text.replace(',', '.'))
-    onDone(commit && Number.isFinite(v) && v >= 0 && v !== space.gap ? v : null)
+    onDone(commit && Number.isFinite(v) && v >= min && v !== value ? v : null)
   }
   return (
     <form
@@ -507,7 +509,7 @@ function GapInput({ space, onDone }: { space: FreeSpace; onDone: (gap: number | 
         autoFocus
         inputMode="decimal"
         enterKeyHint="done"
-        aria-label={`Fritt ${space.direction} till ${space.to} (mm)`}
+        aria-label={label}
         value={text}
         onFocus={(e) => e.target.select()}
         onChange={(e) => setText(e.target.value)}
@@ -534,28 +536,82 @@ function EndLabels({ partId }: { partId: string }) {
   )
 }
 
-/** Dimension line with a label in the middle. */
-function Dim({ from, to, value }: { from: Vec3; to: Vec3; value: number }) {
+const AXIS_NAME = ['Bredd', 'Höjd', 'Djup']
+
+/** Dimension line with a label in the middle; tap the label to type a new size when it can change. */
+function Dim({ from, to, value, label, onCommit }: { from: Vec3; to: Vec3; value: number; label: string; onCommit?: (v: number) => void }) {
+  const [editing, setEditing] = useState(false)
   if (value <= 0) return null
   const mid: Vec3 = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (from[2] + to[2]) / 2]
   return (
     <>
       <Line points={[from, to]} color="#1f2937" lineWidth={1.5} />
-      <Html position={mid} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
-        <span className="dim-label">{Math.round(value * 10) / 10}</span>
+      <Html position={mid} center zIndexRange={editing ? [20, 10] : [5, 0]} style={{ pointerEvents: onCommit ? 'auto' : 'none' }}>
+        {editing && onCommit ? (
+          <LabelInput
+            value={Math.round(value * 10) / 10}
+            label={`${label} (mm)`}
+            min={1}
+            onDone={(v) => {
+              setEditing(false)
+              if (v !== null) onCommit(v)
+            }}
+          />
+        ) : onCommit ? (
+          <button
+            type="button"
+            className="dim-label editable"
+            title={`${label} — tryck för att ändra`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setEditing(true)
+            }}
+          >
+            {fmtMm(value)}
+          </button>
+        ) : (
+          <span className="dim-label">{fmtMm(value)}</span>
+        )}
       </Html>
     </>
   )
 }
 
-function Dimensions({ box, offset }: { box: AxisBox; offset: number }) {
+/**
+ * Size labels: one board shows only its length, a sheet its length and
+ * width; several parts (a group, or the whole build) show the outer width,
+ * height and depth. All editable: a board/sheet changes size, several parts
+ * stretch (`stretchParts`).
+ */
+function Dimensions({ box, offset, axes, label }: { box: AxisBox; offset: number; axes: (0 | 1 | 2)[] | null; label?: (axis: 0 | 1 | 2) => string }) {
+  const resize = useStore((s) => s.resizeSelection)
   const { min, max } = box
   const z = max[2] + offset
+  const show = (a: 0 | 1 | 2) => !axes || axes.includes(a)
+  const name = (a: 0 | 1 | 2) => label?.(a) ?? AXIS_NAME[a]
   return (
     <group>
-      <Dim from={[min[0], min[1], z]} to={[max[0], min[1], z]} value={max[0] - min[0]} />
-      <Dim from={[min[0] - offset, min[1], max[2]]} to={[min[0] - offset, max[1], max[2]]} value={max[1] - min[1]} />
-      <Dim from={[max[0] + offset, min[1], min[2]]} to={[max[0] + offset, min[1], max[2]]} value={max[2] - min[2]} />
+      {show(0) && (
+        <Dim from={[min[0], min[1], z]} to={[max[0], min[1], z]} value={max[0] - min[0]} label={name(0)} onCommit={(v) => resize(0, v)} />
+      )}
+      {show(1) && (
+        <Dim
+          from={[min[0] - offset, min[1], max[2]]}
+          to={[min[0] - offset, max[1], max[2]]}
+          value={max[1] - min[1]}
+          label={name(1)}
+          onCommit={(v) => resize(1, v)}
+        />
+      )}
+      {show(2) && (
+        <Dim
+          from={[max[0] + offset, min[1], min[2]]}
+          to={[max[0] + offset, min[1], max[2]]}
+          value={max[2] - min[2]}
+          label={name(2)}
+          onCommit={(v) => resize(2, v)}
+        />
+      )}
     </group>
   )
 }
@@ -759,6 +815,12 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       ? { min: [0, 1, 2].map((i) => selBox.min[i] + delta[i]) as Vec3, max: [0, 1, 2].map((i) => selBox.max[i] + delta[i]) as Vec3 }
       : selBox
     : unionBox(parts)
+  // One board: only its length; one sheet: length and width; else all three
+  const single = selection.length === 1 ? parts.find((p) => p.id === selection[0]) : undefined
+  const dimAxes: (0 | 1 | 2)[] | null = single
+    ? ([0, 1, 2] as const).filter((a) => freeSizeAlong(single, a) !== null)
+    : null
+  const dimLabel = single ? (a: 0 | 1 | 2) => (freeSizeAlong(single, a) === 'width' ? 'Bredd' : 'Längd') : undefined
 
   return (
     <>
@@ -806,7 +868,9 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
 
       {moveMode && selBox && !capturing && <MoveArrows box={selBox} />}
       {rotateMode && selBox && !capturing && <RotateRings box={selBox} />}
-      {showDimensions && !capturing && dimBox && <Dimensions box={dimBox} offset={selBox ? 60 : 120} />}
+      {showDimensions && !capturing && dimBox && (
+        <Dimensions box={dimBox} offset={selBox ? 60 : 120} axes={dimAxes} label={dimLabel} />
+      )}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && mode === 'redigera' && selection.length === 1 && <EndLabels partId={selection[0]} />}
       {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}

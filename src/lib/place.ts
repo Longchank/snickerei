@@ -33,7 +33,7 @@ export interface Placement {
 }
 
 /** World axis a local axis points along after rotation */
-function worldAxisOf(rotation: QuarterTurns, local: Axis): Axis {
+export function worldAxisOf(rotation: QuarterTurns, local: Axis): Axis {
   const v = new Vector3(local === 0 ? 1 : 0, local === 1 ? 1 : 0, local === 2 ? 1 : 0).applyEuler(eulerOf(rotation))
   const c = [Math.abs(v.x), Math.abs(v.y), Math.abs(v.z)]
   return c.indexOf(Math.max(...c)) as Axis

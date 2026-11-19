@@ -1552,3 +1552,20 @@ button.analysis-view.on {
   width: 110px;
   font-size: 16px;
 }
+
+/* Size labels that can be tapped to type a new size */
+button.dim-label.editable {
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  min-height: 28px;
+  padding: 4px 9px;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+  touch-action: manipulation;
+}
+button.dim-label.editable::after {
+  content: ' ✎';
+  opacity: 0.8;
+}
