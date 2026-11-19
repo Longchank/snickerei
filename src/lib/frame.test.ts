@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { frameUnder, defaultJoists, isLyingSheet, joistSpacing } from './frame'
 import { partBox, toAxisBox } from './geometry'
 import { overlapsOf } from './joints'
+import { useStore } from './store'
 import type { Part } from './types'
 
 const box = (p: Omit<Part, 'id' | 'name'>) => toAxisBox(partBox({ ...p, id: '', name: '' }))
@@ -46,5 +47,42 @@ describe('frameUnder', () => {
     const { parts } = frameUnder(turned, { profileId: 'konstruktion-45x45', joists: 1, onEdge: true })
     const lb = box(parts[0])
     expect(lb.max[2] - lb.min[2]).toBe(1800)
+  })
+})
+
+describe('store: copying a sheet with its frame', () => {
+  beforeEach(() => useStore.getState().newProject())
+
+  it('keeps the copy’s frame editable and separate from the original', () => {
+    useStore.setState((s) => ({ project: { ...s.project, parts: [sheet] }, selection: ['s'] }))
+    const st = () => useStore.getState()
+    st().openFrame('s')
+    st().closeFrame()
+    const original = st().project.parts.map((p) => p.id)
+    expect(original).toHaveLength(7) // sheet + 2 long + 2 end rails + 2 joists
+    // Copy the whole group (sheet + frame)
+    st().duplicateSelection()
+    const copyIds = st().selection
+    const copySheet = st().project.parts.find((p) => copyIds.includes(p.id) && p.frame)!
+    const copyFrame = st().project.parts.filter((p) => copyIds.includes(p.id) && p.frameOf)
+    expect(copyFrame).toHaveLength(6)
+    expect(copyFrame.every((p) => p.frameOf === copySheet.id)).toBe(true)
+    // Editing the copy's frame leaves the original alone
+    st().openFrame(copySheet.id)
+    st().applyFrame({ ...copySheet.frame!, joists: 4 })
+    st().closeFrame()
+    expect(st().project.parts.filter((p) => p.frameOf === copySheet.id)).toHaveLength(8)
+    expect(st().project.parts.filter((p) => p.frameOf === 's')).toHaveLength(6)
+  })
+
+  it('a frame board copied on its own becomes a plain board', () => {
+    useStore.setState((s) => ({ project: { ...s.project, parts: [sheet] }, selection: ['s'] }))
+    useStore.getState().openFrame('s')
+    useStore.getState().closeFrame()
+    const board = useStore.getState().project.parts.find((p) => p.frameOf === 's')!
+    useStore.setState({ selection: [board.id] })
+    useStore.getState().duplicateSelection()
+    const copy = useStore.getState().project.parts.find((p) => p.id === useStore.getState().selection[0])!
+    expect(copy.frameOf).toBeUndefined()
   })
 })

@@ -230,6 +230,9 @@ comments in English).
   carry `frameOf: sheetId` and are regenerated on every change
   (`applyFrame`, live in `FrameBar`; first change = one undo step, later
   ones replace it). Sheet + frame become one group ("Skiva med ram").
+  Copying (`duplicateSelection`) remaps `frameOf` to the copied sheet, so
+  a copy's frame stays editable on its own; a frame board copied without
+  its sheet loses `frameOf` and becomes a plain board.
   Default: 45×70 on edge, joists for ≤600 mm spacing. Lying sheets only.
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones

@@ -573,11 +573,15 @@ export const useStore = create<State>()(
               const g = get().project.groups.find((x) => x.id === p.groupId)
               groupMap.set(p.groupId, { id: uid(), name: `${g?.name ?? 'Grupp'} (kopia)` })
             }
+          const newIds = new Map(src.map((p) => [p.id, uid()]))
           const copies = moveParts(src, [0, 0, box.max[2] - box.min[2] + 50]).map((p) => ({
             ...p,
-            id: uid(),
+            id: newIds.get(p.id)!,
             name: src.length === 1 ? `${p.name} (kopia)` : p.name,
             groupId: p.groupId ? groupMap.get(p.groupId)!.id : undefined,
+            // A copied frame belongs to the copied sheet, so its frame stays editable;
+            // a frame board copied without its sheet becomes a plain board
+            frameOf: p.frameOf ? newIds.get(p.frameOf) : undefined,
           }))
           edit(
             (snap) => ({ parts: [...snap.parts, ...copies], groups: [...snap.groups, ...groupMap.values()] }),
