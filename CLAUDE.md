@@ -234,6 +234,18 @@ comments in English).
   a copy's frame stays editable on its own; a frame board copied without
   its sheet loses `frameOf` and becomes a plain board.
   Default: 45×70 on edge, joists for ≤600 mm spacing. Lying sheets only.
+  **Legs** (owner 2026-11-19, `frame.legs`: profile, placement, height of
+  the sheet's top): four corner legs to the floor, wide face along the
+  long way. Placements: *Innanför* (inner corners, up to the sheet),
+  *Utanför* (outside the long rails, flush with the ends), *Under* (under
+  the frame), *I ramen* (legs take the corners up to the sheet; long and
+  end rails are shortened to fit between them — if the legs are narrower
+  than the rails, the end rails stay between the long rails). The sheet
+  moves so its top is at the height (never lower than sheet + frame +
+  50 mm); turning legs on for a sheet with its top under 400 mm defaults
+  to 900. Reopening the bar takes the height from where the sheet is now.
+  `frameUnder` returns parts already at their final height — only the
+  sheet is moved by `lift` (a double lift was a bug, fixed 2026-11-19).
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

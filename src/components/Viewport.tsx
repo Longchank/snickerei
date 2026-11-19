@@ -35,7 +35,7 @@ import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '
 import { chooseSnaps, pointCandidates, SNAP_LABEL, snapMove, type SnapGuide } from '../lib/snap'
 import { useStore, type SnapChoice } from '../lib/store'
 import { NumberField } from './NumberField'
-import type { MeasurePoint, Measurement, Part, SnapKind, Vec3 } from '../lib/types'
+import type { LegPlacement, MeasurePoint, Measurement, Part, SnapKind, Vec3 } from '../lib/types'
 
 /**
  * Takes a picture of the 3D view for the printout. The view is only drawn on
@@ -1145,7 +1145,15 @@ const FRAME_PROFILES = PROFILES.filter(
   (p) => p.kind === 'board' && (p.category === 'konstruktion' || (p.category === 'hyvlat' && p.thickness >= 28)),
 )
 
-/** "Ram under skivan": profile, on edge or flat, number of joists — the frame updates live. */
+const LEG_OPTIONS: [LegPlacement | null, string][] = [
+  [null, 'Inga'],
+  ['inside', 'Innanför'],
+  ['outside', 'Utanför'],
+  ['under', 'Under'],
+  ['merged', 'I ramen'],
+]
+
+/** "Ram under skivan": profile, on edge or flat, number of joists, legs — the frame updates live. */
 function FrameBar() {
   const fs = useStore((s) => s.frameSheet)
   const sheet = useStore((s) => s.project.parts.find((p) => p.id === s.frameSheet?.base.id))
@@ -1156,6 +1164,7 @@ function FrameBar() {
   const f = sheet.frame
   const set = (patch: Partial<typeof f>) => applyFrame({ ...f, ...patch })
   const spacing = joistSpacing(fs.base, f)
+  const sheetTop = toAxisBox(partBox(sheet)).max[1]
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar frame-bar" role="toolbar" aria-label="Ram under skivan">
@@ -1187,6 +1196,57 @@ function FrameBar() {
             +
           </button>
           <span className="muted small">c/c {fmtMm(Math.round(spacing))} mm</span>
+        </div>
+        <div className="frame-legs">
+          <span className="frame-label">Ben</span>
+          <div className="frame-legs-options" role="group" aria-label="Ben">
+            {LEG_OPTIONS.map(([value, label]) => {
+              const on = value === null ? !f.legs : f.legs?.placement === value
+              return (
+                <button
+                  key={label}
+                  className={`chip ${on ? 'on' : ''}`}
+                  aria-pressed={on}
+                  onClick={() =>
+                    set({
+                      legs:
+                        value === null
+                          ? undefined
+                          : {
+                              profileId: f.legs?.profileId ?? 'konstruktion-45x95',
+                              placement: value,
+                              height: f.legs?.height ?? (sheetTop < 400 ? 900 : Math.round(sheetTop)),
+                            },
+                    })
+                  }
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          {f.legs && (
+            <div className="frame-row">
+              <select
+                aria-label="Virke till benen"
+                value={f.legs.profileId}
+                onChange={(e) => set({ legs: { ...f.legs!, profileId: e.target.value } })}
+              >
+                {FRAME_PROFILES.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {shortName(p)}
+                  </option>
+                ))}
+              </select>
+              <span className="frame-label">Höjd</span>
+              <NumberField
+                value={Math.round(sheetTop)}
+                min={1}
+                suffix="mm"
+                onCommit={(h) => set({ legs: { ...f.legs!, height: h } })}
+              />
+            </div>
+          )}
         </div>
         <div className="place-actions">
           <button className="danger" onClick={removeFrame}>

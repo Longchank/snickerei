@@ -86,3 +86,85 @@ describe('store: copying a sheet with its frame', () => {
     expect(copy.frameOf).toBeUndefined()
   })
 })
+
+describe('legs', () => {
+  const base = { profileId: 'konstruktion-45x70', joists: 1, onEdge: true }
+  const real = (ps: ReturnType<typeof frameUnder>['parts'], dy: number, s: Part) => {
+    const sheetUp = { ...s, position: [s.position[0], s.position[1] + dy, s.position[2]] as Part['position'] }
+    return [sheetUp, ...ps.map((p, i) => ({ ...p, id: `f${i}`, name: p.role }))]
+  }
+  const legBoxes = (ps: ReturnType<typeof frameUnder>['parts']) => ps.filter((p) => p.role === 'Ben').map(box)
+
+  for (const placement of ['inside', 'outside', 'under', 'merged'] as const) {
+    it(`${placement}: four legs to the floor, sheet top at the set height, nothing collides`, () => {
+      const { parts, lift } = frameUnder(sheet, { ...base, legs: { profileId: 'konstruktion-45x95', placement, height: 900 } })
+      expect(lift).toBe(900 - 918) // the sheet's top moves to 900
+      const legs = legBoxes(parts)
+      expect(legs).toHaveLength(4)
+      for (const l of legs) {
+        expect(l.min[1]).toBe(0)
+        // 45×95 leg: wide face along the long way (x)
+        expect(l.max[0] - l.min[0]).toBe(95)
+        expect(l.max[2] - l.min[2]).toBe(45)
+      }
+      const top = placement === 'under' ? 900 - 18 - 70 : 900 - 18
+      expect(legs[0].max[1]).toBe(top)
+      const all = real(parts, lift, sheet)
+      for (const p of all) expect(overlapsOf(p, all)).toEqual([])
+    })
+  }
+
+  it('inside sits in the inner corner, outside outside the long rail, merged in the corner', () => {
+    const at = (placement: 'inside' | 'outside' | 'merged') =>
+      legBoxes(frameUnder(sheet, { ...base, legs: { profileId: 'konstruktion-45x95', placement, height: 900 } }).parts)[0]
+    expect(at('inside').min).toEqual([45, 0, 45])
+    expect(at('outside').min).toEqual([0, 0, -45])
+    expect(at('merged').min).toEqual([0, 0, 0])
+  })
+
+  it('merged: the rails are shortened to fit between the legs', () => {
+    const { parts } = frameUnder(sheet, { ...base, legs: { profileId: 'konstruktion-45x95', placement: 'merged', height: 900 } })
+    const long = parts.filter((p) => p.role === 'Långregel').map(box)
+    expect(long[0].min[0]).toBe(95)
+    expect(long[0].max[0]).toBe(1705)
+    const ends = parts.filter((p) => p.role === 'Kortregel').map(box)
+    expect(ends[0].min[2]).toBe(45)
+    expect(ends[0].max[2]).toBe(555)
+  })
+
+  it('merged with legs narrower than the rails still fits without collisions', () => {
+    const f = { profileId: 'konstruktion-45x95', joists: 1, onEdge: false, legs: { profileId: 'konstruktion-45x45', placement: 'merged' as const, height: 900 } }
+    const { parts, lift } = frameUnder(sheet, f)
+    const all = real(parts, lift, sheet)
+    for (const p of all) expect(overlapsOf(p, all)).toEqual([])
+  })
+
+  it('never puts the top lower than the frame needs', () => {
+    const { lift } = frameUnder(sheet, { ...base, legs: { profileId: 'konstruktion-45x95', placement: 'under', height: 50 } })
+    // 18 sheet + 70 frame + 50 legs
+    expect(918 + lift).toBe(138)
+  })
+})
+
+describe('store: frame and legs end up where the sheet is', () => {
+  beforeEach(() => useStore.getState().newProject())
+
+  it('a sheet on the floor gets lifted onto its frame and legs, with nothing floating or colliding', () => {
+    const onFloor: Part = { ...sheet, position: [0, 0, 0] }
+    useStore.setState((s) => ({ project: { ...s.project, parts: [onFloor] }, selection: ['s'] }))
+    const st = () => useStore.getState()
+    st().openFrame('s')
+    for (const placement of ['inside', 'outside', 'under', 'merged'] as const) {
+      st().applyFrame({ ...st().project.parts.find((p) => p.id === 's')!.frame!, legs: { profileId: 'konstruktion-45x95', placement, height: 900 } })
+      const parts = st().project.parts
+      const sb = box(parts.find((p) => p.id === 's')!)
+      expect(sb.max[1]).toBe(900)
+      const rails = parts.filter((p) => p.name.startsWith('Långregel')).map(box)
+      expect(rails[0].max[1]).toBe(sb.min[1]) // the frame is right under the sheet
+      const legs = parts.filter((p) => p.name.startsWith('Ben')).map(box)
+      expect(legs.every((l) => l.min[1] === 0)).toBe(true)
+      for (const p of parts) expect(overlapsOf(p, parts)).toEqual([])
+    }
+    st().closeFrame()
+  })
+})

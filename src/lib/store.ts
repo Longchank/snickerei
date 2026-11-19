@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
-import { partBox, rotatePart, round } from './geometry'
+import { partBox, rotatePart, round, toAxisBox } from './geometry'
 import { setSizeAlong, stretchParts } from './resize'
 import { defaultJoists, frameUnder, isLyingSheet } from './frame'
 import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
@@ -279,7 +279,12 @@ export const useStore = create<State>()(
           const sheet = get().project.parts.find((p) => p.id === sheetId)
           if (!sheet || !isLyingSheet(sheet)) return
           set({ frameSheet: { base: sheet, groupId: sheet.groupId ?? uid(), started: false }, moveMode: false, rotateMode: false, measureMode: false, placeProfile: null })
-          get().applyFrame(sheet.frame ?? { profileId: 'konstruktion-45x70', joists: defaultJoists(sheet), onEdge: true })
+          // Legs follow the sheet's current height (it may have been stretched or moved since)
+          const top = toAxisBox(partBox(sheet)).max[1]
+          const f = sheet.frame
+          get().applyFrame(
+            f ? (f.legs ? { ...f, legs: { ...f.legs, height: Math.round(top) } } : f) : { profileId: 'konstruktion-45x70', joists: defaultJoists(sheet), onEdge: true },
+          )
         },
         applyFrame: (f) => {
           const fs = get().frameSheet
@@ -291,7 +296,7 @@ export const useStore = create<State>()(
           const count: Record<string, number> = {}
           const frameParts: Part[] = built.map(({ role, ...p }, i) => {
             count[role] = (count[role] ?? 0) + 1
-            return { ...p, position: up(p.position), id: `${base.id}:ram${i}`, name: `${role} ${count[role]}`, frameOf: base.id, groupId }
+            return { ...p, id: `${base.id}:ram${i}`, name: `${role} ${count[role]}`, frameOf: base.id, groupId }
           })
           const apply = (snap: Snapshot): Snapshot => ({
             groups: snap.groups.some((g) => g.id === groupId) ? snap.groups : [...snap.groups, { id: groupId, name: 'Skiva med ram' }],

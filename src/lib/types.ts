@@ -117,6 +117,18 @@ export interface SheetFrame {
   joists: number
   /** Boards on edge (högkant) or flat */
   onEdge: boolean
+  /** Legs at the four corners, down to the floor */
+  legs?: FrameLegs
+}
+
+/** Where the legs go relative to the frame */
+export type LegPlacement = 'inside' | 'outside' | 'under' | 'merged'
+
+export interface FrameLegs {
+  profileId: string
+  placement: LegPlacement
+  /** Height of the sheet's top above the floor, mm */
+  height: number
 }
 
 /** What the build is for: picks the load preset for the strength analysis */

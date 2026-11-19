@@ -49,9 +49,30 @@ export function joistSpacing(sheet: Part, f: SheetFrame): number {
   return (long - section(f).plan) / (f.joists + 1)
 }
 
+/** Lowest top height that leaves room for the frame (and legs at least 50 mm long) */
+export function minLegHeight(sheet: Part, f: SheetFrame): number {
+  return getProfile(sheet.profileId).thickness + section(f).height + 50
+}
+
+/** A standing leg of the given height whose bounding box starts at `min`, its wide face along `wideAxis` */
+function legAt(profileId: string, height: number, wideAxis: Axis, min: Vec3): Omit<Part, 'id' | 'name'> {
+  const part = { profileId, length: round(height), position: [0, 0, 0] as Vec3, rotation: rotationFor(1, wideAxis) }
+  const b = boxOf({ ...part, id: '', name: '' })
+  part.position = [0, 1, 2].map((i) => round(min[i] - b.min[i])) as Vec3
+  return part
+}
+
 /**
  * The frame parts under a lying sheet (without ids/names), and how far the
- * sheet must move up so the frame doesn't go through the floor.
+ * sheet moves up (or down, with legs at a set height) to sit on them.
+ *
+ * Legs (optional), at the four corners down to the floor, wide face along
+ * the long way:
+ * - inside: in the inner corners, up to the underside of the sheet
+ * - outside: outside the long rails, flush with the ends, up to the sheet
+ * - under: under the frame's corners
+ * - merged: the legs take the corners up to the sheet and the rails are
+ *   shortened to fit between them
  */
 export function frameUnder(sheet: Part, f: SheetFrame): { parts: (Omit<Part, 'id' | 'name'> & { role: string })[]; lift: number } {
   const b = boxOf(sheet)
@@ -60,35 +81,64 @@ export function frameUnder(sheet: Part, f: SheetFrame): { parts: (Omit<Part, 'id
   const sz = b.max[2] - b.min[2]
   const A: Axis = sx >= sz ? 0 : 2 // long way
   const B: Axis = A === 0 ? 2 : 0
-  const lift = Math.max(0, height - b.min[1])
+  const legs = f.legs
+  const lift = legs
+    ? Math.max(minLegHeight(sheet, f), legs.height) - b.max[1]
+    : Math.max(0, height - b.min[1])
   const top = b.min[1] + lift
   const y = top - height
   const a0 = b.min[A]
   const a1 = b.max[A]
   const b0 = b.min[B]
   const b1 = b.max[B]
-  const at = (a: number, bb: number): Vec3 => {
-    const v = [0, y, 0] as Vec3
+  const at = (a: number, bb: number, yy = y): Vec3 => {
+    const v = [0, yy, 0] as Vec3
     v[A] = a
     v[B] = bb
     return v
   }
   const out: (Omit<Part, 'id' | 'name'> & { role: string })[] = []
-  // Long rails along the long sides
-  out.push({ ...boardAt(f.profileId, a1 - a0, A, f.onEdge, at(a0, b0)), role: 'Långregel' })
-  out.push({ ...boardAt(f.profileId, a1 - a0, A, f.onEdge, at(a0, b1 - plan)), role: 'Långregel' })
-  // End rails and joists between the long rails
+  // Leg footprint: wide side along the long way
+  const leg = legs ? getProfile(legs.profileId) : null
+  const legA = leg ? leg.width : 0
+  const legB = leg ? leg.thickness : 0
+  const merged = legs?.placement === 'merged'
+  // Long rails along the long sides (between the legs when merged)
+  const la0 = merged ? a0 + legA : a0
+  const la1 = merged ? a1 - legA : a1
+  if (la1 - la0 > 1) {
+    out.push({ ...boardAt(f.profileId, la1 - la0, A, f.onEdge, at(la0, b0)), role: 'Långregel' })
+    out.push({ ...boardAt(f.profileId, la1 - la0, A, f.onEdge, at(la0, b1 - plan)), role: 'Långregel' })
+  }
+  // End rails (between the legs when merged) and joists between the long rails
   const inner = b1 - b0 - 2 * plan
   if (inner > 1) {
     const e0 = a0
     const e1 = a1 - plan
     const n = Math.max(0, Math.round(f.joists))
     for (let i = 0; i <= n + 1; i++) {
+      const end = i === 0 || i === n + 1
       const a = e0 + ((e1 - e0) * i) / (n + 1)
-      out.push({
-        ...boardAt(f.profileId, inner, B, f.onEdge, at(a, b0 + plan)),
-        role: i === 0 || i === n + 1 ? 'Kortregel' : 'Tvärregel',
-      })
+      if (end && merged) {
+        // Between the legs — unless the legs are narrower than the rails, then
+        // the long rails reach the end zone and the end rail stays between them
+        const off = legA >= plan ? legB : plan
+        const len = b1 - b0 - 2 * off
+        if (len > 1) out.push({ ...boardAt(f.profileId, len, B, f.onEdge, at(a, b0 + off)), role: 'Kortregel' })
+      } else out.push({ ...boardAt(f.profileId, inner, B, f.onEdge, at(a, b0 + plan)), role: end ? 'Kortregel' : 'Tvärregel' })
+    }
+  }
+  // Legs at the four corners
+  if (legs && leg) {
+    const legTop = legs.placement === 'under' ? y : top
+    if (legTop > 1) {
+      const corners: [number, number][] =
+        legs.placement === 'inside'
+          ? [[a0 + plan, b0 + plan], [a1 - plan - legA, b0 + plan], [a0 + plan, b1 - plan - legB], [a1 - plan - legA, b1 - plan - legB]]
+          : legs.placement === 'outside'
+            ? [[a0, b0 - legB], [a1 - legA, b0 - legB], [a0, b1], [a1 - legA, b1]]
+            : [[a0, b0], [a1 - legA, b0], [a0, b1 - legB], [a1 - legA, b1 - legB]]
+      for (const [la, lb] of corners) out.push({ ...legAt(legs.profileId, legTop, A, at(la, lb, 0)), role: 'Ben' })
     }
   }
   return { parts: out, lift }

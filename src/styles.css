@@ -1608,3 +1608,32 @@ button.free-label.editable:hover:not(:disabled) {
   text-align: center;
   font-size: 18px;
 }
+
+.frame-bar {
+  max-height: 62vh;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+.frame-legs {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.frame-label {
+  font-weight: 600;
+}
+.frame-legs-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.frame-legs select {
+  font-size: 16px;
+  min-height: 40px;
+  padding: 0 8px;
+}
+.frame-legs .number-field input {
+  width: 80px;
+}
