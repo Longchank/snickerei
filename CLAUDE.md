@@ -334,7 +334,10 @@ comments in English).
   overscroll-behavior: none`, the 3D view is `touch-action: none
   !important` (a library sets `auto` inline on the canvas). Otherwise
   Chrome's pull-to-refresh claims downward drags and cancels the camera
-  rotation. Panels keep `touch-action: pan-y`. Print CSS restores normal
+  rotation. Panels keep `touch-action: pan-y`. The floating bars inside
+  the view (`.viewport .place-banner`: frame, move, place) are exempted
+  with `pan-y` too — otherwise the tall frame bar couldn't be scrolled by
+  finger (owner report 2026-11-19). Print CSS restores normal
   flow so the printout spans pages.
 - Phone UI: grab handle on the bottom panel (tap/swipe), and a full-screen
   mode (⛶ in the view, "Visa menyer" to return; Esc on desktop). Every pick

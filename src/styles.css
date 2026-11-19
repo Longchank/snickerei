@@ -43,6 +43,17 @@ body {
 .viewport canvas {
   touch-action: none !important;
 }
+/* …except the floating bars on top of it (frame, move, place): they're
+   ordinary panels, and the frame bar scrolls when it's taller than the room */
+.viewport .place-banner,
+.viewport .place-banner * {
+  touch-action: pan-y !important;
+}
+.viewport .place-banner button,
+.viewport .place-banner input,
+.viewport .place-banner select {
+  touch-action: manipulation !important;
+}
 /* Panels and menus still scroll with a finger, without dragging the page */
 .panel,
 .sheet-body,
@@ -1611,8 +1622,10 @@ button.free-label.editable:hover:not(:disabled) {
 
 .frame-bar {
   max-height: 62vh;
+  max-height: 62dvh;
   overflow-y: auto;
-  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .frame-legs {
   border-top: 1px solid var(--border);
