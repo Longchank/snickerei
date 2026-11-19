@@ -68,24 +68,23 @@ Byggd för mobilen först — fungerar även på dator.
 - **Såglista** och **inköpslista**: vilka längder/skivor som ska köpas, med
   snittbredd, kapschema för virke och skärschema för skivor.
 - **Skriv ut / spara PDF**: projektbild, såglista, inköpslista och scheman.
-- **Priser från Bauhaus** (webbpriser): inköpslistan köper de längder och
-  skivstorlekar som faktiskt säljs, väljer billigaste kombinationen och
-  länkar till produkterna. Egna priser (kr/lm, kr/skiva) går före;
-  exempelpriser (inte riktiga) används bara där inget annat pris finns.
+- **Priser**: egna priser (kr/lm, kr/skiva) som du skriver in; inköpslistan
+  väljer billigaste kombinationen av längder och skivstorlekar.
+  Exempelpriser (inte riktiga) kan användas där inget eget pris finns.
 - Sparas automatiskt i webbläsaren; exportera/importera projektfil (JSON).
 - Kan läggas till på hemskärmen och öppnas som en app.
 
 ## Priser
 
-`npm run prices` hämtar Bauhaus kategorisidor för virke och skivor (16 anrop
-med 2 s paus, bara sidor som robots.txt tillåter) och sparar
-`public/prices/bauhaus.json`. Publiceringen gör detta automatiskt, och
-dessutom varje måndag. Prisfilen sparas inte i repot. Misslyckas hämtningen
-publiceras appen ändå; den visar då att butikspriser saknas och använder
-egna priser.
+Butikspriser hämtas inte för närvarande. Tanken är att hämta dem först när
+du väljer en butik, via en liten Cloudflare Worker (webbläsaren kan inte
+läsa butikernas sidor direkt). Tills dess används egna priser och
+exempelpriser.
 
-Hornbach blockerar automatiska anrop (bot-skydd även på robots.txt), så
-deras priser hämtas inte, och vi försöker inte ta oss förbi skyddet.
+Skriptet `npm run prices` (Bauhaus kategorisidor, 16 anrop med 2 s paus,
+bara sidor som robots.txt tillåter) finns kvar och kan köras lokalt; det
+körs inte vid publicering. Hornbach blockerar automatiska anrop och hämtas
+inte, och vi försöker inte ta oss förbi skyddet.
 
 ### Om prisuppgifterna
 
@@ -113,7 +112,7 @@ GitHub Actions bygger och publicerar till GitHub Pages vid varje push till
 
 ```bash
 npm install
-npm run prices   # hämta butikspriser (behövs en gång för priser lokalt)
+npm run prices   # hämta Bauhaus-priser lokalt (används inte vid publicering)
 npm run dev      # utvecklingsserver
 npm test         # enhetstester
 npm run build    # produktionsbygge i dist/

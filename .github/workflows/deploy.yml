@@ -3,9 +3,6 @@ name: Publicera på GitHub Pages
 on:
   push:
     branches: [main]
-  # Fresh prices every Monday morning (Swedish time)
-  schedule:
-    - cron: '17 4 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -28,12 +25,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      # Fetch supplier prices into public/prices/ (not stored in the repo).
-      # If a site is down or has changed, publish anyway: the app then shows
-      # that shop prices are missing and uses your own prices.
-      - name: Hämta priser
-        run: npm run prices
-        continue-on-error: true
+      # No shop prices are fetched (owner, 2026-11-19) until a Cloudflare
+      # Worker can fetch them on demand; `npm run prices` still works locally.
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

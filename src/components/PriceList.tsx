@@ -46,7 +46,10 @@ export function PriceList() {
         </label>
       ))}
       {files.length === 0 && (
-        <p className="warn">Inga butikspriser kunde läsas in just nu. Egna priser fungerar som vanligt.</p>
+        <p className="hint">
+          Butikspriser hämtas inte just nu. Skriv in dina egna priser nedan (kr per löpmeter eller per skiva), eller
+          använd exempelpriserna för en ungefärlig kostnad.
+        </p>
       )}
       {files.length > 0 && <SourceNote />}
       <label className="check">

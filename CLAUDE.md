@@ -21,8 +21,13 @@ comments in English).
   Product cards carry `data-name` / `data-price` (per piece, incl. VAT);
   sizes are parsed from the name. Bauhaus has no website terms beyond
   köpvillkor/GDPR/cookies (checked 2026-11-16). Stay polite: one request at
-  a time, 2 s apart, ~16 requests per run. The deploy workflow runs it on
-  every build and weekly. **The price file is not committed** (gitignored,
+  a time, 2 s apart, ~16 requests per run. **Price fetching is switched
+  off** (owner, 2026-11-19: "let's not fetch prices at all until I fix a
+  Cloudflare account"): the deploy workflow no longer runs it (no weekly
+  cron), and the app no longer loads `prices/*.json` (`loadSupplierPrices`
+  kept, unused). Wanted next: the user **picks a store** and its prices are
+  fetched then, via the Cloudflare Worker (see Later). Until then: own and
+  example prices only. The scraper still runs locally. **The price file is not committed** (gitignored,
   decided 2026-11-17, to avoid redistributing the data via a public repo);
   a failed fetch publishes without shop prices. Public-facing stance: facts
   only (name, size, price), small subset, link back, non-commercial, no
@@ -57,8 +62,9 @@ comments in English).
 
 ## Later / parked ideas
 
-- **"Hämta senaste pris" button via a tiny Cloudflare Worker** (parked
-  2026-11-16): the browser can't read bauhaus.se (no CORS), so a Worker
+- **Pick a store → fetch its prices, via a tiny Cloudflare Worker**
+  (owner 2026-11-19, waiting on the owner's Cloudflare account; replaces
+  the weekly fetch, which is switched off). Earlier note (2026-11-16): the browser can't read bauhaus.se (no CORS), so a Worker
   would fetch only the category pages for the project's sizes on demand.
   Works for Bauhaus only — Hornbach's bot challenge blocks servers too, and
   we don't get around it. For Hornbach, options are a "Visa på Hornbach"

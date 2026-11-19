@@ -7,7 +7,7 @@ import { PriceList } from './components/PriceList'
 import { PrintReport } from './components/PrintReport'
 import { Toolbar } from './components/Toolbar'
 import { fitView, snapshotRef, Viewport } from './components/Viewport'
-import { loadSupplierPrices, useStore } from './lib/store'
+import { useStore } from './lib/store'
 
 type Tab = 'lagg' | 'del' | 'analys' | 'lista' | 'priser'
 
@@ -48,9 +48,6 @@ export function App() {
   const hasSelection = useStore((s) => s.selection.length > 0)
   const pickCount = useStore((s) => s.pickCount)
   useKeyboardShortcuts()
-  useEffect(() => {
-    loadSupplierPrices()
-  }, [])
 
   // Selecting or adding a part shows its properties
   // (except while picking several parts, so the list stays open)
