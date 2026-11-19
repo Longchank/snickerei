@@ -135,6 +135,8 @@ export interface FrameLegs {
   height: number
   /** Outside legs only: the sheet is widened to cover them */
   cover?: boolean
+  /** Outside legs only: beside the long rails (default) or beside the end rails */
+  side?: 'long' | 'short'
 }
 
 /** What the build is for: picks the load preset for the strength analysis */

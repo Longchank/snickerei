@@ -252,6 +252,13 @@ comments in English).
   the original footprint, so the legs end up under the sheet's edge.
   Unticking, another placement, or "Ta bort ramen" narrows it back. The
   frame's long way is stored once (`frame.axis`) so widening can't flip it.
+  **Utanför: på långsidorna / på kortsidorna** (owner 2026-11-19,
+  `legs.side`, default 'long'): 'short' puts the legs outside the end
+  rails, flush with the long sides, turned so the wide face runs across.
+  `coverExtents(f)` = [along the long way, across]; covering grows the
+  sheet over the ends instead, and switching side moves the extension
+  (`sheetForFrame` handles both axes). Joist positions and seams account
+  for an end cover (`joistCentre`, `joistSpacing`).
   **Skarvar i skivan** (owner 2026-11-19: "split the sheet together with
   the joists" to buy fewer store sheets): `frame.seams` = joist numbers
   the sheet is split over; the seam is at that joist's centre, rounded to

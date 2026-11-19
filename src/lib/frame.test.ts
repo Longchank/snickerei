@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { frameUnder, defaultJoists, isLyingSheet, joistSpacing } from './frame'
+import { frameUnder, defaultJoists, isLyingSheet, joistSpacing, seamOffsets } from './frame'
 import { partBox, toAxisBox } from './geometry'
 import { overlapsOf } from './joints'
 import { useStore } from './store'
@@ -200,5 +200,47 @@ describe('store: sheet covering outside legs', () => {
     expect(sheetBox().max[2] - sheetBox().min[2]).toBe(690)
     st().removeFrame()
     expect([sheetBox().min[2], sheetBox().max[2]]).toEqual([0, 600])
+  })
+})
+
+describe('outside legs at the ends', () => {
+  beforeEach(() => useStore.getState().newProject())
+
+  it('stand beside the end rails, wide face across, and the sheet can cover them; switching side moves the cover', () => {
+    useStore.setState((s) => ({ project: { ...s.project, parts: [sheet] }, selection: ['s'] }))
+    const st = () => useStore.getState()
+    const sheetBox = () => box(st().project.parts.find((p) => p.id === 's')!)
+    st().openFrame('s')
+    const f0 = st().project.parts.find((p) => p.id === 's')!.frame!
+    const legs = { profileId: 'konstruktion-45x95', placement: 'outside' as const, height: 918, side: 'short' as const }
+    st().applyFrame({ ...f0, legs })
+    let ps = st().project.parts
+    let legBoxes = ps.filter((p) => p.name.startsWith('Ben')).map(box)
+    // Outside the ends (x < 0 and x > 1800), 45 thick along x, 95 wide along z, flush with the long sides
+    expect(legBoxes.map((l) => [l.min[0], l.max[0]])).toEqual([[-45, 0], [1800, 1845], [-45, 0], [1800, 1845]])
+    expect(legBoxes.map((l) => [l.min[2], l.max[2]])).toEqual([[0, 95], [0, 95], [505, 600], [505, 600]])
+    for (const p of ps) expect(overlapsOf(p, ps)).toEqual([])
+    // Cover: the sheet grows 45 mm at each end, the frame stays put
+    st().applyFrame({ ...f0, legs: { ...legs, cover: true } })
+    expect([sheetBox().min[0], sheetBox().max[0], sheetBox().min[2], sheetBox().max[2]]).toEqual([-45, 1845, 0, 600])
+    ps = st().project.parts
+    const rails = ps.filter((p) => p.name.startsWith('Långregel')).map(box)
+    expect([rails[0].min[0], rails[0].max[0]]).toEqual([0, 1800])
+    for (const p of ps) expect(overlapsOf(p, ps)).toEqual([])
+    // Switch to the long sides: the cover moves from the ends to the sides
+    st().applyFrame({ ...f0, legs: { ...legs, cover: true, side: 'long' } })
+    expect([sheetBox().min[0], sheetBox().max[0], sheetBox().min[2], sheetBox().max[2]]).toEqual([0, 1800, -45, 645])
+    legBoxes = st().project.parts.filter((p) => p.name.startsWith('Ben')).map(box)
+    expect(legBoxes[0].min[2]).toBe(-45)
+  })
+
+  it('seams still land on the joists when the sheet covers end legs', () => {
+    const f = { profileId: 'konstruktion-45x70', joists: 2, onEdge: true, axis: 0 as const, seams: [1],
+      legs: { profileId: 'konstruktion-45x95', placement: 'outside' as const, height: 918, side: 'short' as const, cover: true } }
+    const grown: Part = { ...sheet, length: 1890, position: [-45, 900, 0], frame: f }
+    const joist = frameUnder(grown, f).parts.filter((p) => p.role === 'Tvärregel').map(box)[0]
+    const seamX = box(grown).min[0] + seamOffsets(grown)[0]
+    expect(seamX).toBeGreaterThan(joist.min[0])
+    expect(seamX).toBeLessThan(joist.max[0])
   })
 })

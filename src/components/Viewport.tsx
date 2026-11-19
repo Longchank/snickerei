@@ -1254,7 +1254,7 @@ function FrameBar() {
   if (!fs || !sheet?.frame) return null
   const f = sheet.frame
   const set = (patch: Partial<typeof f>) => applyFrame({ ...f, ...patch })
-  const spacing = joistSpacing(fs.base, f)
+  const spacing = joistSpacing(sheet, f)
   const sheetTop = toAxisBox(partBox(sheet)).max[1]
   return (
     <div className="measure-top place-top">
@@ -1317,6 +1317,25 @@ function FrameBar() {
               )
             })}
           </div>
+          {f.legs?.placement === 'outside' && (
+            <div className="frame-row">
+              <div className="segmented" role="group" aria-label="Vilka sidor benen sitter på">
+                {(
+                  [
+                    ['long', 'På långsidorna'],
+                    ['short', 'På kortsidorna'],
+                  ] as const
+                ).map(([side, label]) => {
+                  const on = (f.legs!.side ?? 'long') === side
+                  return (
+                    <button key={side} className={on ? 'on' : ''} aria-pressed={on} onClick={() => set({ legs: { ...f.legs!, side } })}>
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {f.legs?.placement === 'outside' && (
             <label className="check frame-cover">
               <input

@@ -46,7 +46,8 @@ function boardAt(profileId: string, length: number, axis: Axis, onEdge: boolean,
 /** Centre-to-centre spacing of the joists (and end rails), mm */
 export function joistSpacing(sheet: Part, f: SheetFrame): number {
   const b = boxOf(sheet)
-  const long = Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2])
+  const A = f.axis ?? longAxis(sheet)
+  const long = b.max[A] - b.min[A] - 2 * coverExtents(f)[0]
   return (long - section(f).plan) / (f.joists + 1)
 }
 
@@ -56,23 +57,36 @@ export function longAxis(sheet: Part): 0 | 2 {
   return b.max[0] - b.min[0] >= b.max[2] - b.min[2] ? 0 : 2
 }
 
-/** How far a sheet reaches past the frame on each long side to cover outside legs */
-export function coverExtent(f: SheetFrame | undefined): number {
-  return f?.legs?.placement === 'outside' && f.legs.cover ? getProfile(f.legs.profileId).thickness : 0
+/** Outside legs at the ends (beside the end rails) instead of beside the long rails */
+const atEnds = (f: SheetFrame | undefined) => f?.legs?.placement === 'outside' && f.legs.side === 'short'
+
+/**
+ * How far a sheet reaches past the frame to cover outside legs, on each side:
+ * [along the long way (legs at the ends), across it (legs at the long sides)].
+ */
+export function coverExtents(f: SheetFrame | undefined): [number, number] {
+  if (!(f?.legs?.placement === 'outside' && f.legs.cover)) return [0, 0]
+  const t = getProfile(f.legs.profileId).thickness
+  return atEnds(f) ? [t, 0] : [0, t]
 }
 
 /**
  * The sheet as it should be for frame settings `next`, given it was shaped
- * for `prev`: widened (or narrowed back) across the long way when "cover the
- * outside legs" changes, or the leg thickness changes while covering.
+ * for `prev`: grown (or shrunk back) on the sides where it covers outside
+ * legs, when that, the legs' side or their thickness changes.
  */
 export function sheetForFrame(sheet: Part, prev: SheetFrame | undefined, next: SheetFrame | undefined): Part {
-  const delta = coverExtent(next) - coverExtent(prev)
-  if (!delta) return sheet
+  const [pa, pb] = coverExtents(prev)
+  const [na, nb] = coverExtents(next)
   const A = next?.axis ?? prev?.axis ?? longAxis(sheet)
   const B: Axis = A === 0 ? 2 : 0
-  const b = boxOf(sheet)
-  return resizeAlong(sheet, B, b.min[B] - delta, b.max[B] + delta)
+  let out = sheet
+  for (const [axis, delta] of [[A, na - pa], [B, nb - pb]] as [Axis, number][]) {
+    if (!delta) continue
+    const b = boxOf(out)
+    out = resizeAlong(out, axis, b.min[axis] - delta, b.max[axis] + delta)
+  }
+  return out
 }
 
 /** Lowest top height that leaves room for the frame (and legs at least 50 mm long) */
@@ -111,12 +125,12 @@ export function frameUnder(sheet: Part, f: SheetFrame): { parts: (Omit<Part, 'id
     : Math.max(0, height - b.min[1])
   const top = b.min[1] + lift
   const y = top - height
-  const a0 = b.min[A]
-  const a1 = b.max[A]
-  // A sheet widened over outside legs: the frame stays under the original footprint
-  const cover = coverExtent(f)
-  const b0 = b.min[B] + cover
-  const b1 = b.max[B] - cover
+  // A sheet grown over outside legs: the frame stays under the original footprint
+  const [coverA, coverB] = coverExtents(f)
+  const a0 = b.min[A] + coverA
+  const a1 = b.max[A] - coverA
+  const b0 = b.min[B] + coverB
+  const b1 = b.max[B] - coverB
   const at = (a: number, bb: number, yy = y): Vec3 => {
     const v = [0, yy, 0] as Vec3
     v[A] = a
@@ -158,13 +172,21 @@ export function frameUnder(sheet: Part, f: SheetFrame): { parts: (Omit<Part, 'id
   if (legs && leg) {
     const legTop = legs.placement === 'under' ? y : top
     if (legTop > 1) {
-      const corners: [number, number][] =
-        legs.placement === 'inside'
-          ? [[a0 + plan, b0 + plan], [a1 - plan - legA, b0 + plan], [a0 + plan, b1 - plan - legB], [a1 - plan - legA, b1 - plan - legB]]
-          : legs.placement === 'outside'
-            ? [[a0, b0 - legB], [a1 - legA, b0 - legB], [a0, b1], [a1 - legA, b1]]
-            : [[a0, b0], [a1 - legA, b0], [a0, b1 - legB], [a1 - legA, b1 - legB]]
-      for (const [la, lb] of corners) out.push({ ...legAt(legs.profileId, legTop, A, at(la, lb, 0)), role: 'Ben' })
+      if (atEnds(f)) {
+        // Beside the end rails, turned so the wide face runs across the frame
+        const t = leg.thickness
+        const w = leg.width
+        const corners: [number, number][] = [[a0 - t, b0], [a1, b0], [a0 - t, b1 - w], [a1, b1 - w]]
+        for (const [la, lb] of corners) out.push({ ...legAt(legs.profileId, legTop, B, at(la, lb, 0)), role: 'Ben' })
+      } else {
+        const corners: [number, number][] =
+          legs.placement === 'inside'
+            ? [[a0 + plan, b0 + plan], [a1 - plan - legA, b0 + plan], [a0 + plan, b1 - plan - legB], [a1 - plan - legA, b1 - plan - legB]]
+            : legs.placement === 'outside'
+              ? [[a0, b0 - legB], [a1 - legA, b0 - legB], [a0, b1], [a1 - legA, b1]]
+              : [[a0, b0], [a1 - legA, b0], [a0, b1 - legB], [a1 - legA, b1 - legB]]
+        for (const [la, lb] of corners) out.push({ ...legAt(legs.profileId, legTop, A, at(la, lb, 0)), role: 'Ben' })
+      }
     }
   }
   return { parts: out, lift }
@@ -176,9 +198,10 @@ export function frameUnder(sheet: Part, f: SheetFrame): { parts: (Omit<Part, 'id
 function joistCentre(sheet: Part, f: SheetFrame, i: number): number {
   const b = boxOf(sheet)
   const A = f.axis ?? longAxis(sheet)
-  const L = b.max[A] - b.min[A]
+  const [coverA] = coverExtents(f)
+  const L = b.max[A] - b.min[A] - 2 * coverA
   const { plan } = section(f)
-  return plan / 2 + ((L - plan) * i) / (f.joists + 1)
+  return coverA + plan / 2 + ((L - plan) * i) / (f.joists + 1)
 }
 
 /** The seams in use (joist numbers that still exist), sorted */
