@@ -1225,6 +1225,16 @@ function FrameBar() {
               )
             })}
           </div>
+          {f.legs?.placement === 'outside' && (
+            <label className="check frame-cover">
+              <input
+                type="checkbox"
+                checked={!!f.legs.cover}
+                onChange={(e) => set({ legs: { ...f.legs!, cover: e.target.checked } })}
+              />
+              Förläng skivan över benen
+            </label>
+          )}
           {f.legs && (
             <div className="frame-row">
               <select

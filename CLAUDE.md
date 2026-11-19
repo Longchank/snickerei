@@ -246,6 +246,12 @@ comments in English).
   to 900. Reopening the bar takes the height from where the sheet is now.
   `frameUnder` returns parts already at their final height — only the
   sheet is moved by `lift` (a double lift was a bug, fixed 2026-11-19).
+  **"Förläng skivan över benen"** (owner 2026-11-19, checkbox with
+  *Utanför*, `legs.cover`): the sheet is widened by the leg thickness on
+  both long sides (`sheetForFrame`, `coverExtent`); the frame stays under
+  the original footprint, so the legs end up under the sheet's edge.
+  Unticking, another placement, or "Ta bort ramen" narrows it back. The
+  frame's long way is stored once (`frame.axis`) so widening can't flip it.
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

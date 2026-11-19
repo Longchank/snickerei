@@ -1637,3 +1637,13 @@ button.free-label.editable:hover:not(:disabled) {
 .frame-legs .number-field input {
   width: 80px;
 }
+
+.frame-cover {
+  justify-content: center;
+  min-height: 40px;
+  font-size: 15px;
+}
+.frame-cover input {
+  width: 22px;
+  height: 22px;
+}

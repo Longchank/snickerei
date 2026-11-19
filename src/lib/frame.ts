@@ -6,6 +6,7 @@
 import { getProfile } from './catalog'
 import { partBox, round, toAxisBox } from './geometry'
 import { rotationFor } from './place'
+import { resizeAlong } from './resize'
 import type { Part, SheetFrame, Vec3 } from './types'
 
 type Axis = 0 | 1 | 2
@@ -49,6 +50,31 @@ export function joistSpacing(sheet: Part, f: SheetFrame): number {
   return (long - section(f).plan) / (f.joists + 1)
 }
 
+/** The long way of a lying sheet: x or z */
+export function longAxis(sheet: Part): 0 | 2 {
+  const b = boxOf(sheet)
+  return b.max[0] - b.min[0] >= b.max[2] - b.min[2] ? 0 : 2
+}
+
+/** How far a sheet reaches past the frame on each long side to cover outside legs */
+export function coverExtent(f: SheetFrame | undefined): number {
+  return f?.legs?.placement === 'outside' && f.legs.cover ? getProfile(f.legs.profileId).thickness : 0
+}
+
+/**
+ * The sheet as it should be for frame settings `next`, given it was shaped
+ * for `prev`: widened (or narrowed back) across the long way when "cover the
+ * outside legs" changes, or the leg thickness changes while covering.
+ */
+export function sheetForFrame(sheet: Part, prev: SheetFrame | undefined, next: SheetFrame | undefined): Part {
+  const delta = coverExtent(next) - coverExtent(prev)
+  if (!delta) return sheet
+  const A = next?.axis ?? prev?.axis ?? longAxis(sheet)
+  const B: Axis = A === 0 ? 2 : 0
+  const b = boxOf(sheet)
+  return resizeAlong(sheet, B, b.min[B] - delta, b.max[B] + delta)
+}
+
 /** Lowest top height that leaves room for the frame (and legs at least 50 mm long) */
 export function minLegHeight(sheet: Part, f: SheetFrame): number {
   return getProfile(sheet.profileId).thickness + section(f).height + 50
@@ -77,9 +103,7 @@ function legAt(profileId: string, height: number, wideAxis: Axis, min: Vec3): Om
 export function frameUnder(sheet: Part, f: SheetFrame): { parts: (Omit<Part, 'id' | 'name'> & { role: string })[]; lift: number } {
   const b = boxOf(sheet)
   const { height, plan } = section(f)
-  const sx = b.max[0] - b.min[0]
-  const sz = b.max[2] - b.min[2]
-  const A: Axis = sx >= sz ? 0 : 2 // long way
+  const A: Axis = f.axis ?? longAxis(sheet)
   const B: Axis = A === 0 ? 2 : 0
   const legs = f.legs
   const lift = legs
@@ -89,8 +113,10 @@ export function frameUnder(sheet: Part, f: SheetFrame): { parts: (Omit<Part, 'id
   const y = top - height
   const a0 = b.min[A]
   const a1 = b.max[A]
-  const b0 = b.min[B]
-  const b1 = b.max[B]
+  // A sheet widened over outside legs: the frame stays under the original footprint
+  const cover = coverExtent(f)
+  const b0 = b.min[B] + cover
+  const b1 = b.max[B] - cover
   const at = (a: number, bb: number, yy = y): Vec3 => {
     const v = [0, yy, 0] as Vec3
     v[A] = a

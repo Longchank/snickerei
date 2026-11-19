@@ -119,6 +119,8 @@ export interface SheetFrame {
   onEdge: boolean
   /** Legs at the four corners, down to the floor */
   legs?: FrameLegs
+  /** The long way the rails run (x or z), fixed when the frame is first built */
+  axis?: 0 | 2
 }
 
 /** Where the legs go relative to the frame */
@@ -129,6 +131,8 @@ export interface FrameLegs {
   placement: LegPlacement
   /** Height of the sheet's top above the floor, mm */
   height: number
+  /** Outside legs only: the sheet is widened to cover them */
+  cover?: boolean
 }
 
 /** What the build is for: picks the load preset for the strength analysis */

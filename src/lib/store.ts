@@ -4,7 +4,7 @@ import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
 import { partBox, rotatePart, round, toAxisBox } from './geometry'
 import { setSizeAlong, stretchParts } from './resize'
-import { defaultJoists, frameUnder, isLyingSheet } from './frame'
+import { defaultJoists, frameUnder, isLyingSheet, longAxis, sheetForFrame } from './frame'
 import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
 import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
@@ -289,7 +289,11 @@ export const useStore = create<State>()(
         applyFrame: (f) => {
           const fs = get().frameSheet
           if (!fs) return
-          const { base, groupId } = fs
+          const { base: original, groupId } = fs
+          // The long way is fixed once, so widening the sheet can't flip the frame
+          f = f.axis === undefined ? { ...f, axis: original.frame?.axis ?? longAxis(original) } : f
+          // Widened (or narrowed back) when covering outside legs changes
+          const base = sheetForFrame(original, original.frame, f)
           const { parts: built, lift } = frameUnder(base, f)
           const up = (v: Vec3): Vec3 => [v[0], round(v[1] + lift), v[2]]
           const sheet: Part = { ...base, frame: f, groupId, position: up(base.position) }
@@ -312,7 +316,7 @@ export const useStore = create<State>()(
         removeFrame: () => {
           const fs = get().frameSheet
           if (!fs) return
-          const { base } = fs
+          const base = sheetForFrame(fs.base, fs.base.frame, undefined)
           const sheet: Part = { ...base, frame: undefined }
           edit((snap) => ({ ...snap, parts: [...snap.parts.filter((p) => p.frameOf !== base.id && p.id !== base.id), sheet] }), [sheet.id])
           set({ frameSheet: null })

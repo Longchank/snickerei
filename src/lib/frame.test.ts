@@ -168,3 +168,37 @@ describe('store: frame and legs end up where the sheet is', () => {
     st().closeFrame()
   })
 })
+
+describe('store: sheet covering outside legs', () => {
+  beforeEach(() => useStore.getState().newProject())
+
+  it('widens the sheet over the legs, keeps the frame in place, and narrows back', () => {
+    useStore.setState((s) => ({ project: { ...s.project, parts: [sheet] }, selection: ['s'] }))
+    const st = () => useStore.getState()
+    const sheetBox = () => box(st().project.parts.find((p) => p.id === 's')!)
+    st().openFrame('s')
+    const f0 = st().project.parts.find((p) => p.id === 's')!.frame!
+    const legs = { profileId: 'konstruktion-45x95', placement: 'outside' as const, height: 918 }
+    st().applyFrame({ ...f0, legs: { ...legs, cover: true } })
+    // 45 mm legs outside each long side: the sheet grows 45 mm each way across
+    expect(sheetBox().min[2]).toBe(-45)
+    expect(sheetBox().max[2]).toBe(645)
+    expect(sheetBox().max[0] - sheetBox().min[0]).toBe(1800) // the long way is untouched
+    const parts = st().project.parts
+    const rails = parts.filter((p) => p.name.startsWith('Långregel')).map(box)
+    expect([rails[0].min[2], rails[1].max[2]]).toEqual([0, 600]) // frame still under the original sheet
+    const legBoxes = parts.filter((p) => p.name.startsWith('Ben')).map(box)
+    expect(legBoxes.every((l) => l.min[2] >= -45 && l.max[2] <= 645 && l.max[1] === sheetBox().min[1])).toBe(true)
+    for (const p of parts) expect(overlapsOf(p, parts)).toEqual([])
+    // Untick: back to the original width
+    st().applyFrame({ ...f0, legs: { ...legs, cover: false } })
+    expect([sheetBox().min[2], sheetBox().max[2]]).toEqual([0, 600])
+    // Tick again, close, reopen, then remove the frame: the sheet goes back too
+    st().applyFrame({ ...f0, legs: { ...legs, cover: true } })
+    st().closeFrame()
+    st().openFrame('s')
+    expect(sheetBox().max[2] - sheetBox().min[2]).toBe(690)
+    st().removeFrame()
+    expect([sheetBox().min[2], sheetBox().max[2]]).toEqual([0, 600])
+  })
+})
