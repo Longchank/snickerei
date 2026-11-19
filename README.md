@@ -30,6 +30,9 @@ Byggd för mobilen först — fungerar även på dator.
 - **Byt stötfog**: markera en ram (eller två brädor i ett rakt hörn) och tryck
   ⇄ — t.ex. går sidorna igenom i stället för över- och underdelen. Ramens
   yttermått behålls; brädorna kapas om (längre eller kortare).
+- **Skiva först, ram sedan**: lägg en skiva (två tryck, hörn till hörn),
+  markera den och tryck ▦ Bygg ram under skivan — välj virke, högkant eller
+  flatt och hur många tvärreglar.
 - **Analys**: välj vad det ska bli (bokhylla, bord, bänk …) och se vikt,
   hur mycket varje hylla eller regel böjer och klarar, om bygget tippar och
   om det vickar i sidled — även som färger i 3D-vyn. Det är en

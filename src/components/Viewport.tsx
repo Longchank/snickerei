@@ -20,12 +20,13 @@ import {
 import type { Group } from 'three'
 import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getProfile, hasGrain } from '../lib/catalog'
+import { getProfile, hasGrain, PROFILES, shortName } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
 import { AXIS_BOARDS, switchButtJoints } from '../lib/corner'
 import { endName, endPoint } from '../lib/ends'
 import { reorientOptions } from '../lib/place'
+import { isLyingSheet, joistSpacing } from '../lib/frame'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
 import { overlapsOf, unionBox } from '../lib/joints'
@@ -989,6 +990,11 @@ function ActionBar() {
   const reorientSelection = useStore((s) => s.reorientSelection)
   const choice = useStore((s) => s.placeChoice)
   const note = useStore((s) => s.placeNote)
+  // One lying sheet (with or without its frame) selected: build or change the frame under it
+  const openFrame = useStore((s) => s.openFrame)
+  const sheets = chosen.filter(isLyingSheet)
+  const frameSheetId =
+    sheets.length === 1 && chosen.every((p) => p.id === sheets[0].id || p.frameOf === sheets[0].id) ? sheets[0].id : null
   const canReorient = chosen.length === 1 && reorientOptions(chosen[0], parts).length > 1
   const showNote = canReorient && choice?.partId === chosen[0].id && note
   // Exactly one whole group selected?
@@ -1041,6 +1047,11 @@ function ActionBar() {
             {butt.axis === undefined
               ? '⇄ Byt stötfog i hörnet'
               : `⇄ Låt ${AXIS_BOARDS[butt.axis]} gå igenom (${butt.corners.length} hörn)`}
+          </button>
+        )}
+        {frameSheetId && (
+          <button className="switch-butt" onClick={() => openFrame(frameSheetId)}>
+            {parts.find((p) => p.id === frameSheetId)?.frame ? '▦ Ändra ramen under skivan' : '▦ Bygg ram under skivan'}
           </button>
         )}
         {canReorient && (
@@ -1122,6 +1133,66 @@ function RotateBar() {
             ↶ Ångra
           </button>
           <button className="primary" onClick={() => setRotateMode(false)}>
+            Klar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const FRAME_PROFILES = PROFILES.filter(
+  (p) => p.kind === 'board' && (p.category === 'konstruktion' || (p.category === 'hyvlat' && p.thickness >= 28)),
+)
+
+/** "Ram under skivan": profile, on edge or flat, number of joists — the frame updates live. */
+function FrameBar() {
+  const fs = useStore((s) => s.frameSheet)
+  const sheet = useStore((s) => s.project.parts.find((p) => p.id === s.frameSheet?.base.id))
+  const applyFrame = useStore((s) => s.applyFrame)
+  const removeFrame = useStore((s) => s.removeFrame)
+  const closeFrame = useStore((s) => s.closeFrame)
+  if (!fs || !sheet?.frame) return null
+  const f = sheet.frame
+  const set = (patch: Partial<typeof f>) => applyFrame({ ...f, ...patch })
+  const spacing = joistSpacing(fs.base, f)
+  return (
+    <div className="measure-top place-top">
+      <div className="place-banner move-bar frame-bar" role="toolbar" aria-label="Ram under skivan">
+        <strong>Ram under skivan</strong>
+        <div className="frame-profiles" role="group" aria-label="Virke">
+          {FRAME_PROFILES.map((p) => (
+            <button key={p.id} className={`chip ${f.profileId === p.id ? 'on' : ''}`} aria-pressed={f.profileId === p.id} onClick={() => set({ profileId: p.id })}>
+              {shortName(p)}
+            </button>
+          ))}
+        </div>
+        <div className="frame-row">
+          <div className="segmented" role="group" aria-label="Hur reglarna ligger">
+            <button className={f.onEdge ? 'on' : ''} aria-pressed={f.onEdge} onClick={() => set({ onEdge: true })}>
+              På högkant
+            </button>
+            <button className={!f.onEdge ? 'on' : ''} aria-pressed={!f.onEdge} onClick={() => set({ onEdge: false })}>
+              Flatt
+            </button>
+          </div>
+        </div>
+        <div className="frame-row frame-joists">
+          <span>Tvärreglar</span>
+          <button aria-label="Färre tvärreglar" disabled={f.joists <= 0} onClick={() => set({ joists: f.joists - 1 })}>
+            −
+          </button>
+          <strong>{f.joists}</strong>
+          <button aria-label="Fler tvärreglar" disabled={f.joists >= 20} onClick={() => set({ joists: f.joists + 1 })}>
+            +
+          </button>
+          <span className="muted small">c/c {fmtMm(Math.round(spacing))} mm</span>
+        </div>
+        <div className="place-actions">
+          <button className="danger" onClick={removeFrame}>
+            Ta bort ramen
+          </button>
+          <button className="primary" onClick={closeFrame}>
             Klar
           </button>
         </div>
@@ -1233,7 +1304,8 @@ export function Viewport({
   const cycleSnap = useStore((s) => s.cycleSnap)
   const count = useStore((s) => s.selection.length)
   const lastDrag = useRef(0)
-  const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode
+  const framing = useStore((s) => s.frameSheet !== null)
+  const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode && !framing
 
   return (
     <>
@@ -1263,6 +1335,7 @@ export function Viewport({
     {placeProfile && <PlaceBanner profileId={placeProfile} />}
     {moveMode && count > 0 && <MoveBar />}
     {rotateMode && count > 0 && <RotateBar />}
+    {framing && <FrameBar />}
     {showActions && <ActionBar />}
     {measureMode && (
       <div className="measure-top">

@@ -213,6 +213,18 @@ comments in English).
   onto it, longer side = length. Taps on boards snap to their corners and
   edges (the measuring snaps); otherwise rounded to `settings.snap`.
   Stays armed for the next sheet until Klar.
+- **"▦ Ram under skivan"** (owner 2026-11-19: "create the sheet first,
+  then specify the framing under it", `src/lib/frame.ts`): Bygg action bar
+  when one lying sheet (plus any of its own frame boards) is selected.
+  `frameUnder` builds two long rails along the sheet's long sides (full
+  length), two end rails between them and N joists (tvärreglar) evenly
+  spaced c/c between the end rails, flush with the sheet's edges, on edge
+  (högkant) or flat; if the sheet is too low it's lifted so nothing goes
+  through the floor. Settings live on the sheet (`part.frame`), boards
+  carry `frameOf: sheetId` and are regenerated on every change
+  (`applyFrame`, live in `FrameBar`; first change = one undo step, later
+  ones replace it). Sheet + frame become one group ("Skiva med ram").
+  Default: 45×70 on edge, joists for ≤600 mm spacing. Lying sheets only.
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

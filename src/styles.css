@@ -1182,7 +1182,9 @@ button.free-label.editable::after {
 }
 
 /* Placing boards */
-.chip.on {
+.chip.on,
+.chip.on:hover:not(:disabled),
+.segmented button.on:hover:not(:disabled) {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
@@ -1579,4 +1581,30 @@ button.free-label.editable,
 button.free-label.editable:hover:not(:disabled) {
   background: #16a34a;
   color: #fff;
+}
+
+/* Ram under skivan */
+.frame-profiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin: 6px 0;
+}
+.frame-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.frame-joists button {
+  min-width: 44px;
+  min-height: 40px;
+  font-size: 20px;
+}
+.frame-joists strong {
+  min-width: 24px;
+  text-align: center;
+  font-size: 18px;
 }

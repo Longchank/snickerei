@@ -60,9 +60,10 @@ export function App() {
   // (and the arrows or rings on it) can be tapped
   const moving = useStore((s) => s.moveMode)
   const turning = useStore((s) => s.rotateMode)
+  const framing = useStore((s) => s.frameSheet !== null)
   useEffect(() => {
-    if ((placing || moving || turning) && mobile) setSheetOpen(false)
-  }, [placing, moving, turning, mobile])
+    if ((placing || moving || turning || framing) && mobile) setSheetOpen(false)
+  }, [placing, moving, turning, framing, mobile])
   // A board was added from Lägg till: close the menu so it shows in the view
   const partCount = useStore((s) => s.project.parts.length)
   const lastCount = useRef(partCount)

@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
-import { partBox, rotatePart } from './geometry'
+import { partBox, rotatePart, round } from './geometry'
 import { setSizeAlong, stretchParts } from './resize'
+import { defaultJoists, frameUnder, isLyingSheet } from './frame'
 import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
 import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
@@ -33,6 +34,7 @@ import type {
   SupplierPriceFile,
   Vec3,
   Purpose,
+  SheetFrame,
 } from './types'
 
 const HISTORY_LIMIT = 100
@@ -64,6 +66,12 @@ interface State {
   placeChoice: { partId: string; options: Placement[]; index: number } | null
   /** Placing a sheet: the first corner tapped, waiting for the opposite one */
   sheetCorner: SheetCorner | null
+  /** "Ram under skivan" open: the sheet as it was when opened, and whether an undo step was taken */
+  frameSheet: { base: Part; groupId: string; started: boolean } | null
+  openFrame: (sheetId: string) => void
+  applyFrame: (f: SheetFrame) => void
+  removeFrame: () => void
+  closeFrame: () => void
   /** First point of a measurement in progress */
   pendingPoint: MeasurePoint | null
   /** Snap alternatives for the most recent tap, which the user can cycle through */
@@ -266,6 +274,45 @@ export const useStore = create<State>()(
         placeNote: null,
         placeChoice: null,
         sheetCorner: null,
+        frameSheet: null,
+        openFrame: (sheetId) => {
+          const sheet = get().project.parts.find((p) => p.id === sheetId)
+          if (!sheet || !isLyingSheet(sheet)) return
+          set({ frameSheet: { base: sheet, groupId: sheet.groupId ?? uid(), started: false }, moveMode: false, rotateMode: false, measureMode: false, placeProfile: null })
+          get().applyFrame(sheet.frame ?? { profileId: 'konstruktion-45x70', joists: defaultJoists(sheet), onEdge: true })
+        },
+        applyFrame: (f) => {
+          const fs = get().frameSheet
+          if (!fs) return
+          const { base, groupId } = fs
+          const { parts: built, lift } = frameUnder(base, f)
+          const up = (v: Vec3): Vec3 => [v[0], round(v[1] + lift), v[2]]
+          const sheet: Part = { ...base, frame: f, groupId, position: up(base.position) }
+          const count: Record<string, number> = {}
+          const frameParts: Part[] = built.map(({ role, ...p }, i) => {
+            count[role] = (count[role] ?? 0) + 1
+            return { ...p, position: up(p.position), id: `${base.id}:ram${i}`, name: `${role} ${count[role]}`, frameOf: base.id, groupId }
+          })
+          const apply = (snap: Snapshot): Snapshot => ({
+            groups: snap.groups.some((g) => g.id === groupId) ? snap.groups : [...snap.groups, { id: groupId, name: 'Skiva med ram' }],
+            parts: [...snap.parts.filter((p) => p.frameOf !== base.id && p.id !== base.id), sheet, ...frameParts],
+          })
+          const ids = [sheet.id, ...frameParts.map((p) => p.id)]
+          if (!fs.started) {
+            edit(apply, ids)
+            set({ frameSheet: { ...fs, started: true } })
+          } else
+            set((s) => ({ project: { ...s.project, ...pruneGroups(apply({ parts: s.project.parts, groups: s.project.groups })) }, selection: ids }))
+        },
+        removeFrame: () => {
+          const fs = get().frameSheet
+          if (!fs) return
+          const { base } = fs
+          const sheet: Part = { ...base, frame: undefined }
+          edit((snap) => ({ ...snap, parts: [...snap.parts.filter((p) => p.frameOf !== base.id && p.id !== base.id), sheet] }), [sheet.id])
+          set({ frameSheet: null })
+        },
+        closeFrame: () => set({ frameSheet: null }),
         pendingPoint: null,
         snapChoice: null,
         measureHover: null,
@@ -322,7 +369,7 @@ export const useStore = create<State>()(
         setMoveMode: (moveMode) =>
           set({
             moveMode,
-            ...(moveMode ? { rotateMode: false, measureMode: false, placeProfile: null, pendingPoint: null } : {}),
+            ...(moveMode ? { rotateMode: false, measureMode: false, placeProfile: null, pendingPoint: null, frameSheet: null } : {}),
           }),
         moveTap: (target) => {
           const ids = new Set(get().selection)

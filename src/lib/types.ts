@@ -42,6 +42,10 @@ export type Vec3 = [number, number, number]
  * width along Z, with the origin at one corner (spans 0..L, 0..T, 0..W).
  */
 export interface Part {
+  /** A sheet with a frame built under it: the frame's settings */
+  frame?: SheetFrame
+  /** A frame board generated under this sheet (its id) */
+  frameOf?: string
   /** Own load on this part for the strength analysis, kg (replaces the purpose preset there) */
   loadKg?: number
   id: string
@@ -104,6 +108,15 @@ export interface Notch {
 export interface Group {
   id: string
   name: string
+}
+
+/** "Ram under skivan" settings */
+export interface SheetFrame {
+  profileId: string
+  /** Joists (tvärreglar) between the end rails */
+  joists: number
+  /** Boards on edge (högkant) or flat */
+  onEdge: boolean
 }
 
 /** What the build is for: picks the load preset for the strength analysis */
