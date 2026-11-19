@@ -2,7 +2,7 @@
  * "Smartast": where to split a framed sheet over its joists so the project's
  * sheets of that material need the fewest / cheapest store sheets.
  */
-import { purchasePlan, type SheetPlan } from './cutlist'
+import { purchasePlan, type OwnSheetSizes, type SheetPlan } from './cutlist'
 import { splitSheet } from './frame'
 import type { Part, PriceEntry } from './types'
 
@@ -32,7 +32,14 @@ export interface SeamChoice {
 }
 
 /** The shopping-list row for the sheet's material, with these seams */
-export function sheetPlanWith(sheetId: string, seams: number[], parts: Part[], prices: PriceEntry[], kerf: number): SheetPlan | null {
+export function sheetPlanWith(
+  sheetId: string,
+  seams: number[],
+  parts: Part[],
+  prices: PriceEntry[],
+  kerf: number,
+  sizes: OwnSheetSizes = {},
+): SheetPlan | null {
   const sheet = parts.find((p) => p.id === sheetId)
   if (!sheet?.frame) return null
   const withSeams = parts.map((p) => (p.id === sheetId ? { ...p, frame: { ...p.frame!, seams } } : p))
@@ -40,6 +47,7 @@ export function sheetPlanWith(sheetId: string, seams: number[], parts: Part[], p
     withSeams.filter((p) => p.profileId === sheet.profileId),
     prices,
     kerf,
+    sizes,
   )[0]
   return row && row.kind === 'sheet' ? row : null
 }
@@ -50,12 +58,12 @@ export function sheetPlanWith(sheetId: string, seams: number[], parts: Part[], p
  * seams. The project's other sheets of the same material count too, since
  * they share the store sheets.
  */
-export function bestSeams(sheetId: string, parts: Part[], prices: PriceEntry[], kerf: number): SeamChoice {
+export function bestSeams(sheetId: string, parts: Part[], prices: PriceEntry[], kerf: number, sizes: OwnSheetSizes = {}): SeamChoice {
   const sheet = parts.find((p) => p.id === sheetId)
   if (!sheet?.frame || sheet.frame.joists < 1) return { seams: [], plan: null }
   let best: (SeamChoice & { score: number[] }) | null = null
   for (const seams of candidates(sheet.frame.joists)) {
-    const plan = sheetPlanWith(sheetId, seams, parts, prices, kerf)
+    const plan = sheetPlanWith(sheetId, seams, parts, prices, kerf, sizes)
     if (!plan) continue
     const area = plan.sheets.reduce((a, s) => a + s.length * s.width, 0)
     // Last tie-break: the most even pieces (the longest piece as short as possible)

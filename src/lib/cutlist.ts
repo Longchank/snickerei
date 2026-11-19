@@ -2,7 +2,7 @@ import { splitSheet } from './frame'
 import { getProfile, hasGrain } from './catalog'
 import { describeCuts } from './cuts'
 import { describeNotch } from './joints'
-import type { Part, PriceEntry, Profile } from './types'
+import type { Part, PriceEntry, Profile, ProfileCategory } from './types'
 
 export interface CutRow {
   profile: Profile
@@ -322,8 +322,18 @@ export function stockPrice(profileId: string, length: number, width: number | nu
 }
 
 /** Stock sizes on offer: the sizes suppliers list, or the catalog's typical sizes. */
-export function stockOptions(profile: Profile, prices: PriceEntry[]): { lengths: number[]; sheets: [number, number][] } {
+/** Sheet sizes the user has entered, per material (Plywood, MDF, OSB) */
+export type OwnSheetSizes = Partial<Record<ProfileCategory, [number, number][]>>
+
+export function stockOptions(
+  profile: Profile,
+  prices: PriceEntry[],
+  ownSheetSizes: OwnSheetSizes = {},
+): { lengths: number[]; sheets: [number, number][] } {
   const own = prices.filter((e) => e.profileId === profile.id && e.length !== undefined)
+  // Sizes you entered yourself win over shop and catalog sizes
+  const mine = ownSheetSizes[profile.category]
+  if (profile.kind === 'sheet' && mine?.length) return { lengths: [], sheets: mine }
   if (profile.kind === 'sheet') {
     const sizes = new Map<string, [number, number]>()
     for (const e of own) if (e.width !== undefined) sizes.set(`${e.length}x${e.width}`, [e.length!, e.width])
@@ -391,14 +401,14 @@ function summarize(
   return { items: list, cost, supplier: cost !== null && suppliers.length ? suppliers.join(', ') : null }
 }
 
-export function purchasePlan(parts: Part[], prices: PriceEntry[], kerf: number): PlanRow[] {
+export function purchasePlan(parts: Part[], prices: PriceEntry[], kerf: number, ownSheetSizes: OwnSheetSizes = {}): PlanRow[] {
   const byProfile = new Map<string, Part[]>()
   for (const p of stockPieces(parts)) byProfile.set(p.profileId, [...(byProfile.get(p.profileId) ?? []), p])
 
   return [...byProfile.entries()]
     .map(([profileId, ps]): PlanRow => {
       const profile = getProfile(profileId)
-      const options = stockOptions(profile, prices)
+      const options = stockOptions(profile, prices, ownSheetSizes)
 
       if (profile.kind === 'sheet') {
         const pieces = ps.map(

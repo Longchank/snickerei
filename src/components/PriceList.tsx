@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { CATEGORY_NAMES, EXAMPLE_PRICES, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { ageInDays, formatAge, formatDate, formatKr, STALE_DAYS } from '../lib/format'
 import { supplierEntries } from '../lib/prices'
@@ -62,6 +62,7 @@ export function PriceList() {
         return (
           <section key={cat}>
             <h3>{CATEGORY_NAMES[cat]}</h3>
+            {sheet && <SheetSizes category={cat} />}
             <table className="price-table">
               <thead>
                 <tr>
@@ -147,5 +148,72 @@ function PriceInput({ value, onCommit }: { value?: number; onCommit: (v: number 
         ×
       </button>
     </span>
+  )
+}
+
+/**
+ * The sheet sizes the shop sells for one material, used for the shopping list
+ * and the cutting diagrams. Starts with the standard sizes; your own list
+ * replaces them until you reset it.
+ */
+function SheetSizes({ category }: { category: ProfileCategory }) {
+  const own = useStore((s) => s.ownSheetSizes[category])
+  const setSizes = useStore((s) => s.setOwnSheetSizes)
+  const defaults = PROFILES.find((p) => p.category === category)?.stockSheets ?? []
+  const sizes = own ?? defaults
+  const [length, setLength] = useState('')
+  const [width, setWidth] = useState('')
+  const num = (t: string) => Number(t.replace(',', '.'))
+  const add = () => {
+    const a = num(length)
+    const b = num(width)
+    if (!(a > 0 && b > 0)) return
+    const size: [number, number] = [Math.max(a, b), Math.min(a, b)]
+    if (!sizes.some(([l, w]) => l === size[0] && w === size[1])) setSizes(category, [...sizes, size])
+    setLength('')
+    setWidth('')
+  }
+  return (
+    <div className="sheet-sizes">
+      <div className="sheet-sizes-head">
+        <span className="small">
+          <strong>Skivstorlekar</strong> {own ? '(dina)' : '(standard — ändra efter din butik)'}
+        </span>
+        {own && (
+          <button className="link" onClick={() => setSizes(category, null)}>
+            Återställ
+          </button>
+        )}
+      </div>
+      <div className="sheet-size-chips">
+        {sizes.map(([l, w]) => (
+          <span key={`${l}x${w}`} className="sheet-size">
+            {l} × {w}
+            {sizes.length > 1 && (
+              <button
+                className="link"
+                aria-label={`Ta bort ${l} × ${w}`}
+                onClick={() => setSizes(category, sizes.filter(([a, b]) => a !== l || b !== w))}
+              >
+                ×
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+      <form
+        className="sheet-size-add"
+        onSubmit={(e) => {
+          e.preventDefault()
+          add()
+        }}
+      >
+        <input inputMode="numeric" placeholder="Längd" aria-label="Längd (mm)" value={length} onChange={(e) => setLength(e.target.value)} />
+        <span>×</span>
+        <input inputMode="numeric" placeholder="Bredd" aria-label="Bredd (mm)" value={width} onChange={(e) => setWidth(e.target.value)} />
+        <span className="muted small">mm</span>
+        <button type="submit">Lägg till</button>
+      </form>
+    </div>
   )
 }

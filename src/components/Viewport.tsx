@@ -1161,6 +1161,7 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
   const useExamplePrices = useStore((s) => s.useExamplePrices)
   const supplierFiles = useStore((s) => s.supplierFiles)
   const disabledSuppliers = useStore((s) => s.disabledSuppliers)
+  const sizes = useStore((s) => s.ownSheetSizes)
   const prices = useMemo(
     () => activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers }),
     [ownPrices, useExamplePrices, supplierFiles, disabledSuppliers],
@@ -1168,7 +1169,7 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
   const sheet = parts.find((p) => p.id === sheetId)
   const f = sheet?.frame
   const seams = validSeams(f)
-  const plan = useMemo(() => (f ? sheetPlanWith(sheetId, seams, parts, prices, kerf) : null), [sheetId, seams.join(), parts, prices, kerf, f])
+  const plan = useMemo(() => (f ? sheetPlanWith(sheetId, seams, parts, prices, kerf, sizes) : null), [sheetId, seams.join(), parts, prices, kerf, f, sizes])
   if (!sheet || !f) return null
   const setSeams = (next: number[]) => applyFrame({ ...f, seams: next })
   const pieces = splitSheet(sheet).map((p) => {
@@ -1183,7 +1184,7 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
         <button className={`chip ${seams.length === 0 ? 'on' : ''}`} aria-pressed={seams.length === 0} onClick={() => setSeams([])}>
           Hel
         </button>
-        <button className="chip smart" onClick={() => setSeams(bestSeams(sheetId, parts, prices, kerf).seams)}>
+        <button className="chip smart" onClick={() => setSeams(bestSeams(sheetId, parts, prices, kerf, sizes).seams)}>
           ✦ Smartast
         </button>
       </div>

@@ -198,12 +198,13 @@ function useSheetSizes(prof: Profile): [number, number][] {
   const useExamplePrices = useStore((s) => s.useExamplePrices)
   const supplierFiles = useStore((s) => s.supplierFiles)
   const disabledSuppliers = useStore((s) => s.disabledSuppliers)
+  const ownSheetSizes = useStore((s) => s.ownSheetSizes)
   return useMemo(() => {
     if (prof.kind !== 'sheet') return []
     const prices = activePrices({ ownPrices, useExamplePrices, supplierFiles, disabledSuppliers })
     // Largest first, at most three
-    return [...stockOptions(prof, prices).sheets].sort((a, b) => b[0] * b[1] - a[0] * a[1]).slice(0, 3)
-  }, [prof, ownPrices, useExamplePrices, supplierFiles, disabledSuppliers])
+    return [...stockOptions(prof, prices, ownSheetSizes).sheets].sort((a, b) => b[0] * b[1] - a[0] * a[1]).slice(0, 3)
+  }, [prof, ownPrices, useExamplePrices, supplierFiles, disabledSuppliers, ownSheetSizes])
 }
 
 const canMiter = (a: Part, b: Part, box: AxisBox) => miterCorner(a, b, box, toLocalBox) !== null

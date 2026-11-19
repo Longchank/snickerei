@@ -4,6 +4,7 @@ import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
 import { partBox, rotatePart, round, toAxisBox } from './geometry'
 import { setSizeAlong, stretchParts } from './resize'
+import type { OwnSheetSizes } from './cutlist'
 import { defaultJoists, frameUnder, isLyingSheet, longAxis, sheetForFrame } from './frame'
 import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
 import { miterCorner, ripPart } from './cuts'
@@ -35,6 +36,7 @@ import type {
   Vec3,
   Purpose,
   SheetFrame,
+  ProfileCategory,
 } from './types'
 
 const HISTORY_LIMIT = 100
@@ -162,6 +164,9 @@ interface State {
   /** kr per running metre for boards, kr per sheet for sheets */
   setOwnPrice: (profileId: string, price: number | null) => void
   setUseExamplePrices: (v: boolean) => void
+  /** Store sheet sizes you entered, per material; none = the standard sizes */
+  ownSheetSizes: OwnSheetSizes
+  setOwnSheetSizes: (category: ProfileCategory, sizes: [number, number][] | null) => void
   addSupplierFile: (file: SupplierPriceFile) => void
   setSupplierEnabled: (supplier: string, enabled: boolean) => void
 }
@@ -732,6 +737,14 @@ export const useStore = create<State>()(
           })),
 
         setUseExamplePrices: (useExamplePrices) => set({ useExamplePrices }),
+        ownSheetSizes: {},
+        setOwnSheetSizes: (category, sizes) =>
+          set((s) => {
+            const next = { ...s.ownSheetSizes }
+            if (sizes?.length) next[category] = sizes
+            else delete next[category]
+            return { ownSheetSizes: next }
+          }),
 
         addSupplierFile: (file) =>
           set((s) => ({ supplierFiles: [...s.supplierFiles.filter((f) => f.supplier !== file.supplier), file] })),
@@ -768,6 +781,7 @@ export const useStore = create<State>()(
         ownPrices: s.ownPrices,
         useExamplePrices: s.useExamplePrices,
         disabledSuppliers: s.disabledSuppliers,
+        ownSheetSizes: s.ownSheetSizes,
       }),
     },
   ),

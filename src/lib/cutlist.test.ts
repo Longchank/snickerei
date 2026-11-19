@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { cutList, packCuts, packSheets, purchasePlan, stockPrice } from './cutlist'
+import { cutList, packCuts, packSheets, purchasePlan, stockOptions, stockPrice } from './cutlist'
+import { PROFILES } from './catalog'
 import { partBox, rotatePart, snapOffset } from './geometry'
 import type { Part } from './types'
 
@@ -158,5 +159,25 @@ describe('grain direction', () => {
     const mdf = part(600, { profileId: 'mdf-19', width: 400, grain: 'length' })
     expect(cutList([ply])[0].notes).toEqual(['Fiberriktning längs delens längd'])
     expect(cutList([mdf])[0].notes).toEqual([])
+  })
+})
+
+describe('own store sheet sizes', () => {
+  const shelf: Part = { id: 'h', name: 'Hylla', profileId: 'plywood-18', length: 3000, width: 600, position: [0, 0, 0], rotation: [0, 0, 0] }
+
+  it('replace the standard sizes for that material only', () => {
+    const plywood = PROFILES.find((p) => p.id === 'plywood-18')!
+    const osb = PROFILES.find((p) => p.category === 'osb')!
+    expect(stockOptions(plywood, [], {}).sheets).toEqual([[2440, 1220]])
+    expect(stockOptions(plywood, [], { plywood: [[3050, 1220]] }).sheets).toEqual([[3050, 1220]])
+    expect(stockOptions(osb, [], { plywood: [[3050, 1220]] }).sheets).toEqual(osb.stockSheets)
+  })
+
+  it('are used by the shopping list: a 3000 mm shelf fits a 3050 × 1220 sheet', () => {
+    const standard = purchasePlan([shelf], [], 3)[0]
+    expect(standard.kind === 'sheet' && standard.tooLarge).toHaveLength(1)
+    const mine = purchasePlan([shelf], [], 3, { plywood: [[3050, 1220]] })[0]
+    expect(mine.kind === 'sheet' && mine.tooLarge).toEqual([])
+    expect(mine.kind === 'sheet' && mine.sheetSize).toEqual([3050, 1220])
   })
 })

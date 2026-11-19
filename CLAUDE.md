@@ -43,7 +43,14 @@ comments in English).
   Precedence per profile: own "Egen" price → supplier prices (cheapest
   wins) → clearly-labelled fake "Exempel" prices. Never present example
   prices as real. Supplier entries also define the stock lengths/sheet
-  sizes used for the shopping list.
+  sizes used for the shopping list. **Own sheet sizes** (owner
+  2026-11-19, while prices aren't fetched): Priser → each sheet material
+  (Plywood/MDF/OSB) has "Skivstorlekar" — add/remove sizes, "Återställ"
+  = standard (`catalog` stockSheets). Stored per category in
+  `ownSheetSizes` (persisted per device) and they win over shop and
+  catalog sizes in `stockOptions`; passed through `purchasePlan`,
+  `sheetPlanWith`/`bestSeams` and the Del panel's size hint. Prices stay
+  per profile (kr/skiva, any size).
 - Local runs need `npm run prices` once to have shop prices (in a proxied
   cloud container: `NODE_USE_ENV_PROXY=1`, as Node's fetch ignores
   HTTPS_PROXY otherwise).
