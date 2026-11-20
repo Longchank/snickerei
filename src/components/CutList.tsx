@@ -3,6 +3,7 @@ import { cutList, purchasePlan } from '../lib/cutlist'
 import { activePrices, useStore } from '../lib/store'
 import { NumberField } from './NumberField'
 import { CutTable, PurchaseList } from './PlanView'
+import { ScrewList } from './ScrewList'
 
 export function usePlan() {
   const parts = useStore((s) => s.project.parts)
@@ -49,6 +50,9 @@ export function CutList({ onPrint }: { onPrint: () => void }) {
       </label>
       <PurchaseList plan={plan} />
       {usesExamples && <p className="warn">Vissa priser är exempelpriser — inte riktiga butikspriser.</p>}
+
+      <h3>Skruv</h3>
+      <ScrewList />
     </div>
   )
 }

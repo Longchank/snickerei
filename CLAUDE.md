@@ -288,6 +288,24 @@ comments in English).
   skivan" in FrameBar (Hel / ✦ Smartast / one chip per joist) with a line
   "2 bitar: … · köp 1 skiva 2440×1220"; dashed lines in 3D (`SeamLines`).
   Strength analysis ignores seams (they sit on joists).
+- **Screws** (owner 2026-11-20, `src/lib/screws.ts`, Listor → "Skruv",
+  also in the printout): every pair of parts touching face to face is a
+  joint (`screwJoints`; edges-only, collisions, apart and two boards end
+  to end are skipped, cleat halves too). Screw goes *through* the part
+  that's thinner along the screw (never along a board's length) *into*
+  the other; into its end grain if the screw runs along that board.
+  `chooseScrew`: bite into the part behind ≈ 1.5 × t (30–90 mm; end grain
+  2 × t, 40–120), never through the far side (else the longest that fits,
+  flagged "kortare än tumregeln … vinkeljärn"); diameter by t (4.0 ≤18,
+  4.5 ≤25, 5.0 ≤40, then 5.0/6.0, 8.0 konstruktionsskruv >160 mm); common
+  sizes in `SIZES`; sheets → skivskruv; pressure-treated → rostfri A4/C4.
+  Count: 2 up to 100 mm contact, +1 per ~50 mm; sheets c/c 200; long
+  overlaps c/c 300. **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
+  0.75 × d MDF, rounded to 0.5 mm) near an end (< 10 × d), into/through
+  MDF, or 8 mm screws. Totals per size (`screwTotals`) with ~10 % spare,
+  rounded to tens, plus the bits; "Fog för fog" list. All rules of thumb
+  from general knowledge, not sourced — the UI says "förslag efter
+  tumregler".
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

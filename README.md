@@ -33,6 +33,9 @@ Byggd för mobilen först — fungerar även på dator.
 - **Skiva först, ram sedan**: lägg en skiva (två tryck, hörn till hörn),
   markera den och tryck ▦ Bygg ram under skivan — välj virke, högkant eller
   flatt och hur många tvärreglar.
+- **Skruv**: under Listor föreslås skruv för varje fog — typ, mått, antal,
+  om det går i ändträ och om du ska förborra (och med vilken borr) — plus
+  en summering att köpa. Förslag efter tumregler.
 - **Analys**: välj vad det ska bli (bokhylla, bord, bänk …) och se vikt,
   hur mycket varje hylla eller regel böjer och klarar, om bygget tippar och
   om det vickar i sidled — även som färger i 3D-vyn. Det är en

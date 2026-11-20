@@ -1,4 +1,5 @@
 import { CutTable, PurchaseList } from './PlanView'
+import { ScrewList } from './ScrewList'
 import { usePlan } from './CutList'
 import { useStore } from '../lib/store'
 
@@ -23,6 +24,8 @@ export function PrintReport({ snapshot }: { snapshot: string | null }) {
       <h2>Inköpslista</h2>
       <p className="small">Beräknad med {kerf} mm snittbredd.</p>
       <PurchaseList plan={plan} expanded />
+      <h2>Skruv</h2>
+      <ScrewList print />
       {usesExamples && <p className="warn">Vissa priser är exempelpriser — inte riktiga butikspriser.</p>}
     </div>
   )
