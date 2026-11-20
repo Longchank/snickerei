@@ -30,7 +30,7 @@ import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from 
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
-import { overlapsOf, unionBox } from '../lib/joints'
+import { selectionOverlaps, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
 import { chooseSnaps, pointCandidates, SNAP_LABEL, snapMove, type SnapGuide } from '../lib/snap'
@@ -697,7 +697,8 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     return parts.filter((p) => !ids.has(p.id)).map((p) => boxes.get(p.id)!)
   }, [parts, boxes, selection])
   const overlaps = useMemo(
-    () => (selected.length === 1 ? overlapsOf(selected[0], parts).map((o) => o.box) : []),
+    // One part or a whole group: every collision it's part of, each pair once
+    () => selectionOverlaps(selected, parts).map((o) => o.box),
     [selected, parts],
   )
   const measureMode = useStore((s) => s.measureMode)
@@ -999,6 +1000,7 @@ function ActionBar() {
   const sheets = chosen.filter(isLyingSheet)
   const frameSheetId =
     sheets.length === 1 && chosen.every((p) => p.id === sheets[0].id || p.frameOf === sheets[0].id) ? sheets[0].id : null
+  const collisions = useMemo(() => selectionOverlaps(chosen, parts).length, [chosen, parts])
   const canReorient = chosen.length === 1 && reorientOptions(chosen[0], parts).length > 1
   const showNote = canReorient && choice?.partId === chosen[0].id && note
   // Exactly one whole group selected?
@@ -1062,6 +1064,11 @@ function ActionBar() {
           <button className="switch-butt" onClick={reorientSelection} title="Prova nästa sätt att sätta brädan där den sitter">
             ⟳ Annan riktning
           </button>
+        )}
+        {collisions > 0 && (
+          <span className="action-hint collision-hint">
+            ⚠ Krockar på {collisions} {collisions === 1 ? 'ställe' : 'ställen'} (rött i 3D)
+          </span>
         )}
         {showNote ? (
           <span className="action-hint">{note}</span>

@@ -263,3 +263,21 @@ export function rotatePartsInPlace(parts: Part[], axis: 0 | 1 | 2, dir: 1 | -1):
   if (onFloor || (before.min[1] >= 0 && after.min[1] + shift[1] < 0)) shift[1] = -after.min[1]
   return moveParts(turned, shift)
 }
+
+/**
+ * Every collision involving the selected parts — with parts outside the
+ * selection and between selected parts (a group colliding with itself) —
+ * each pair once.
+ */
+export function selectionOverlaps(selected: Part[], parts: Part[]): Overlap[] {
+  const out: Overlap[] = []
+  const seen = new Set<string>()
+  for (const p of selected)
+    for (const o of overlapsOf(p, parts)) {
+      const key = [p.id, o.other.id].sort().join('|')
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(o)
+    }
+  return out
+}

@@ -1726,3 +1726,8 @@ button.free-label.editable:hover:not(:disabled) {
   width: 84px;
   font-size: 16px;
 }
+
+.collision-hint {
+  color: #b91c1c;
+  font-weight: 600;
+}

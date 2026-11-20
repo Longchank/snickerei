@@ -148,7 +148,12 @@ comments in English).
   miss deselects (owner 2026-11-18: boards are thinner than a thumb). One gizmo moves
   an invisible pivot at the selection's min corner; parts follow live and
   are committed with `moveSelection`. Groups (`project.groups`,
-  `part.groupId`) with <2 parts are pruned automatically.
+  `part.groupId`) with <2 parts are pruned automatically. **Collisions
+  show for any selection** (owner 2026-11-20: groups had no indication):
+  `selectionOverlaps` = every collision a selected part is in, with parts
+  outside the selection and between selected parts, each pair once → red
+  boxes in 3D, plus "⚠ Krockar på N ställen (rött i 3D)" in the Bygg
+  action bar.
 - Joints (`src/lib/joints.ts`): `part.notches` are boxes in part-local
   coords, rendered with three-bvh-csg. *Kapa mot* changes length (and
   position at the start end); *Urtag*/*Halvt i halvt* add notches and

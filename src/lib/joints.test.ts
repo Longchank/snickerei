@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { describeNotch, halfLap, notchAgainst, overlapsOf, rotateParts, rotatePartsInPlace, toLocalBox, toWorldBox, trimAgainst, unionBox } from './joints'
+import { describeNotch, halfLap, notchAgainst, overlapsOf, rotateParts, rotatePartsInPlace, selectionOverlaps, toLocalBox, toWorldBox, trimAgainst, unionBox } from './joints'
 import { useStore } from './store'
 import type { Part } from './types'
 
@@ -207,5 +207,20 @@ describe('store: modes', () => {
     const moved = s().project.parts.find((p) => p.id === other.id)!
     expect(moved.position[1]).toBe(45)
     expect(moved.position[0] + moved.length).toBe(1200)
+  })
+})
+
+describe('selectionOverlaps', () => {
+  const a = part('a', 'konstruktion-45x95', 1000)
+  const b = part('b', 'konstruktion-45x95', 1000, { position: [500, 0, 0] }) // overlaps a
+  const c = part('c', 'konstruktion-45x95', 1000, { position: [1200, 0, 0] }) // overlaps b
+  const far = part('far', 'konstruktion-45x95', 1000, { position: [0, 0, 3000] })
+
+  it('finds collisions with parts outside the selection and inside it, each pair once', () => {
+    const pairs = (sel: Part[]) => selectionOverlaps(sel, [a, b, c, far]).length
+    expect(pairs([a])).toBe(1) // a–b
+    expect(pairs([a, b])).toBe(2) // a–b (inside the group) and b–c
+    expect(pairs([a, b, c])).toBe(2) // a–b, b–c
+    expect(pairs([far])).toBe(0)
   })
 })
