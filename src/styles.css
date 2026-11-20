@@ -1805,3 +1805,56 @@ button.free-label.editable:hover:not(:disabled) {
   vertical-align: -1px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
 }
+
+/* Steg för steg */
+.step-bar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 84px;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  padding: 4px 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.app.desktop .step-bar {
+  top: 12px;
+}
+.step-bar > button:not(.link) {
+  min-width: 44px;
+  min-height: 40px;
+  font-size: 22px;
+  border-radius: 999px;
+}
+.step-title {
+  display: grid;
+  text-align: center;
+  min-width: 110px;
+  line-height: 1.15;
+}
+.action-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.action-row2 button {
+  min-height: 40px;
+}
+.hidden-chip {
+  font-size: 13px;
+}
+
+.step-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}

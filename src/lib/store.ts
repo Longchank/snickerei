@@ -57,6 +57,13 @@ interface State {
   /** Colour the model by the strength analysis (Analys tab) */
   analysisView: boolean
   setAnalysisView: (on: boolean) => void
+  /** Build step being shown (a group id or 'montering'); null = everything */
+  activeStep: string | null
+  setActiveStep: (id: string | null) => void
+  /** Hide parts in 3D; show all hidden again; show only these */
+  hideParts: (ids: string[]) => void
+  showAllParts: () => void
+  isolateParts: (ids: string[]) => void
   /** Show the suggested screws as coloured dots in 3D (Listor → Skruv) */
   screwView: boolean
   setScrewView: (on: boolean) => void
@@ -279,6 +286,17 @@ export const useStore = create<State>()(
         measureMode: false,
         analysisView: false,
         setAnalysisView: (analysisView) => set({ analysisView }),
+        activeStep: null,
+        setActiveStep: (activeStep) => set({ activeStep }),
+        hideParts: (ids) => {
+          const hide = new Set(ids)
+          editParts((ps) => ps.map((p) => (hide.has(p.id) ? { ...p, hidden: true } : p)), [])
+        },
+        showAllParts: () => editParts((ps) => ps.map((p) => (p.hidden ? { ...p, hidden: undefined } : p))),
+        isolateParts: (ids) => {
+          const keep = new Set(ids)
+          editParts((ps) => ps.map((p) => (keep.has(p.id) ? { ...p, hidden: undefined } : { ...p, hidden: true })))
+        },
         screwView: false,
         setScrewView: (screwView) => set({ screwView }),
         setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),

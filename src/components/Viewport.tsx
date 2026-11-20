@@ -26,6 +26,7 @@ import { cutters, type Cutter } from '../lib/cuts'
 import { AXIS_BOARDS, switchButtJoints } from '../lib/corner'
 import { endName, endPoint } from '../lib/ends'
 import { reorientOptions, worldAxisOf } from '../lib/place'
+import { buildSteps, isShown, type Step } from '../lib/steps'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
@@ -713,6 +714,14 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const pendingPoint = useStore((s) => s.pendingPoint)
   const sheetCorner = useStore((s) => s.sheetCorner)
   const screwView = useStore((s) => s.screwView)
+  // The active build step and hidden parts decide what's drawn
+  const projectGroups = useStore((s) => s.project.groups)
+  const activeStep = useStore((s) => s.activeStep)
+  const step = useMemo(
+    () => buildSteps(parts, projectGroups).find((x) => x.id === activeStep) ?? null,
+    [parts, projectGroups, activeStep],
+  )
+  const shownParts = useMemo(() => parts.filter((p) => isShown(p, step)), [parts, step])
   const measureHover = useStore((s) => s.measureHover)
   const snapTypes = useStore((s) => s.settings.snapTypes)
   /** What snapped while dragging, drawn as guide lines */
@@ -747,7 +756,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   // Fit the model in view on request, and once at start-up
   useEffect(() => {
     const fit = () => {
-      const box = unionBox(parts)
+      const box = unionBox(shownParts.length ? shownParts : parts)
       if (!box || !controls || !(camera instanceof PerspectiveCamera)) return
       // On phones the toolbar and panel float over the view: fit the model
       // into the visible gap between them, not behind them
@@ -828,7 +837,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     ? delta
       ? { min: [0, 1, 2].map((i) => selBox.min[i] + delta[i]) as Vec3, max: [0, 1, 2].map((i) => selBox.max[i] + delta[i]) as Vec3 }
       : selBox
-    : unionBox(parts)
+    : unionBox(shownParts)
   // One board: only its length; one sheet: length and width; else all three
   const single = selection.length === 1 ? parts.find((p) => p.id === selection[0]) : undefined
   const dimAxes: (0 | 1 | 2)[] | null = single
@@ -850,7 +859,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         <orthographicCamera attach="shadow-camera" args={[-5000, 5000, 5000, -5000, 10, 20000]} />
       </directionalLight>
 
-      {parts.map((p) => (
+      {shownParts.map((p) => (
         <PartMesh key={p.id} part={p} selected={selection.includes(p.id)} register={register} tint={tints?.get(p.id)} />
       ))}
       {!capturing && !delta && overlaps.map((b, i) => <OverlapBox key={i} box={b} />)}
@@ -887,7 +896,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       )}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && mode === 'redigera' && selection.length === 1 && <EndLabels partId={selection[0]} />}
-      {!capturing && screwView && <ScrewDots parts={parts} />}
+      {!capturing && screwView && <ScrewDots parts={parts} shown={shownParts} />}
       {parts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
       ))}
@@ -989,6 +998,8 @@ function ActionBar() {
   const setMoveMode = useStore((s) => s.setMoveMode)
   const setRotateMode = useStore((s) => s.setRotateMode)
   const switchButt = useStore((s) => s.switchButtJoints)
+  const hideParts = useStore((s) => s.hideParts)
+  const isolateParts = useStore((s) => s.isolateParts)
   const ids = new Set(selection)
   const chosen = parts.filter((p) => ids.has(p.id))
   // Two boards meeting in a square corner: offer to swap which runs through
@@ -1045,6 +1056,14 @@ function ActionBar() {
           </button>
           <button className="danger" onClick={removeSelection}>
             Ta bort
+          </button>
+        </div>
+        <div className="action-row2">
+          <button onClick={() => hideParts(selection)} title="Dölj det markerade i 3D (räknas fortfarande i listorna)">
+            🙈 Dölj
+          </button>
+          <button onClick={() => isolateParts(selection)} title="Dölj allt utom det markerade">
+            ◎ Visa bara detta
           </button>
         </div>
         {butt && (
@@ -1228,15 +1247,18 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
 }
 
 /** The suggested screws as dots where their heads go, coloured by size (legend in Listor → Skruv). */
-function ScrewDots({ parts }: { parts: Part[] }) {
+function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
   const all = useMemo(() => screwJoints(parts), [parts])
-  // With something selected (a group, a part): only its screws
+  // Only screws between parts that are shown, and with something selected
+  // (a group, a part) only its screws
   const selection = useStore((s) => s.selection)
   const joints = useMemo(() => {
-    if (!selection.length) return all
+    const visible = new Set(shown.map((p) => p.id))
     const ids = new Set(selection)
-    return all.filter((j) => ids.has(j.through.id) || ids.has(j.into.id))
-  }, [all, selection])
+    return all.filter(
+      (j) => visible.has(j.through.id) && visible.has(j.into.id) && (!ids.size || ids.has(j.through.id) || ids.has(j.into.id)),
+    )
+  }, [all, selection, shown])
   const colorOf = useMemo(
     // Colours from all screws, so they match the legend whatever is selected
     () => new Map(screwTotals(all).map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]])),
@@ -1289,6 +1311,34 @@ function SeamLines({ part }: { part: Part }) {
         return <Line key={o} points={[p, q]} color="#1f2937" lineWidth={2} dashed dashSize={18} gapSize={10} />
       })}
     </>
+  )
+}
+
+/** "‹ Steg 2/3 · Ben ›": step through the build, one group at a time, then the assembly */
+function StepBar({ steps }: { steps: Step[] }) {
+  const activeStep = useStore((s) => s.activeStep)
+  const setActiveStep = useStore((s) => s.setActiveStep)
+  const i = Math.max(0, steps.findIndex((s) => s.id === activeStep))
+  const step = steps[i]
+  const go = (d: number) => setActiveStep(steps[Math.min(steps.length - 1, Math.max(0, i + d))].id)
+  return (
+    <div className="step-bar" role="toolbar" aria-label="Steg för steg">
+      <button aria-label="Föregående steg" disabled={i === 0} onClick={() => go(-1)}>
+        ‹
+      </button>
+      <div className="step-title">
+        <span className="muted small">
+          Steg {i + 1}/{steps.length}
+        </span>
+        <strong>{step.title}</strong>
+      </div>
+      <button aria-label="Nästa steg" disabled={i === steps.length - 1} onClick={() => go(1)}>
+        ›
+      </button>
+      <button className="link" aria-label="Avsluta steg för steg" onClick={() => setActiveStep(null)}>
+        ✕
+      </button>
+    </div>
   )
 }
 
@@ -1542,6 +1592,13 @@ export function Viewport({
   const count = useStore((s) => s.selection.length)
   const lastDrag = useRef(0)
   const framing = useStore((s) => s.frameSheet !== null)
+  const parts = useStore((s) => s.project.parts)
+  const groups = useStore((s) => s.project.groups)
+  const steps = useMemo(() => buildSteps(parts, groups), [parts, groups])
+  const activeStep = useStore((s) => s.activeStep)
+  const setActiveStep = useStore((s) => s.setActiveStep)
+  const showAllParts = useStore((s) => s.showAllParts)
+  const hiddenCount = parts.filter((p) => p.hidden).length
   const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode && !framing
 
   return (
@@ -1568,7 +1625,21 @@ export function Viewport({
       >
         📏 Mät
       </button>
+      <button
+        className={`multi-toggle ${activeStep ? 'on' : ''}`}
+        aria-pressed={!!activeStep}
+        onClick={() => setActiveStep(activeStep ? null : steps[0]?.id ?? null)}
+        title="Bygg steg för steg: varje grupp är ett steg, sist monteringen"
+      >
+        🪜 Steg
+      </button>
+      {hiddenCount > 0 && (
+        <button className="multi-toggle hidden-chip" onClick={showAllParts} title="Visa alla dolda delar igen">
+          👁 {hiddenCount} dolda · Visa
+        </button>
+      )}
     </div>
+    {activeStep && <StepBar steps={steps} />}
     {placeProfile && <PlaceBanner profileId={placeProfile} />}
     {moveMode && count > 0 && <MoveBar />}
     {rotateMode && count > 0 && <RotateBar />}

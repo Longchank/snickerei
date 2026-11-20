@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, type Joint, type ScrewTotal } from '../lib/screws'
+import { buildSteps } from '../lib/steps'
 import { useStore } from '../lib/store'
 
 const mm = (v: number) => String(v).replace('.', ',')
@@ -82,6 +83,11 @@ export function ScrewList({ print = false }: { print?: boolean }) {
   const screwView = useStore((s) => s.screwView)
   const setScrewView = useStore((s) => s.setScrewView)
   const colorOf = new Map(totals.map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]]))
+  // The build step chosen in the view (or here): only its screws
+  const activeStep = useStore((s) => s.activeStep)
+  const setActiveStep = useStore((s) => s.setActiveStep)
+  const steps = useMemo(() => buildSteps(parts, groups), [parts, groups])
+  const shownSections = print || !activeStep ? sections : sections.filter((sec) => sec.step === activeStep)
   if (!joints.length) return <p className="hint small">Inga delar ligger an mot varandra än — då behövs inga skruvar.</p>
   return (
     <div className="screw-list">
@@ -98,11 +104,24 @@ export function ScrewList({ print = false }: { print?: boolean }) {
         in i delen bakom (mer i ändträ), minst 2 per fog. Förborra i den mottagande delen med borren i tabellen.
       </p>
       <h4 className="screw-heading">Steg för steg</h4>
-      {sections.map((sec) => {
+      {!print && (
+        <div className="step-chips" role="group" aria-label="Visa steg">
+          <button className={`chip ${!activeStep ? 'on' : ''}`} aria-pressed={!activeStep} onClick={() => setActiveStep(null)}>
+            Alla
+          </button>
+          {steps.map((st, i) => (
+            <button key={st.id} className={`chip ${activeStep === st.id ? 'on' : ''}`} aria-pressed={activeStep === st.id} onClick={() => setActiveStep(st.id)}>
+              {i + 1}. {st.title}
+            </button>
+          ))}
+        </div>
+      )}
+      {shownSections.length === 0 && <p className="hint small">Inga skruvfogar i det här steget.</p>}
+      {shownSections.map((sec) => {
         const secTotals = screwTotals(sec.joints)
         const n = sec.joints.reduce((s, j) => s + j.count, 0)
         return (
-          <details key={sec.title} className={`screw-section ${sec.kind}`} open={print}>
+          <details key={sec.title} className={`screw-section ${sec.kind}`} open={print || !!activeStep}>
             <summary>
               <span>{sec.title}</span>
               <span className="muted small">

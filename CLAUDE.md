@@ -324,6 +324,20 @@ comments in English).
   (e.g. up through a rail that lies on a sill), the joint says
   "Åtkomst blockerad … snedskruva, skruva före X sätts dit, eller
   vinkeljärn".
+- **Steg för steg** (owner 2026-11-20: "I build groups first, then the
+  whole; the step by step should only show the selected step",
+  `src/lib/steps.ts`): each group with parts is a step (group order),
+  then "Montering" (everything). "🪜 Steg" in the view opens `StepBar`
+  ("‹ Steg 2/3 · Ben › ✕", `activeStep`, not persisted); the 3D view
+  draws only the step's parts (`isShown`), fit/total dims follow, and
+  Listor → Skruv shows only that step's sections (`ScrewSection.step`:
+  group id, or 'montering' for joints between groups/loose parts), with
+  step chips "Alla · 1. Ram · 2. Ben · 3. Montering". **Hide**
+  (`part.hidden`, undoable): Bygg action bar "🙈 Dölj" / "◎ Visa bara
+  detta" (isolate); "👁 N dolda · Visa" chip in the view shows all again.
+  Hidden parts still count in lists, screws and analysis. Recommended
+  next (owner asked for basics): standard views (front/side/top, ortho),
+  Upprepa (copy N × c/c), Spegla, X-ray, Lås, exploded view, select by type.
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

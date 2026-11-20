@@ -246,6 +246,8 @@ export function screwTotals(joints: Joint[]): ScrewTotal[] {
 export interface ScrewSection {
   /** "Ram", "Montering: Ram + Ben", "Lösa delar" … */
   title: string
+  /** The build step it belongs to: the group's id, or 'montering' for joining groups and loose parts */
+  step: string
   /** Joints inside one group, or joining groups (and loose parts) together */
   kind: 'group' | 'assembly' | 'loose'
   joints: Joint[]
@@ -267,11 +269,11 @@ export function screwSections(joints: Joint[], groups: { id: string; name: strin
   for (const j of joints) {
     const a = j.through.groupId
     const b = j.into.groupId
-    if (a && a === b) add(`g:${a}`, () => ({ title: nameOf.get(a) ?? 'Grupp', kind: 'group', joints: [] }), j)
-    else if (!a && !b) add('loose', () => ({ title: 'Lösa delar', kind: 'loose', joints: [] }), j)
+    if (a && a === b) add(`g:${a}`, () => ({ title: nameOf.get(a) ?? 'Grupp', step: a, kind: 'group', joints: [] }), j)
+    else if (!a && !b) add('loose', () => ({ title: 'Lösa delar', step: 'montering', kind: 'loose', joints: [] }), j)
     else {
       const names = [label(j.through), label(j.into)].sort()
-      add(`m:${names.join('|')}`, () => ({ title: `Montering: ${names[0]} + ${names[1]}`, kind: 'assembly', joints: [] }), j)
+      add(`m:${names.join('|')}`, () => ({ title: `Montering: ${names[0]} + ${names[1]}`, step: 'montering', kind: 'assembly', joints: [] }), j)
     }
   }
   const order = { group: 0, assembly: 1, loose: 2 }
