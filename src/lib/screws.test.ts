@@ -97,3 +97,31 @@ describe('thick pieces', () => {
     expect(s.short).toBe(false)
   })
 })
+
+describe('screw positions', () => {
+  it('sit on the outer face of the part screwed through, spread over the contact', () => {
+    const sill = at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+    const post = at('post', 'konstruktion-45x95', 1000, UP, [1155, 45, 0])
+    const [j] = screwJoints([sill, post])
+    // Through the sill from below (its underside, y = 0), screwing up into the post
+    expect(j.dir).toEqual([0, 1, 0])
+    expect(j.points).toHaveLength(2)
+    for (const p of j.points) {
+      expect(p[1]).toBe(0)
+      expect(p[0]).toBeCloseTo(1177.5, 1) // the post's centre along x
+    }
+    // Spread across the 95 mm contact: 23.75 and 71.25
+    expect(j.points.map((p) => p[2]).sort((a, b) => a - b)).toEqual([23.75, 71.25])
+  })
+
+  it('a sheet on a joist gets a row along the joist, 40 mm in from the ends', () => {
+    const j1 = at('j1', 'konstruktion-45x70', 1000, [0, 1, 0], [0, 0, 0])
+    const sheet = at('s', 'plywood-12', 1000, [0, 1, 0], [0, 45, 0], 600)
+    const [j] = screwJoints([j1, sheet])
+    expect(j.dir).toEqual([0, -1, 0])
+    const zs = j.points.map((p) => p[2])
+    expect(Math.min(...zs)).toBe(40)
+    expect(Math.max(...zs)).toBe(960)
+    expect(j.points.every((p) => p[1] === 57)).toBe(true) // the sheet's top
+  })
+})

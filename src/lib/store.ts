@@ -57,6 +57,9 @@ interface State {
   /** Colour the model by the strength analysis (Analys tab) */
   analysisView: boolean
   setAnalysisView: (on: boolean) => void
+  /** Show the suggested screws as coloured dots in 3D (Listor → Skruv) */
+  screwView: boolean
+  setScrewView: (on: boolean) => void
   setPurpose: (purpose: Purpose) => void
   /** Moving the selection: arrows in the view, taps put it next to a board */
   moveMode: boolean
@@ -276,6 +279,8 @@ export const useStore = create<State>()(
         measureMode: false,
         analysisView: false,
         setAnalysisView: (analysisView) => set({ analysisView }),
+        screwView: false,
+        setScrewView: (screwView) => set({ screwView }),
         setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),
         moveMode: false,
         placeProfile: null,

@@ -305,7 +305,13 @@ comments in English).
   MDF, or 8 mm screws. Totals per size (`screwTotals`) with ~10 % spare,
   rounded to tens, plus the bits; "Fog för fog" list. All rules of thumb
   from general knowledge, not sourced — the UI says "förslag efter
-  tumregler".
+  tumregler". **Screws in 3D** (owner 2026-11-20): each joint has
+  `points` (screw heads on the through part's outer face, spread over the
+  contact: evenly in short rows, 40 mm in from the ends in long ones) and
+  `dir`. "● Visa skruv i 3D" in Listor → Skruv toggles `screwView`
+  (not persisted); `ScrewDots` draws a dot per screw, constant on-screen
+  size, coloured per screw size (`SCREW_COLORS` in totals order) — the
+  same colour dot is the legend in the table and the joint list.
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

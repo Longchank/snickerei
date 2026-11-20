@@ -19,7 +19,7 @@
 import { getProfile } from './catalog'
 import { partBox, toAxisBox, type AxisBox } from './geometry'
 import { worldAxisOf } from './place'
-import type { Part } from './types'
+import type { Part, Vec3 } from './types'
 
 type Axis = 0 | 1 | 2
 const AXES: Axis[] = [0, 1, 2]
@@ -52,6 +52,10 @@ export interface Joint {
   predrill: { bit: number; reason: string } | null
   /** The screw is shorter than the rule of thumb (the receiving part is too thin) */
   short: boolean
+  /** Where the screw heads go: on the outer face of the part screwed through */
+  points: Vec3[]
+  /** Which way the screws go in (unit vector along one axis) */
+  dir: Vec3
 }
 
 /** Common screw sizes: diameter → lengths */
@@ -117,6 +121,18 @@ function screwCount(u: number, sheet: boolean): number {
   return u <= 100 ? 2 : u <= 150 ? 3 : u <= 200 ? 4 : 5
 }
 
+/** n positions between lo and hi: evenly in short rows, ~40 mm in from the ends in long ones */
+function spread(lo: number, hi: number, n: number): number[] {
+  const len = hi - lo
+  if (n === 1) return [lo + len / 2]
+  if (len <= 250) return Array.from({ length: n }, (_, k) => lo + (len * (k + 0.5)) / n)
+  const m = Math.min(40, len / (2 * n))
+  return Array.from({ length: n }, (_, k) => lo + m + ((len - 2 * m) * k) / (n - 1))
+}
+
+/** Colours for the screw sizes, in the order of the totals table */
+export const SCREW_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#4b5563']
+
 /** Distance from a point along the part's length to its nearest end */
 function distToEnd(p: Part, b: AxisBox, at: number[]): number {
   const L = worldAxisOf(p.rotation, 0)
@@ -158,9 +174,24 @@ export function screwJoints(parts: Part[]): Joint[] {
       const nearEnd = [through, into].some((p) => getProfile(p.profileId).kind === 'board' && !alongLength(p) && distToEnd(p, boxes.get(p.id)!, centre) < 10 * screw.d)
       const mdf = intoProf.category === 'mdf' || throughProf.category === 'mdf'
       const reason = mdf ? 'MDF spricker lätt' : screw.d >= 8 ? 'grov skruv' : nearEnd ? 'nära änden — annars spricker det' : null
+      // Screw heads on the through part's outer face, spread over the contact
+      const throughBelow = Math.abs(tb.max[n] - c.box.min[n]) <= TOL
+      const face = throughBelow ? tb.min[n] : tb.max[n]
+      const dir = [0, 0, 0] as Vec3
+      dir[n] = throughBelow ? 1 : -1
+      const [ua, va] = AXES.filter((x) => x !== n).sort((x, y) => size(c.box, y) - size(c.box, x))
+      const points = spread(c.box.min[ua], c.box.max[ua], count).map((pos) => {
+        const p = [0, 0, 0] as Vec3
+        p[n] = face
+        p[ua] = pos
+        p[va] = (c.box.min[va] + c.box.max[va]) / 2
+        return p
+      })
       out.push({
         through,
         into,
+        points,
+        dir,
         screw,
         count,
         endGrain,

@@ -30,6 +30,7 @@ import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from 
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
+import { SCREW_COLORS, screwJoints, screwName, screwTotals } from '../lib/screws'
 import { selectionOverlaps, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -711,6 +712,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const { freeMove, mode } = useStore((s) => s.settings)
   const pendingPoint = useStore((s) => s.pendingPoint)
   const sheetCorner = useStore((s) => s.sheetCorner)
+  const screwView = useStore((s) => s.screwView)
   const measureHover = useStore((s) => s.measureHover)
   const snapTypes = useStore((s) => s.settings.snapTypes)
   /** What snapped while dragging, drawn as guide lines */
@@ -885,6 +887,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       )}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && mode === 'redigera' && selection.length === 1 && <EndLabels partId={selection[0]} />}
+      {!capturing && screwView && <ScrewDots parts={parts} />}
       {parts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
       ))}
@@ -1221,6 +1224,42 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
             : ` · köp ${bought} ${bought === 1 ? 'skiva' : 'skivor'} ${plan.sheetSize.join('×')}${plan.cost !== null ? ` (${Math.round(plan.cost)} kr)` : ''}`)}
       </p>
     </div>
+  )
+}
+
+/** The suggested screws as dots where their heads go, coloured by size (legend in Listor → Skruv). */
+function ScrewDots({ parts }: { parts: Part[] }) {
+  const joints = useMemo(() => screwJoints(parts), [parts])
+  const colorOf = useMemo(
+    () => new Map(screwTotals(joints).map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]])),
+    [joints],
+  )
+  return (
+    <>
+      {joints.flatMap((j, ji) =>
+        j.points.map((p, k) => (
+          // Lifted just off the surface, against the screwing direction, so the dot isn't hidden in the wood
+          <ScrewDot key={`${ji}-${k}`} at={[p[0] - j.dir[0] * 2, p[1] - j.dir[1] * 2, p[2] - j.dir[2] * 2]} color={colorOf.get(screwName(j.screw))!} />
+        )),
+      )}
+    </>
+  )
+}
+
+/** One screw head: about the same size on screen however far you zoom out (never smaller than ~7 mm) */
+function ScrewDot({ at, color }: { at: Vec3; color: string }) {
+  const ref = useRef<Mesh>(null)
+  const camera = useThree((s) => s.camera)
+  useFrame(() => {
+    if (!ref.current) return
+    const d = camera.position.distanceTo(ref.current.position)
+    ref.current.scale.setScalar(Math.max(1, d * (isTouch ? 0.0011 : 0.0008)))
+  })
+  return (
+    <mesh ref={ref} position={at} renderOrder={5}>
+      <sphereGeometry args={[4, 12, 8]} />
+      <meshBasicMaterial color={color} />
+    </mesh>
   )
 }
 
