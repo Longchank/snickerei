@@ -72,6 +72,12 @@ comments in English).
 
 ## Later / parked ideas
 
+- **3D-editor basics, parked** (owner 2026-11-20: "we don't need them
+  right now"): **standard views** (front/side/top buttons, orthographic
+  camera) and **Upprepa** (copy the selection N times at a set c/c, e.g.
+  joists or shelf rails). Also suggested, not yet asked for: X-ray, Lås
+  (lock parts), exploded view, select by type.
+
 - **Pick a store → fetch its prices, via a tiny Cloudflare Worker**
   (owner 2026-11-19, waiting on the owner's Cloudflare account; replaces
   the weekly fetch, which is switched off). Earlier note (2026-11-16): the browser can't read bauhaus.se (no CORS), so a Worker
@@ -335,9 +341,8 @@ comments in English).
   step chips "Alla · 1. Ram · 2. Ben · 3. Montering". **Hide**
   (`part.hidden`, undoable): Bygg action bar "🙈 Dölj" / "◎ Visa bara
   detta" (isolate); "👁 N dolda · Visa" chip in the view shows all again.
-  Hidden parts still count in lists, screws and analysis. Recommended
-  next (owner asked for basics): standard views (front/side/top, ortho),
-  Upprepa (copy N × c/c), X-ray, Lås, exploded view, select by type.
+  Hidden parts still count in lists, screws and analysis. Other
+  recommended basics are parked under "Later / parked ideas".
 - **Spegla** (owner 2026-11-20, `src/lib/mirror.ts`): Bygg action bar
   "⇋ Spegla" → `MirrorBar` (`mirrorMode`, not persisted): direction
   Vänster–höger / Fram–bak / Upp–ner, then "⧉ Spegelkopia" or "⇋ Vänd på
