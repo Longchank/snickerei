@@ -312,6 +312,18 @@ comments in English).
   (not persisted); `ScrewDots` draws a dot per screw, constant on-screen
   size, coloured per screw size (`SCREW_COLORS` in totals order) — the
   same colour dot is the legend in the table and the joint list.
+  **Per group** (owner 2026-11-20: "you build the frame first, then add
+  the legs and other exterior posts"): `screwSections` orders the joints
+  as build steps — each group on its own, then "Montering: A + B" for
+  joints between groups (ungrouped parts count as "lösa delar"), then
+  "Lösa delar". Listor → Skruv shows "Totalt att köpa" then "Steg för
+  steg" (a fold-out per section with its own table and joints). In 3D,
+  with a selection, only screws touching the selection are drawn
+  (colours still from the overall totals). **Blocked access**
+  (`blockedBy`): if another part covers the face the screws go in from
+  (e.g. up through a rail that lies on a sill), the joint says
+  "Åtkomst blockerad … snedskruva, skruva före X sätts dit, eller
+  vinkeljärn".
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the

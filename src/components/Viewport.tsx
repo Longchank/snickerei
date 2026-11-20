@@ -1229,10 +1229,18 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
 
 /** The suggested screws as dots where their heads go, coloured by size (legend in Listor → Skruv). */
 function ScrewDots({ parts }: { parts: Part[] }) {
-  const joints = useMemo(() => screwJoints(parts), [parts])
+  const all = useMemo(() => screwJoints(parts), [parts])
+  // With something selected (a group, a part): only its screws
+  const selection = useStore((s) => s.selection)
+  const joints = useMemo(() => {
+    if (!selection.length) return all
+    const ids = new Set(selection)
+    return all.filter((j) => ids.has(j.through.id) || ids.has(j.into.id))
+  }, [all, selection])
   const colorOf = useMemo(
-    () => new Map(screwTotals(joints).map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]])),
-    [joints],
+    // Colours from all screws, so they match the legend whatever is selected
+    () => new Map(screwTotals(all).map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]])),
+    [all],
   )
   return (
     <>

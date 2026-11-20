@@ -1,17 +1,84 @@
 import { useMemo } from 'react'
-import { SCREW_COLORS, screwJoints, screwName, screwTotals } from '../lib/screws'
+import { SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, type Joint, type ScrewTotal } from '../lib/screws'
 import { useStore } from '../lib/store'
 
 const mm = (v: number) => String(v).replace('.', ',')
 
+function Dot({ color }: { color?: string }) {
+  return <span className="screw-dot" style={{ background: color }} aria-hidden />
+}
+
+/** Screw sizes with how many, how many to buy and which pilot bit */
+function TotalsTable({ totals, colorOf }: { totals: ScrewTotal[]; colorOf: Map<string, string> }) {
+  return (
+    <table className="screw-table">
+      <thead>
+        <tr>
+          <th>Skruv</th>
+          <th className="num">Behövs</th>
+          <th className="num">Köp</th>
+          <th>Förborra</th>
+        </tr>
+      </thead>
+      <tbody>
+        {totals.map((t) => (
+          <tr key={screwName(t.screw)}>
+            <td>
+              <Dot color={colorOf.get(screwName(t.screw))} />
+              {screwName(t.screw)}
+            </td>
+            <td className="num">{t.count}</td>
+            <td className="num">{t.toBuy}</td>
+            <td>{t.bits.length ? t.bits.map((b) => `Ø ${mm(b)} mm`).join(', ') : <span className="muted">–</span>}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function JointList({ joints, colorOf }: { joints: Joint[]; colorOf: Map<string, string> }) {
+  return (
+    <ul className="joint-list">
+      {joints.map((j) => (
+        <li key={`${j.through.id}|${j.into.id}`}>
+          <strong>
+            {j.through.name} → {j.into.name}
+          </strong>
+          <span>
+            <Dot color={colorOf.get(screwName(j.screw))} />
+            {j.count} st {screwName(j.screw)}
+            {j.endGrain ? ' · i ändträ' : ''}
+          </span>
+          {j.predrill && (
+            <span className="predrill">
+              Förborra Ø {mm(j.predrill.bit)} mm ({j.predrill.reason})
+            </span>
+          )}
+          {j.short && <span className="warn small">Kortare än tumregeln — delen bakom är tunn. Överväg vinkeljärn.</span>}
+          {j.blockedBy && (
+            <span className="warn small">
+              Åtkomst blockerad — {j.blockedBy} täcker sidan där skruven ska in. Snedskruva, skruva före {j.blockedBy} sätts
+              dit, eller använd vinkeljärn.
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /**
- * Suggested screws: totals to buy (with pilot bits), then joint by joint.
+ * Suggested screws: what to buy in total, then per build step — each group
+ * on its own (a frame, a set of legs), then where groups are joined together.
  * Rules of thumb, shown as suggestions.
  */
 export function ScrewList({ print = false }: { print?: boolean }) {
   const parts = useStore((s) => s.project.parts)
+  const groups = useStore((s) => s.project.groups)
   const joints = useMemo(() => screwJoints(parts), [parts])
   const totals = useMemo(() => screwTotals(joints), [joints])
+  const sections = useMemo(() => screwSections(joints, groups), [joints, groups])
   const screwView = useStore((s) => s.screwView)
   const setScrewView = useStore((s) => s.setScrewView)
   const colorOf = new Map(totals.map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]]))
@@ -23,57 +90,30 @@ export function ScrewList({ print = false }: { print?: boolean }) {
           {screwView ? '✓ Skruvarna visas i 3D' : '● Visa skruv i 3D'}
         </button>
       )}
-      <table className="screw-table">
-        <thead>
-          <tr>
-            <th>Skruv</th>
-            <th className="num">Behövs</th>
-            <th className="num">Köp</th>
-            <th>Förborra</th>
-          </tr>
-        </thead>
-        <tbody>
-          {totals.map((t) => (
-            <tr key={screwName(t.screw)}>
-              <td>
-                <span className="screw-dot" style={{ background: colorOf.get(screwName(t.screw)) }} aria-hidden />
-                {screwName(t.screw)}
-              </td>
-              <td className="num">{t.count}</td>
-              <td className="num">{t.toBuy}</td>
-              <td>{t.bits.length ? t.bits.map((b) => `Ø ${mm(b)} mm`).join(', ') : <span className="muted">–</span>}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <h4 className="screw-heading">Totalt att köpa</h4>
+      <TotalsTable totals={totals} colorOf={colorOf} />
       <p className="hint small">
-        Färgen visar var skruven sitter i 3D. "Köp" har ca 10 % extra. Skruv säljs ofta i askar om 100–250 st. Förslag efter tumregler: skruven ska gå ca 1,5 gånger
-        delens tjocklek in i delen bakom (mer i ändträ), minst 2 per fog. Förborra i den mottagande delen med borren i
-        tabellen.
+        Färgen visar var skruven sitter i 3D{print ? '' : ' (markera en grupp för att bara se dess skruvar)'}. "Köp" har ca 10 %
+        extra; skruv säljs ofta i askar om 100–250 st. Förslag efter tumregler: skruven ska gå ca 1,5 gånger delens tjocklek
+        in i delen bakom (mer i ändträ), minst 2 per fog. Förborra i den mottagande delen med borren i tabellen.
       </p>
-      <details className="screw-joints" open={print}>
-        <summary>Fog för fog ({joints.length})</summary>
-        <ul>
-          {joints.map((j) => (
-            <li key={`${j.through.id}|${j.into.id}`}>
-              <strong>
-                {j.through.name} → {j.into.name}
-              </strong>
-              <span>
-                <span className="screw-dot" style={{ background: colorOf.get(screwName(j.screw)) }} aria-hidden />
-                {j.count} st {screwName(j.screw)}
-                {j.endGrain ? ' · i ändträ' : ''}
+      <h4 className="screw-heading">Steg för steg</h4>
+      {sections.map((sec) => {
+        const secTotals = screwTotals(sec.joints)
+        const n = sec.joints.reduce((s, j) => s + j.count, 0)
+        return (
+          <details key={sec.title} className={`screw-section ${sec.kind}`} open={print}>
+            <summary>
+              <span>{sec.title}</span>
+              <span className="muted small">
+                {n} skruv · {sec.joints.length} {sec.joints.length === 1 ? 'fog' : 'fogar'}
               </span>
-              {j.predrill && (
-                <span className="predrill">
-                  Förborra Ø {mm(j.predrill.bit)} mm ({j.predrill.reason})
-                </span>
-              )}
-              {j.short && <span className="warn small">Kortare än tumregeln — delen bakom är tunn. Överväg vinkeljärn.</span>}
-            </li>
-          ))}
-        </ul>
-      </details>
+            </summary>
+            <TotalsTable totals={secTotals} colorOf={colorOf} />
+            <JointList joints={sec.joints} colorOf={colorOf} />
+          </details>
+        )
+      })}
     </div>
   )
 }

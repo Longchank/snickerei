@@ -1749,6 +1749,25 @@ button.free-label.editable:hover:not(:disabled) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+.screw-section > summary {
+  list-style: none;
+  justify-content: space-between;
+  gap: 8px;
+}
+.screw-section > summary::-webkit-details-marker {
+  display: none;
+}
+.screw-section {
+  border-top: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.screw-section.assembly > summary span:first-child {
+  color: var(--accent);
+}
+.screw-heading {
+  margin: 12px 0 4px;
+}
+.screw-section > summary,
 .screw-joints summary {
   min-height: 40px;
   display: flex;
@@ -1756,13 +1775,15 @@ button.free-label.editable:hover:not(:disabled) {
   font-weight: 600;
   cursor: pointer;
 }
+.joint-list,
 .screw-joints ul {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 8px 0 0;
   display: grid;
   gap: 6px;
 }
+.joint-list li,
 .screw-joints li {
   display: grid;
   gap: 2px;

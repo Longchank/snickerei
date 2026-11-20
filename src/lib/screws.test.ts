@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { chooseScrew, pilotBit, screwJoints, screwName, screwTotals } from './screws'
+import { chooseScrew, pilotBit, screwJoints, screwName, screwSections, screwTotals } from './screws'
 import type { Part, Vec3 } from './types'
 
 function at(id: string, profileId: string, length: number, rotation: Part['rotation'], min: Vec3, width?: number): Part {
@@ -123,5 +123,40 @@ describe('screw positions', () => {
     expect(Math.min(...zs)).toBe(40)
     expect(Math.max(...zs)).toBe(960)
     expect(j.points.every((p) => p[1] === 57)).toBe(true) // the sheet's top
+  })
+})
+
+describe('screwSections', () => {
+  it('groups joints in build order: each group, then where groups are joined, then loose parts', () => {
+    const sill = { ...at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0]), groupId: 'ram' }
+    const rail = { ...at('rail', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 45, 0]), groupId: 'ram' } // lies on the sill
+    const post = { ...at('post', 'konstruktion-45x95', 1000, UP, [1155, 90, 0]), groupId: 'ben' } // stands on the rail
+    const loose1 = at('l1', 'konstruktion-45x95', 500, [0, 0, 0], [0, 0, 2000])
+    const loose2 = at('l2', 'konstruktion-45x95', 500, [0, 0, 0], [0, 45, 2000])
+    const sections = screwSections(screwJoints([sill, rail, post, loose1, loose2]), [
+      { id: 'ram', name: 'Ram' },
+      { id: 'ben', name: 'Ben' },
+    ])
+    expect(sections.map((s) => [s.title, s.joints.length])).toEqual([
+      ['Ram', 1],
+      ['Montering: Ben + Ram', 1],
+      ['Lösa delar', 1],
+    ])
+  })
+})
+
+describe('blocked access', () => {
+  it('flags a joint whose screw side is covered by another part', () => {
+    const sill = at('Syll', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+    const rail = at('Regel', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 45, 0])
+    const post = at('Ben', 'konstruktion-45x95', 1000, UP, [1155, 90, 0])
+    const joints = screwJoints([sill, rail, post])
+    const railPost = joints.find((j) => j.into.id === 'Ben')!
+    // Screwing up through the rail is impossible: the sill lies under it
+    expect(railPost.through.id).toBe('Regel')
+    expect(railPost.blockedBy).toBe('Syll')
+    // Rail onto sill: screws go in from the rail's top, which is free there
+    const railSill = joints.find((j) => [j.through.id, j.into.id].sort().join() === 'Regel,Syll')!
+    expect(railSill.blockedBy).toBeNull()
   })
 })

@@ -56,6 +56,8 @@ export interface Joint {
   points: Vec3[]
   /** Which way the screws go in (unit vector along one axis) */
   dir: Vec3
+  /** Another part covers the side the screws go in from (no room for the screwdriver): its name */
+  blockedBy: string | null
 }
 
 /** Common screw sizes: diameter → lengths */
@@ -187,11 +189,21 @@ export function screwJoints(parts: Part[]): Joint[] {
         p[va] = (c.box.min[va] + c.box.max[va]) / 2
         return p
       })
+      // Is the side the screws go in from covered by another part?
+      const covering = parts.find((q) => {
+        if (q.id === through.id || q.id === into.id) return false
+        const qb = boxes.get(q.id)!
+        return points.some((p) => AXES.every((x) => {
+          const v = x === n ? p[x] - dir[x] * 2 : p[x]
+          return v > qb.min[x] + 0.1 && v < qb.max[x] - 0.1
+        }))
+      })
       out.push({
         through,
         into,
         points,
         dir,
+        blockedBy: covering ? covering.name : null,
         screw,
         count,
         endGrain,
@@ -229,4 +241,39 @@ export function screwTotals(joints: Joint[]): ScrewTotal[] {
   }
   for (const t of map.values()) t.toBuy = Math.ceil((t.count * 1.1) / 10) * 10
   return [...map.values()].sort((a, b) => a.screw.d - b.screw.d || a.screw.length - b.screw.length)
+}
+
+export interface ScrewSection {
+  /** "Ram", "Montering: Ram + Ben", "Lösa delar" … */
+  title: string
+  /** Joints inside one group, or joining groups (and loose parts) together */
+  kind: 'group' | 'assembly' | 'loose'
+  joints: Joint[]
+}
+
+/**
+ * The joints in build order: first each group on its own (a frame, a set
+ * of legs), then where groups (and loose parts) are joined together, then
+ * joints between loose parts.
+ */
+export function screwSections(joints: Joint[], groups: { id: string; name: string }[]): ScrewSection[] {
+  const nameOf = new Map(groups.map((g) => [g.id, g.name]))
+  const label = (p: Part) => (p.groupId ? nameOf.get(p.groupId) ?? 'Grupp' : 'lösa delar')
+  const byKey = new Map<string, ScrewSection>()
+  const add = (key: string, make: () => ScrewSection, j: Joint) => {
+    if (!byKey.has(key)) byKey.set(key, make())
+    byKey.get(key)!.joints.push(j)
+  }
+  for (const j of joints) {
+    const a = j.through.groupId
+    const b = j.into.groupId
+    if (a && a === b) add(`g:${a}`, () => ({ title: nameOf.get(a) ?? 'Grupp', kind: 'group', joints: [] }), j)
+    else if (!a && !b) add('loose', () => ({ title: 'Lösa delar', kind: 'loose', joints: [] }), j)
+    else {
+      const names = [label(j.through), label(j.into)].sort()
+      add(`m:${names.join('|')}`, () => ({ title: `Montering: ${names[0]} + ${names[1]}`, kind: 'assembly', joints: [] }), j)
+    }
+  }
+  const order = { group: 0, assembly: 1, loose: 2 }
+  return [...byKey.values()].sort((x, y) => order[x.kind] - order[y.kind])
 }
