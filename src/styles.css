@@ -202,6 +202,19 @@ button:focus-visible {
   text-align: left;
   padding: 5px 8px;
 }
+.part-list li.locked {
+  display: flex;
+  align-items: center;
+}
+.part-list li.locked button:disabled {
+  opacity: 0.6;
+}
+.part-list button.unlock {
+  width: auto;
+  flex: none;
+  min-width: 40px;
+  justify-content: center;
+}
 .part-list button.active {
   background: var(--accent-soft);
   color: var(--accent);

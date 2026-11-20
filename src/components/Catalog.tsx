@@ -104,11 +104,18 @@ export function PartList() {
   const select = useStore((s) => s.select)
   const tapPart = useStore((s) => s.tapPart)
   const multiSelect = useStore((s) => s.multiSelect)
+  const unlockParts = useStore((s) => s.unlockParts)
   const selected = new Set(selection)
 
   const item = (p: Part) => (
-    <li key={p.id}>
+    <li key={p.id} className={p.locked ? 'locked' : undefined}>
+      {p.locked && (
+        <button className="unlock" onClick={() => unlockParts([p.id])} title="Lås upp" aria-label={`Lås upp ${p.name}`}>
+          🔒
+        </button>
+      )}
       <button
+        disabled={p.locked}
         className={selected.has(p.id) ? 'active' : ''}
         onClick={(e) => {
           if (multiSelect || e.shiftKey || e.ctrlKey || e.metaKey) {

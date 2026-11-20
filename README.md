@@ -30,6 +30,10 @@ Byggd för mobilen först — fungerar även på dator.
 - **Spegla**: markera t.ex. ena gaveln och tryck ⇋ Spegla — välj riktning
   och gör en spegelkopia på andra sidan (eller vänd delarna på plats).
   Geringar, urtag och fransk list speglas också.
+- **Lås, röntgen och markera likadana**: 🔒 Lås gör att en del inte kan
+  markeras eller flyttas av misstag (tryck går igenom till det bakom).
+  👓 Röntgen gör allt utom det markerade genomskinligt. ▣ Alla 45×95
+  markerar alla delar av samma virke (eller samma längd).
 - **Byt stötfog**: markera en ram (eller två brädor i ett rakt hörn) och tryck
   ⇄ — t.ex. går sidorna igenom i stället för över- och underdelen. Ramens
   yttermått behålls; brädorna kapas om (längre eller kortare).

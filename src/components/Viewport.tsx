@@ -27,6 +27,7 @@ import { AXIS_BOARDS, switchButtJoints } from '../lib/corner'
 import { endName, endPoint } from '../lib/ends'
 import { reorientOptions, worldAxisOf } from '../lib/place'
 import { buildSteps, isShown, type Step } from '../lib/steps'
+import { similarChoices } from '../lib/select'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
@@ -161,6 +162,8 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
   const camera = useThree((s) => s.camera)
   const viewSize = useThree((s) => s.size)
   const ref = useRef<Group>(null)
+  // X-ray: everything but the selection is see-through
+  const xray = useStore((s) => s.xray) && !selected
 
   /** Snap options for a pointer event on this part, best first */
   const snapOptions = (e: ThreeEvent<MouseEvent>): MeasurePoint[] => {
@@ -203,8 +206,8 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
         castShadow
         receiveShadow
         onClick={(e) => {
-          e.stopPropagation()
           if (placing) {
+            e.stopPropagation()
             if (!e.face) return
             const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
             // Sheets go corner to corner: snap the tap to the board's corners and edges
@@ -219,17 +222,22 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
             return
           }
           if (measureMode) {
+            e.stopPropagation()
             const options = snapOptions(e)
             if (options.length) measureTap(options[0], options)
             setHover(null)
             return
           }
           if (moving) {
+            e.stopPropagation()
             if (!e.face) return
             const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
             moveTap({ partId: part.id, hit: e.point.toArray() as Vec3, normal: n.toArray() as Vec3 })
             return
           }
+          // A locked part can't be picked: the tap goes through to what's behind it
+          if (part.locked) return
+          e.stopPropagation()
           const ne = e.nativeEvent
           pickPart(part.id, ne.shiftKey || ne.ctrlKey || ne.metaKey)
         }}
@@ -249,14 +257,17 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
         }}
       >
         <meshStandardMaterial
-          key={grainMap && !tint ? grainMap.uuid : tint ?? 'plain'}
+          key={`${grainMap && !tint ? grainMap.uuid : tint ?? 'plain'}${xray ? '-xray' : ''}`}
           map={tint ? null : grainMap}
           color={tint ?? prof.color}
           emissive={selected ? '#3b82f6' : hovered && !isTouch && !measureMode ? '#555' : '#000'}
           emissiveIntensity={selected ? 0.35 : 0.15}
           roughness={0.8}
+          transparent={xray}
+          opacity={xray ? 0.18 : 1}
+          depthWrite={!xray}
         />
-        <Edges color={selected ? '#1d4ed8' : '#6b4f2a'} />
+        <Edges color={selected ? '#1d4ed8' : part.locked ? '#9ca3af' : '#6b4f2a'} />
       </mesh>
     </group>
   )
@@ -999,6 +1010,8 @@ function ActionBar() {
   const setRotateMode = useStore((s) => s.setRotateMode)
   const switchButt = useStore((s) => s.switchButtJoints)
   const hideParts = useStore((s) => s.hideParts)
+  const lockParts = useStore((s) => s.lockParts)
+  const select = useStore((s) => s.select)
   const setMirrorMode = useStore((s) => s.setMirrorMode)
   const isolateParts = useStore((s) => s.isolateParts)
   const ids = new Set(selection)
@@ -1016,6 +1029,15 @@ function ActionBar() {
   const frameSheetId =
     sheets.length === 1 && chosen.every((p) => p.id === sheets[0].id || p.frameOf === sheets[0].id) ? sheets[0].id : null
   const collisions = useMemo(() => selectionOverlaps(chosen, parts).length, [chosen, parts])
+  // Select by type: all parts like these (that can be seen and aren't locked)
+  const projectGroups = useStore((s) => s.project.groups)
+  const activeStep = useStore((s) => s.activeStep)
+  const similar = useMemo(() => {
+    const step = buildSteps(parts, projectGroups).find((st) => st.id === activeStep) ?? null
+    return similarChoices(chosen, parts.filter((p) => !p.locked && isShown(p, step)))
+  }, [chosen, parts, projectGroups, activeStep])
+  const profileName = chosen[0] ? getProfile(chosen[0].profileId).name.replace('x', '×') : ''
+  const sizeName = chosen[0] ? (chosen[0].width === undefined ? `${chosen[0].length}` : `${chosen[0].length}×${chosen[0].width}`) : ''
   const canReorient = chosen.length === 1 && reorientOptions(chosen[0], parts).length > 1
   const showNote = canReorient && choice?.partId === chosen[0].id && note
   // Exactly one whole group selected?
@@ -1069,6 +1091,14 @@ function ActionBar() {
           <button onClick={() => isolateParts(selection)} title="Dölj allt utom det markerade">
             ◎ Visa bara detta
           </button>
+          <button onClick={() => lockParts(selection)} title="Lås: kan inte markeras, flyttas eller ändras. Man kan fortfarande bygga mot den.">
+            🔒 Lås
+          </button>
+          {similar.map((c) => (
+            <button key={c.kind} onClick={() => select(c.ids)} title="Markera alla likadana delar">
+              ▣ Alla {c.kind === 'size' ? `${profileName} × ${sizeName}` : profileName} ({c.ids.length})
+            </button>
+          ))}
         </div>
         {butt && (
           <button
@@ -1649,6 +1679,10 @@ export function Viewport({
   const setActiveStep = useStore((s) => s.setActiveStep)
   const showAllParts = useStore((s) => s.showAllParts)
   const hiddenCount = parts.filter((p) => p.hidden).length
+  const lockedCount = parts.filter((p) => p.locked).length
+  const unlockParts = useStore((s) => s.unlockParts)
+  const xray = useStore((s) => s.xray)
+  const setXray = useStore((s) => s.setXray)
   const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode && !mirrorMode && !framing
 
   return (
@@ -1683,6 +1717,19 @@ export function Viewport({
       >
         🪜 Steg
       </button>
+      <button
+        className={`multi-toggle ${xray ? 'on' : ''}`}
+        aria-pressed={xray}
+        onClick={() => setXray(!xray)}
+        title="Röntgen: allt utom det markerade blir genomskinligt"
+      >
+        👓 Röntgen
+      </button>
+      {lockedCount > 0 && (
+        <button className="multi-toggle hidden-chip" onClick={() => unlockParts()} title="Lås upp alla låsta delar">
+          🔒 {lockedCount} låsta · Lås upp
+        </button>
+      )}
       {hiddenCount > 0 && (
         <button className="multi-toggle hidden-chip" onClick={showAllParts} title="Visa alla dolda delar igen">
           👁 {hiddenCount} dolda · Visa
@@ -1732,7 +1779,8 @@ export function Viewport({
         // A tap that just misses a thin board selects it — boards seen from an
         // angle are often thinner than a thumb. Only a clear miss deselects.
         const near = fuzzyPickRef.current?.(e.clientX, e.clientY, FUZZY_PX)
-        if (near) st.pickPart(near.partId, e.shiftKey || e.ctrlKey || e.metaKey)
+        const nearLocked = near && st.project.parts.find((p) => p.id === near.partId)?.locked
+        if (near && !nearLocked) st.pickPart(near.partId, e.shiftKey || e.ctrlKey || e.metaKey)
         else clearSelection()
       }}
     >

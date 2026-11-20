@@ -44,6 +44,8 @@ export type Vec3 = [number, number, number]
 export interface Part {
   /** Hidden in the 3D view (still counted in lists, screws and analysis) */
   hidden?: boolean
+  /** Locked: can't be selected (so not moved, changed or deleted); still a target for placing and measuring */
+  locked?: boolean
   /** A sheet with a frame built under it: the frame's settings */
   frame?: SheetFrame
   /** A frame board generated under this sheet (its id) */

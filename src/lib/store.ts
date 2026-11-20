@@ -65,6 +65,12 @@ interface State {
   hideParts: (ids: string[]) => void
   showAllParts: () => void
   isolateParts: (ids: string[]) => void
+  /** Lock parts (they drop out of the selection) / unlock some or all */
+  lockParts: (ids: string[]) => void
+  unlockParts: (ids?: string[]) => void
+  /** X-ray: everything not selected is see-through */
+  xray: boolean
+  setXray: (on: boolean) => void
   /** Show the suggested screws as coloured dots in 3D (Listor → Skruv) */
   screwView: boolean
   setScrewView: (on: boolean) => void
@@ -254,7 +260,7 @@ export const useStore = create<State>()(
 
       const selected = () => {
         const ids = new Set(get().selection)
-        return get().project.parts.filter((p) => ids.has(p.id))
+        return get().project.parts.filter((p) => ids.has(p.id) && !p.locked)
       }
       /** Replace the selected parts with transformed versions. */
       const editSelection = (fn: (parts: Part[]) => Part[]) => {
@@ -263,8 +269,14 @@ export const useStore = create<State>()(
       }
       const groupMembers = (id: string) => {
         const part = get().project.parts.find((p) => p.id === id)
-        if (!part?.groupId) return [id]
-        return get().project.parts.filter((p) => p.groupId === part.groupId).map((p) => p.id)
+        if (!part || part.locked) return []
+        if (!part.groupId) return [id]
+        return get().project.parts.filter((p) => p.groupId === part.groupId && !p.locked).map((p) => p.id)
+      }
+      /** Locked parts can't be selected */
+      const unlocked = (ids: string[]) => {
+        const locked = new Set(get().project.parts.filter((p) => p.locked).map((p) => p.id))
+        return locked.size ? ids.filter((id) => !locked.has(id)) : ids
       }
       /** Apply a joint operation to parts a and b. */
       const joint = (aId: string, bId: string, fn: (a: Part, b: Part) => [Part, Part] | null) => {
@@ -302,6 +314,16 @@ export const useStore = create<State>()(
           const keep = new Set(ids)
           editParts((ps) => ps.map((p) => (keep.has(p.id) ? { ...p, hidden: undefined } : { ...p, hidden: true })))
         },
+        lockParts: (ids) => {
+          const lock = new Set(ids)
+          editParts((ps) => ps.map((p) => (lock.has(p.id) ? { ...p, locked: true } : p)), [])
+        },
+        unlockParts: (ids) => {
+          const open = ids && new Set(ids)
+          editParts((ps) => ps.map((p) => (p.locked && (!open || open.has(p.id)) ? { ...p, locked: undefined } : p)))
+        },
+        xray: false,
+        setXray: (xray) => set({ xray }),
         screwView: false,
         setScrewView: (screwView) => set({ screwView }),
         setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),
@@ -380,17 +402,19 @@ export const useStore = create<State>()(
 
         tapPart: (id, additive = get().multiSelect) => {
           const ids = groupMembers(id)
+          if (!ids.length) return
           if (!additive) return set((s) => ({ selection: ids, pickCount: s.pickCount + 1 }))
           const current = new Set(get().selection)
           const allIn = ids.every((x) => current.has(x))
           ids.forEach((x) => (allIn ? current.delete(x) : current.add(x)))
           set((s) => ({ selection: [...current], pickCount: s.pickCount + 1 }))
         },
-        select: (selection) => set((s) => ({ selection, pickCount: s.pickCount + 1 })),
+        select: (ids) => set((s) => ({ selection: unlocked(ids), pickCount: s.pickCount + 1 })),
         clearSelection: () => set({ selection: [] }),
         pickPart: (id, modifier = false) => {
           if (get().settings.mode === 'bygg') return get().tapPart(id, true)
           if (modifier) return get().tapPart(id, true)
+          if (!unlocked([id]).length) return
           set((s) => ({ selection: [id], pickCount: s.pickCount + 1 }))
         },
         setMode: (mode) =>

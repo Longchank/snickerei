@@ -75,8 +75,8 @@ comments in English).
 - **3D-editor basics, parked** (owner 2026-11-20: "we don't need them
   right now"): **standard views** (front/side/top buttons, orthographic
   camera) and **Upprepa** (copy the selection N times at a set c/c, e.g.
-  joists or shelf rails). Also suggested, not yet asked for: X-ray, Lås
-  (lock parts), exploded view, select by type.
+  joists or shelf rails). Also suggested, not yet asked for: exploded
+  view.
 
 - **Pick a store → fetch its prices, via a tiny Cloudflare Worker**
   (owner 2026-11-19, waiting on the owner's Cloudflare account; replaces
@@ -343,6 +343,23 @@ comments in English).
   detta" (isolate); "👁 N dolda · Visa" chip in the view shows all again.
   Hidden parts still count in lists, screws and analysis. Other
   recommended basics are parked under "Later / parked ideas".
+- **Lås, Röntgen, Markera likadana** (owner 2026-11-20). **Lås**
+  (`part.locked`, undoable; Bygg action bar "🔒 Lås"): a locked part can't
+  be selected anywhere — `select`/`tapPart`/`pickPart`/`groupMembers` drop
+  it and `selected()` ignores it, so nothing moves, changes or deletes it.
+  A tap on it in 3D passes through to what's behind (no
+  `stopPropagation`); the fuzzy miss-pick ignores it. It's still a target
+  for placing, measuring and "move next to". Grey edges in 3D; the Delar
+  list shows it disabled with a 🔒 button to unlock just it; the view chip
+  "🔒 N låsta · Lås upp" unlocks all. Regenerated frame boards lose the
+  lock. **Röntgen** (`xray`, not persisted, view button "👓 Röntgen"):
+  everything not selected is see-through (opacity 0.18, no depth write;
+  the material is remounted via its key, as three.js won't switch
+  transparency live). **Markera likadana** (`src/lib/select.ts`,
+  `similarChoices`): when the selection is one profile, the action bar
+  offers "▣ Alla 45×95 × 800 (N)" (same size) and "▣ Alla 45×95 (N)",
+  among parts that are shown (step, hidden) and not locked; a choice that
+  adds nothing isn't offered.
 - **Spegla** (owner 2026-11-20, `src/lib/mirror.ts`): Bygg action bar
   "⇋ Spegla" → `MirrorBar` (`mirrorMode`, not persisted): direction
   Vänster–höger / Fram–bak / Upp–ner, then "⧉ Spegelkopia" or "⇋ Vänd på
