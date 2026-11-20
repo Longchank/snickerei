@@ -56,7 +56,7 @@ export function App() {
   // Placing, moving or turning: get the panel out of the way so the model
   // (and the arrows or rings on it) can be tapped
   const moving = useStore((s) => s.moveMode)
-  const turning = useStore((s) => s.rotateMode)
+  const turning = useStore((s) => s.rotateMode || s.mirrorMode)
   const framing = useStore((s) => s.frameSheet !== null)
   useEffect(() => {
     if ((placing || moving || turning || framing) && mobile) setSheetOpen(false)

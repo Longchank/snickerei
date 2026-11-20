@@ -9,6 +9,7 @@ import { buildFrame, defaultJoists, isLyingSheet, rebuildFrame, sheetForFrame } 
 import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
 import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
+import { copyPlane, mirrorParts } from './mirror'
 import {
   halfLap,
   moveParts,
@@ -146,6 +147,10 @@ interface State {
   rotateMode: boolean
   setRotateMode: (on: boolean) => void
   duplicateSelection: () => void
+  mirrorMode: boolean
+  setMirrorMode: (on: boolean) => void
+  /** Mirror the selection along a world axis: a mirrored copy, or flipped in place */
+  mirrorSelection: (axis: 0 | 1 | 2, copy: boolean) => void
   removeSelection: () => void
   groupSelection: (name: string) => void
   ungroup: (groupId: string) => void
@@ -309,7 +314,7 @@ export const useStore = create<State>()(
         openFrame: (sheetId) => {
           const sheet = get().project.parts.find((p) => p.id === sheetId)
           if (!sheet || !isLyingSheet(sheet)) return
-          set({ frameSheet: { base: sheet, groupId: sheet.groupId ?? uid(), started: false }, moveMode: false, rotateMode: false, measureMode: false, placeProfile: null })
+          set({ frameSheet: { base: sheet, groupId: sheet.groupId ?? uid(), started: false }, moveMode: false, rotateMode: false, mirrorMode: false, measureMode: false, placeProfile: null })
           // Legs follow the sheet's current height (it may have been stretched or moved since)
           const top = toAxisBox(partBox(sheet)).max[1]
           const f = sheet.frame
@@ -392,14 +397,14 @@ export const useStore = create<State>()(
           set((s) => ({
             settings: { ...s.settings, mode },
             moveMode: false,
-            rotateMode: false,
+            rotateMode: false, mirrorMode: false,
             // Redigera works on one part at a time
             selection: mode === 'redigera' ? s.selection.slice(0, 1) : s.selection,
           })),
         setMoveMode: (moveMode) =>
           set({
             moveMode,
-            ...(moveMode ? { rotateMode: false, measureMode: false, placeProfile: null, pendingPoint: null, frameSheet: null } : {}),
+            ...(moveMode ? { rotateMode: false, mirrorMode: false, measureMode: false, placeProfile: null, pendingPoint: null, frameSheet: null } : {}),
           }),
         moveTap: (target) => {
           const ids = new Set(get().selection)
@@ -417,7 +422,7 @@ export const useStore = create<State>()(
           set((s) => ({
             placeProfile,
             moveMode: false,
-            rotateMode: false,
+            rotateMode: false, mirrorMode: false,
             // Placing is building
             ...(placeProfile && s.settings.mode !== 'bygg' ? { settings: { ...s.settings, mode: 'bygg' as const } } : {}),
             placeNote: null,
@@ -524,7 +529,7 @@ export const useStore = create<State>()(
         setMeasureMode: (on) =>
           set({
             moveMode: false,
-            rotateMode: false,
+            rotateMode: false, mirrorMode: false,
             placeProfile: null,
             measureMode: on,
             pendingPoint: null,
@@ -597,8 +602,46 @@ export const useStore = create<State>()(
         setRotateMode: (rotateMode) =>
           set({
             rotateMode,
-            ...(rotateMode ? { moveMode: false, measureMode: false, placeProfile: null, pendingPoint: null } : {}),
+            ...(rotateMode ? { moveMode: false, mirrorMode: false, measureMode: false, placeProfile: null, pendingPoint: null } : {}),
           }),
+
+        mirrorMode: false,
+        setMirrorMode: (mirrorMode) =>
+          set({
+            mirrorMode,
+            ...(mirrorMode ? { moveMode: false, rotateMode: false, measureMode: false, placeProfile: null, pendingPoint: null } : {}),
+          }),
+        mirrorSelection: (axis, copy) => {
+          const src = selected()
+          const box = unionBox(src)
+          const all = unionBox(get().project.parts)
+          if (!box || !all) return
+          if (!copy) {
+            const ids = new Set(src.map((p) => p.id))
+            const flipped = new Map(mirrorParts(src, axis, (box.min[axis] + box.max[axis]) / 2).map((p) => [p.id, p]))
+            editParts((ps) => ps.map((p) => (ids.has(p.id) ? flipped.get(p.id)! : p)), [...ids])
+            return
+          }
+          const groupMap = new Map<string, Group>()
+          for (const p of src)
+            if (p.groupId && !groupMap.has(p.groupId)) {
+              const g = get().project.groups.find((x) => x.id === p.groupId)
+              groupMap.set(p.groupId, { id: uid(), name: `${g?.name ?? 'Grupp'} (spegel)` })
+            }
+          const newIds = new Map(src.map((p) => [p.id, uid()]))
+          const copies = mirrorParts(src, axis, copyPlane(box, all, axis)).map((p) => ({
+            ...p,
+            id: newIds.get(p.id)!,
+            name: src.length === 1 ? `${p.name} (spegel)` : p.name,
+            groupId: p.groupId ? groupMap.get(p.groupId)!.id : undefined,
+            frameOf: p.frameOf ? newIds.get(p.frameOf) : undefined,
+            rip: p.rip ? { ...p.rip, id: `${p.rip.id}-m` } : undefined,
+          }))
+          edit(
+            (snap) => ({ parts: [...snap.parts, ...copies], groups: [...snap.groups, ...groupMap.values()] }),
+            copies.map((p) => p.id),
+          )
+        },
 
         duplicateSelection: () => {
           const src = selected()

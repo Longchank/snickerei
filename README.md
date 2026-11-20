@@ -27,6 +27,9 @@ Byggd för mobilen först — fungerar även på dator.
 - **Flytta** med pilar direkt i 3D-modellen (ett steg per tryck, 1–100 mm
   eller valfritt), eller tryck på en bräda för att flytta dit, kant i kant.
   Fri dragning finns under Avancerat i menyn.
+- **Spegla**: markera t.ex. ena gaveln och tryck ⇋ Spegla — välj riktning
+  och gör en spegelkopia på andra sidan (eller vänd delarna på plats).
+  Geringar, urtag och fransk list speglas också.
 - **Byt stötfog**: markera en ram (eller två brädor i ett rakt hörn) och tryck
   ⇄ — t.ex. går sidorna igenom i stället för över- och underdelen. Ramens
   yttermått behålls; brädorna kapas om (längre eller kortare).

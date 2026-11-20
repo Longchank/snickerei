@@ -999,6 +999,7 @@ function ActionBar() {
   const setRotateMode = useStore((s) => s.setRotateMode)
   const switchButt = useStore((s) => s.switchButtJoints)
   const hideParts = useStore((s) => s.hideParts)
+  const setMirrorMode = useStore((s) => s.setMirrorMode)
   const isolateParts = useStore((s) => s.isolateParts)
   const ids = new Set(selection)
   const chosen = parts.filter((p) => ids.has(p.id))
@@ -1050,6 +1051,9 @@ function ActionBar() {
           </button>
           <button className="primary" onClick={() => setRotateMode(true)}>
             ↻ Vrid
+          </button>
+          <button onClick={() => setMirrorMode(true)} title="Spegelkopia eller vänd på plats">
+            ⇋ Spegla
           </button>
           <button onClick={duplicateSelection} title="Duplicera">
             Kopiera
@@ -1166,6 +1170,51 @@ function RotateBar() {
             ↶ Ångra
           </button>
           <button className="primary" onClick={() => setRotateMode(false)}>
+            Klar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const MIRROR_AXES: { axis: 0 | 1 | 2; label: string }[] = [
+  { axis: 0, label: 'Vänster–höger' },
+  { axis: 2, label: 'Fram–bak' },
+  { axis: 1, label: 'Upp–ner' },
+]
+
+/** Mirroring: pick a direction, then a mirrored copy or a flip in place. */
+function MirrorBar() {
+  const [axis, setAxis] = useState<0 | 1 | 2>(0)
+  const mirror = useStore((s) => s.mirrorSelection)
+  const undo = useStore((s) => s.undo)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const setMirrorMode = useStore((s) => s.setMirrorMode)
+  return (
+    <div className="measure-top place-top">
+      <div className="place-banner move-bar" role="toolbar" aria-label="Spegla">
+        <strong>Spegla</strong>
+        <div className="move-steps" role="group" aria-label="Riktning">
+          {MIRROR_AXES.map((a) => (
+            <button key={a.axis} className={axis === a.axis ? 'on' : ''} aria-pressed={axis === a.axis} onClick={() => setAxis(a.axis)}>
+              <span className="ring-dot" style={{ background: AXIS_COLOR[a.axis] }} />
+              {a.label}
+            </button>
+          ))}
+        </div>
+        <span>Kopian hamnar på andra sidan modellens mitt (eller bredvid). Geringar och urtag speglas också.</span>
+        <div className="rotate-buttons">
+          <button className="primary" onClick={() => mirror(axis, true)}>
+            ⧉ Spegelkopia
+          </button>
+          <button onClick={() => mirror(axis, false)}>⇋ Vänd på plats</button>
+        </div>
+        <div className="place-actions">
+          <button onClick={undo} disabled={!canUndo} aria-label="Ångra">
+            ↶ Ångra
+          </button>
+          <button className="primary" onClick={() => setMirrorMode(false)}>
             Klar
           </button>
         </div>
@@ -1583,6 +1632,7 @@ export function Viewport({
   const measureMode = useStore((s) => s.measureMode)
   const moveMode = useStore((s) => s.moveMode)
   const rotateMode = useStore((s) => s.rotateMode)
+  const mirrorMode = useStore((s) => s.mirrorMode)
   const mode = useStore((s) => s.settings.mode)
   const setMeasureMode = useStore((s) => s.setMeasureMode)
   const pending = useStore((s) => s.pendingPoint !== null)
@@ -1599,7 +1649,7 @@ export function Viewport({
   const setActiveStep = useStore((s) => s.setActiveStep)
   const showAllParts = useStore((s) => s.showAllParts)
   const hiddenCount = parts.filter((p) => p.hidden).length
-  const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode && !framing
+  const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode && !mirrorMode && !framing
 
   return (
     <>
@@ -1643,6 +1693,7 @@ export function Viewport({
     {placeProfile && <PlaceBanner profileId={placeProfile} />}
     {moveMode && count > 0 && <MoveBar />}
     {rotateMode && count > 0 && <RotateBar />}
+    {mirrorMode && count > 0 && <MirrorBar />}
     {framing && <FrameBar />}
     {showActions && <ActionBar />}
     {measureMode && (

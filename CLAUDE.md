@@ -337,7 +337,19 @@ comments in English).
   detta" (isolate); "👁 N dolda · Visa" chip in the view shows all again.
   Hidden parts still count in lists, screws and analysis. Recommended
   next (owner asked for basics): standard views (front/side/top, ortho),
-  Upprepa (copy N × c/c), Spegla, X-ray, Lås, exploded view, select by type.
+  Upprepa (copy N × c/c), X-ray, Lås, exploded view, select by type.
+- **Spegla** (owner 2026-11-20, `src/lib/mirror.ts`): Bygg action bar
+  "⇋ Spegla" → `MirrorBar` (`mirrorMode`, not persisted): direction
+  Vänster–höger / Fram–bak / Upp–ner, then "⧉ Spegelkopia" or "⇋ Vänd på
+  plats". A part keeps its rotation and moves to its mirror place
+  (`mirrorPart`); what isn't symmetric follows: along the length the
+  `ends` swap, across a 'face' (width) or 'edge' (thickness) cut the angle
+  flips sign, notches flip in local coords, a rip flips its angle (and
+  half, across the width). The copy goes across the middle of the whole
+  build, or right next to the selection if it spans the middle
+  (`copyPlane`); ids, groups ("(spegel)"), `frameOf` and `rip.id` are
+  remapped like `duplicateSelection`. Flip in place = across the
+  selection's own centre.
 - **Lägg till menu** (owner 2026-11-18): every catalog category and the
   Delar list fold (`Fold`, `<details>`), closed by default; opened ones
   are remembered per device (localStorage `snickerei-open-folds`). On the
