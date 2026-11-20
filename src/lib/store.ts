@@ -10,6 +10,7 @@ import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './
 import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
 import { copyPlane, mirrorParts } from './mirror'
+import { toPhase } from './phases'
 import {
   halfLap,
   moveParts,
@@ -117,7 +118,7 @@ interface State {
   select: (ids: string[]) => void
   clearSelection: () => void
   setMultiSelect: (on: boolean) => void
-  /** A tap on a part in the view, by mode: Bygg toggles its group, Redigera picks just it */
+  /** A tap on a part in the view, by step: Bygg toggles its group, Montering picks its group, Detaljer/Inköp just it */
   pickPart: (id: string, modifier?: boolean) => void
   setMode: (mode: Settings['mode']) => void
   setMoveMode: (on: boolean) => void
@@ -412,7 +413,10 @@ export const useStore = create<State>()(
         select: (ids) => set((s) => ({ selection: unlocked(ids), pickCount: s.pickCount + 1 })),
         clearSelection: () => set({ selection: [] }),
         pickPart: (id, modifier = false) => {
-          if (get().settings.mode === 'bygg') return get().tapPart(id, true)
+          const mode = get().settings.mode
+          if (mode === 'bygg') return get().tapPart(id, true)
+          // Montering: a tap shows one group (its screws); modifier adds more
+          if (mode === 'montering') return get().tapPart(id, modifier)
           if (modifier) return get().tapPart(id, true)
           if (!unlocked([id]).length) return
           set((s) => ({ selection: [id], pickCount: s.pickCount + 1 }))
@@ -422,8 +426,11 @@ export const useStore = create<State>()(
             settings: { ...s.settings, mode },
             moveMode: false,
             rotateMode: false, mirrorMode: false,
-            // Redigera works on one part at a time
-            selection: mode === 'redigera' ? s.selection.slice(0, 1) : s.selection,
+            frameSheet: null,
+            // Montering is about the screws: show them in 3D
+            screwView: mode === 'montering',
+            // Detaljer works on one part at a time
+            selection: mode === 'detaljer' ? s.selection.slice(0, 1) : s.selection,
           })),
         setMoveMode: (moveMode) =>
           set({
@@ -869,6 +876,7 @@ export const useStore = create<State>()(
           settings: {
             ...DEFAULT_SETTINGS,
             ...p.settings,
+            mode: toPhase(p.settings?.mode),
             snapTypes: { ...DEFAULT_SNAP_TYPES, ...p.settings?.snapTypes },
           },
         }

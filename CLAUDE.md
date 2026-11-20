@@ -112,18 +112,33 @@ comments in English).
 - Boards: `packCuts` tries each stock length as bin size with first-fit and
   a subset-sum "best fill", then gives each board its cheapest fitting
   length; keeps the cheapest total (without prices: least timber).
-- **Modes "Bygg | Redigera"** (owner 2026-11-18, `settings.mode`, switch in
-  the toolbar). Bygg: a tap toggles the part's whole group in the
-  selection (several at a time, no "Flera" toggle); a floating action bar
-  offers Gruppera/Dela upp · Flytta · Duplicera · Ta bort; tap-to-place
-  switches to Bygg. Redigera: a tap picks one part (even inside a group)
-  and opens the Del panel. `pickPart` routes taps by mode. Switching to
-  Bygg closes the details panel (it hid the action bar, so the switch
-  looked broken); switching to Redigera with a selection opens it. **The
-  Del tab exists only in Redigera** (owner 2026-11-18; desktop: the
-  "Egenskaper" tab) — in Bygg the tab bar is Lägg till · Listor · Priser.
-  Measuring still opens the panel's Del slot in either mode. With
-  the phone panel open, the action/move/place bars sit at the top
+- **Four steps of a build** (owner 2026-11-20, replaced "Bygg | Redigera";
+  `settings.mode: Phase`, `src/lib/phases.ts`): **1 Bygg** (big picture:
+  add, move, turn, mirror, groups, frames) · **2 Detaljer** (lengths, ends,
+  notches, seams, strength — "will it hold?") · **3 Montering** (step by
+  step, screws) · **4 Inköp** (cut list, shopping list, prices, final
+  checks). Steps are views, not gates: the model is editable in all of
+  them. A phase bar under the toolbar (second row, `PhaseBar`) switches;
+  each step has its own colour (`PHASES`: blue / violet / teal / pink,
+  white text ≥ 4.5:1) set as `--accent`/`--accent-strong`/`--accent-soft`
+  on `.app`, so every accent follows it, plus a coloured band on the
+  toolbar and the phone panel and the 3D selection colour. Panels per step
+  (`PHASE_TABS` in App.tsx): Bygg = Lägg till · Delar; Detaljer = Del ·
+  Analys; Montering = Steg & skruv (full `ScrewList`) · Delar; Inköp =
+  Listor (cut/shopping list, screws `buyOnly`) · Priser. Desktop: catalog
+  left in every step, the step's other panels right. Taps (`pickPart`):
+  Bygg toggles whole groups (action bar); Montering picks one group (its
+  screws); Detaljer/Inköp pick one part. Entering Montering turns
+  `screwView` on. Switching step: Bygg closes the phone panel, Detaljer
+  opens Del if something's selected, Montering/Inköp open their lists.
+  Saved `mode: 'redigera'` loads as 'detaljer' (`toPhase`). To add a step:
+  an entry in `PHASES`, its tabs in `PHASE_TABS` (phone fits ~5). Phone
+  overlays sit at `top: 118px` below the two-row toolbar.
+  The Bygg action bar has Gruppera/Dela upp · Flytta · Vrid · Spegla ·
+  Kopiera · Ta bort; tap-to-place switches to Bygg. **The Del panel
+  exists only in Detaljer** (owner 2026-11-18; desktop "Egenskaper");
+  measuring still opens the Del slot in any step. With the phone panel
+  open, the action/move/place bars sit at the top
   (`.sheet-open .place-top`) instead of behind the panel.
 - **Moving** (`moveMode`, `src/lib/move.ts`): diegetic arrows in the 3D
   scene on the selection's six faces (`MoveArrows`, constant on-screen
@@ -383,7 +398,7 @@ comments in English).
   buttons (they live in the Bygg action bar; Ctrl+D / Delete still work). **Ändar** are named by
   where they point (`src/lib/ends.ts`: Vänstra/Högra = x, Nedre/Övre = y,
   Bakre/Främre = z, world-based), with matching purple labels on the
-  board's ends in the 3D view (`EndLabels`, Redigera, one board) and a
+  board's ends in the 3D view (`EndLabels`, Detaljer, one board) and a
   one-line explanation of Rak/Gering/Högkant. **Analys tab** (◎, both
   modes): free space + riktvärden (`SpaceInfo`) moved out of Del.
 - **Strength analysis** (`src/lib/strength.ts`, Analys tab, owner

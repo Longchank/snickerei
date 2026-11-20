@@ -41,6 +41,9 @@ export type Vec3 = [number, number, number]
  * A placed board. Local geometry: length along X, thickness along Y,
  * width along Z, with the origin at one corner (spans 0..L, 0..T, 0..W).
  */
+/** The four steps of a build: build, details, assembly, purchase */
+export type Phase = 'bygg' | 'detaljer' | 'montering' | 'inkop'
+
 export interface Part {
   /** Hidden in the 3D view (still counted in lists, screws and analysis) */
   hidden?: boolean
@@ -206,8 +209,8 @@ export interface Settings {
   snapToParts: boolean
   /** Which features to snap to, when moving parts and when measuring */
   snapTypes: SnapTypes
-  /** Bygg: taps pick whole groups, several at a time. Redigera: one part, its details. */
-  mode: 'bygg' | 'redigera'
+  /** The step of the build (see phases.ts): Bygg picks whole groups, Detaljer one part, … */
+  mode: Phase
   /** Advanced: the free 3D drag gizmo (off by default) */
   freeMove: boolean
   /** How far one tap on a move arrow moves the selection, mm */

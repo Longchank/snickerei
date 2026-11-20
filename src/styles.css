@@ -580,7 +580,7 @@ td {
   color: #fff;
 }
 .multi-toggle.on:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: var(--accent-strong, #1d4ed8);
 }
 
 /* Dimension labels in the 3D view */
@@ -1195,10 +1195,10 @@ button.free-label.editable::after {
 }
 /* Buttons and hints in the view sit below the floating toolbar */
 .app.mobile .view-buttons {
-  top: calc(66px + env(safe-area-inset-top));
+  top: calc(118px + env(safe-area-inset-top));
 }
 .app.mobile .measure-top {
-  top: calc(66px + env(safe-area-inset-top));
+  top: calc(118px + env(safe-area-inset-top));
 }
 .app.mobile.immersive .view-buttons,
 .app.mobile.immersive .measure-top {
@@ -1267,14 +1267,77 @@ button.primary {
   margin: 0;
 }
 
-/* Bygg | Redigera */
-.mode-switch button {
-  padding: 6px 10px;
-  font-size: 13px;
+/* The four steps of a build (phases.ts). Each button carries its own colour
+   (--c); the app root sets --accent to the current step's, so every accent
+   in the app takes that hue. */
+.phase-bar {
+  flex: 1 0 100%;
+  order: 10;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
 }
-.app.mobile .mode-switch button {
-  padding: 8px 10px;
-  font-size: 14px;
+.phase-bar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 4px 6px;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  background: var(--c-soft);
+  color: var(--c);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.phase-bar button:hover:not(:disabled) {
+  background: var(--c-soft);
+  border-color: var(--c);
+}
+.phase-bar .phase-n {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--c);
+  color: #fff;
+  font-size: 12px;
+  flex: none;
+}
+.phase-bar button.on,
+.phase-bar button.on:hover:not(:disabled) {
+  background: var(--c);
+  border-color: var(--c);
+  color: #fff;
+}
+.phase-bar button.on .phase-n {
+  background: #fff;
+  color: var(--c);
+}
+.app.mobile .phase-bar {
+  gap: 3px;
+}
+.app.mobile .phase-bar button {
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 2px;
+  font-size: 12.5px;
+}
+.app.mobile .phase-bar .phase-n {
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+/* The step's colour frames the app: a band on the toolbar and the panel */
+.app.app .toolbar {
+  flex-wrap: wrap;
+  row-gap: 6px;
+  border-top: 4px solid var(--accent);
+}
+.app.app.mobile .sheet {
+  border-top: 3px solid var(--accent);
 }
 .app.mobile .toolbar .project-name {
   min-width: 0;
@@ -1351,7 +1414,7 @@ button.primary {
    the view instead of hiding behind the panel (clear of the view buttons) */
 .app.mobile.sheet-open .place-top {
   bottom: auto;
-  top: calc(66px + env(safe-area-inset-top));
+  top: calc(118px + env(safe-area-inset-top));
   right: 70px;
 }
 
@@ -1494,9 +1557,9 @@ button.primary {
   margin: 6px 0 10px;
 }
 button.analysis-view.on {
-  background: #2563eb;
+  background: var(--accent);
   color: #fff;
-  border-color: #2563eb;
+  border-color: var(--accent);
 }
 .purpose-label {
   margin: 0 0 6px;
@@ -1870,4 +1933,12 @@ button.free-label.editable:hover:not(:disabled) {
   flex-wrap: wrap;
   gap: 6px;
   margin: 4px 0 8px;
+}
+
+/* The step bar sits below the (taller, two-row) floating toolbar on phones */
+.app.mobile .step-bar {
+  top: calc(118px + env(safe-area-inset-top));
+}
+.app.mobile.immersive .step-bar {
+  top: calc(10px + env(safe-area-inset-top));
 }

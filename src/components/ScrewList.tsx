@@ -74,7 +74,7 @@ function JointList({ joints, colorOf }: { joints: Joint[]; colorOf: Map<string, 
  * on its own (a frame, a set of legs), then where groups are joined together.
  * Rules of thumb, shown as suggestions.
  */
-export function ScrewList({ print = false }: { print?: boolean }) {
+export function ScrewList({ print = false, buyOnly = false }: { print?: boolean; buyOnly?: boolean }) {
   const parts = useStore((s) => s.project.parts)
   const groups = useStore((s) => s.project.groups)
   const joints = useMemo(() => screwJoints(parts), [parts])
@@ -89,6 +89,14 @@ export function ScrewList({ print = false }: { print?: boolean }) {
   const steps = useMemo(() => buildSteps(parts, groups), [parts, groups])
   const shownSections = print || !activeStep ? sections : sections.filter((sec) => sec.step === activeStep)
   if (!joints.length) return <p className="hint small">Inga delar ligger an mot varandra än — då behövs inga skruvar.</p>
+  // Inköp: just what to buy; the joints and steps are under Montering
+  if (buyOnly)
+    return (
+      <div className="screw-list">
+        <TotalsTable totals={totals} colorOf={colorOf} />
+        <p className="hint small">"Köp" har ca 10 % extra. Fog för fog och förborrning finns under 3 Montering.</p>
+      </div>
+    )
   return (
     <div className="screw-list">
       {!print && (

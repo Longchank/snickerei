@@ -75,7 +75,7 @@ function Category({ cat }: { cat: ProfileCategory }) {
   )
 }
 
-export function Catalog() {
+export function Catalog({ parts = true }: { parts?: boolean }) {
   return (
     <div className="catalog">
       <h2>Virke</h2>
@@ -91,7 +91,7 @@ export function Catalog() {
       {SHEET_CATEGORIES.map((cat) => (
         <Category key={cat} cat={cat} />
       ))}
-      <PartList />
+      {parts && <PartList />}
     </div>
   )
 }

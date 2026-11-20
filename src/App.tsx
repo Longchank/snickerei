@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { Catalog } from './components/Catalog'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Catalog, PartList } from './components/Catalog'
+import { ScrewList } from './components/ScrewList'
 import { CutList } from './components/CutList'
 import { Inspector } from './components/Inspector'
 import { Analysis } from './components/Analysis'
@@ -7,17 +8,29 @@ import { PriceList } from './components/PriceList'
 import { PrintReport } from './components/PrintReport'
 import { Toolbar } from './components/Toolbar'
 import { fitView, snapshotRef, Viewport } from './components/Viewport'
+import { phaseInfo } from './lib/phases'
 import { useStore } from './lib/store'
+import type { Phase } from './lib/types'
 
-type Tab = 'lagg' | 'del' | 'analys' | 'lista' | 'priser'
+type Tab = 'lagg' | 'delar' | 'del' | 'analys' | 'steg' | 'lista' | 'priser'
 
-const TABS: { id: Tab; label: string; icon: string; desktop: boolean }[] = [
-  { id: 'lagg', label: 'Lägg till', icon: '＋', desktop: false },
-  { id: 'del', label: 'Del', icon: '✎', desktop: true },
-  { id: 'analys', label: 'Analys', icon: '◎', desktop: true },
-  { id: 'lista', label: 'Listor', icon: '☰', desktop: true },
-  { id: 'priser', label: 'Priser', icon: 'kr', desktop: true },
-]
+const TAB_INFO: Record<Tab, { label: string; icon: string; desktop: string }> = {
+  lagg: { label: 'Lägg till', icon: '＋', desktop: 'Lägg till' },
+  delar: { label: 'Delar', icon: '▤', desktop: 'Delar och grupper' },
+  del: { label: 'Del', icon: '✎', desktop: 'Egenskaper' },
+  analys: { label: 'Analys', icon: '◎', desktop: 'Analys' },
+  steg: { label: 'Steg & skruv', icon: '🪜', desktop: 'Steg och skruv' },
+  lista: { label: 'Listor', icon: '☰', desktop: 'Såg- och inköpslista' },
+  priser: { label: 'Priser', icon: 'kr', desktop: 'Priser' },
+}
+
+/** The panels of each step of the build (phases.ts) */
+const PHASE_TABS: Record<Phase, Tab[]> = {
+  bygg: ['lagg', 'delar'],
+  detaljer: ['del', 'analys'],
+  montering: ['steg', 'delar'],
+  inkop: ['lista', 'priser'],
+}
 
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
@@ -68,8 +81,9 @@ export function App() {
     if (partCount > lastCount.current && mobile && tab === 'lagg') setSheetOpen(false)
     lastCount.current = partCount
   }, [partCount, mobile, tab])
-  // Switching mode: Bygg shows the model and its action bar, so the details
-  // panel closes; Redigera opens the details of what's selected
+  // Switching step: Bygg shows the model and its action bar, so the panel
+  // closes; Detaljer opens the details of what's selected; Montering and
+  // Inköp open their lists
   const mode = useStore((s) => s.settings.mode)
   const firstMode = useRef(true)
   useEffect(() => {
@@ -77,13 +91,12 @@ export function App() {
       firstMode.current = false
       return
     }
+    setTab(PHASE_TABS[mode][0])
     if (mode === 'bygg') {
       if (mobile) setSheetOpen(false)
-      setTab('lagg')
-    } else if (useStore.getState().selection.length) {
-      setTab('del')
-      setSheetOpen(true)
-    }
+    } else if (mode === 'detaljer') {
+      setSheetOpen(useStore.getState().selection.length > 0 || !mobile)
+    } else setSheetOpen(true)
   }, [mode, mobile])
   useEffect(() => {
     if (measureMode) {
@@ -95,7 +108,7 @@ export function App() {
     const st = useStore.getState()
     // Not while picking several parts or placing boards: keep the view clear
     // In Bygg the action bar handles the selection; Redigera opens the details
-    if (hasSelection && st.settings.mode === 'redigera' && !st.placeProfile && !st.moveMode && !st.rotateMode) {
+    if (hasSelection && st.settings.mode === 'detaljer' && !st.placeProfile && !st.moveMode && !st.rotateMode) {
       setTab('del')
       setSheetOpen(true)
     }
@@ -103,14 +116,12 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickCount])
 
-  // The Del (details) tab belongs to Redigera; in Bygg the action bar in the
-  // view handles the selection (owner 2026-11-18). Measuring still uses the
-  // panel's slot, so it shows while measuring in either mode.
-  const delAvailable = mode === 'redigera'
-  const tabs = TABS.filter((t) => delAvailable || t.id !== 'del')
-  // 'Lägg till' lives in the left column on desktop
-  let activeTab: Tab = !mobile && tab === 'lagg' ? (delAvailable ? 'del' : 'lista') : tab
-  if (activeTab === 'del' && !delAvailable && !measureMode) activeTab = mobile ? 'lagg' : 'lista'
+  // Each step has its own panels. Measuring uses the Del slot in any step.
+  // On desktop 'Lägg till' lives in the left column.
+  const tabs = PHASE_TABS[mode].filter((t) => mobile || t !== 'lagg')
+  let activeTab: Tab = tabs.includes(tab) ? tab : tabs[0]
+  if (measureMode) activeTab = 'del'
+  const phase = phaseInfo(mode)
 
   const print = async () => {
     // Clean view for the snapshot: nothing selected, no overlays, whole model in frame
@@ -128,7 +139,9 @@ export function App() {
 
   const content = (
     <>
-      {activeTab === 'lagg' && <Catalog />}
+      {activeTab === 'lagg' && <Catalog parts={false} />}
+      {activeTab === 'delar' && <PartList />}
+      {activeTab === 'steg' && <ScrewList />}
       {activeTab === 'del' && <Inspector />}
       {activeTab === 'analys' && <Analysis />}
       {activeTab === 'lista' && <CutList onPrint={print} />}
@@ -139,6 +152,8 @@ export function App() {
   return (
     <>
       <div
+        data-phase={mode}
+        style={{ '--accent': phase.color, '--accent-strong': phase.strong, '--accent-soft': phase.soft } as CSSProperties}
         className={`app ${mobile ? 'mobile' : 'desktop'}${immersive ? ' immersive' : ''}${
           mobile && sheetOpen && !immersive ? ' sheet-open' : ''
         }`}
@@ -146,7 +161,7 @@ export function App() {
         {!immersive && <Toolbar onPrint={print} />}
         {!mobile && !immersive && (
           <aside className="panel left">
-            <Catalog />
+            <Catalog parts={false} />
           </aside>
         )}
         <main className="viewport">
@@ -163,18 +178,18 @@ export function App() {
             <nav className="tabbar" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
               {tabs.map((t) => (
                 <button
-                  key={t.id}
-                  className={sheetOpen && activeTab === t.id ? 'active' : ''}
+                  key={t}
+                  className={sheetOpen && activeTab === t ? 'active' : ''}
                   onClick={() => {
-                    if (sheetOpen && activeTab === t.id) setSheetOpen(false)
+                    if (sheetOpen && activeTab === t) setSheetOpen(false)
                     else {
-                      setTab(t.id)
+                      setTab(t)
                       setSheetOpen(true)
                     }
                   }}
                 >
-                  <span className="tab-icon">{t.icon}</span>
-                  {t.label}
+                  <span className="tab-icon">{TAB_INFO[t].icon}</span>
+                  {TAB_INFO[t].label}
                 </button>
               ))}
             </nav>
@@ -182,9 +197,9 @@ export function App() {
         ) : (
           <aside className="panel right">
             <nav className="tabs">
-              {tabs.filter((t) => t.desktop).map((t) => (
-                <button key={t.id} className={activeTab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
-                  {t.id === 'del' ? 'Egenskaper' : t.id === 'analys' ? 'Analys' : t.id === 'lista' ? 'Såglista' : 'Prislista'}
+              {tabs.map((t) => (
+                <button key={t} className={activeTab === t ? 'active' : ''} onClick={() => setTab(t)}>
+                  {TAB_INFO[t].desktop}
                 </button>
               ))}
             </nav>

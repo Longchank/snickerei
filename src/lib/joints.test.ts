@@ -188,7 +188,7 @@ describe('store: modes', () => {
     s().pickPart(c.id) // toggled off again
     expect(s().selection.sort()).toEqual([a.id, b.id].sort())
 
-    s().setMode('redigera')
+    s().setMode('detaljer')
     s().pickPart(b.id) // just this part, even though it's in a group
     expect(s().selection).toEqual([b.id])
   })

@@ -28,6 +28,7 @@ import { endName, endPoint } from '../lib/ends'
 import { reorientOptions, worldAxisOf } from '../lib/place'
 import { buildSteps, isShown, type Step } from '../lib/steps'
 import { similarChoices } from '../lib/select'
+import { phaseInfo } from '../lib/phases'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
@@ -164,6 +165,8 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
   const ref = useRef<Group>(null)
   // X-ray: everything but the selection is see-through
   const xray = useStore((s) => s.xray) && !selected
+  // The selection takes the step's colour
+  const phase = phaseInfo(useStore((s) => s.settings.mode))
 
   /** Snap options for a pointer event on this part, best first */
   const snapOptions = (e: ThreeEvent<MouseEvent>): MeasurePoint[] => {
@@ -260,14 +263,14 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
           key={`${grainMap && !tint ? grainMap.uuid : tint ?? 'plain'}${xray ? '-xray' : ''}`}
           map={tint ? null : grainMap}
           color={tint ?? prof.color}
-          emissive={selected ? '#3b82f6' : hovered && !isTouch && !measureMode ? '#555' : '#000'}
+          emissive={selected ? phase.color : hovered && !isTouch && !measureMode ? '#555' : '#000'}
           emissiveIntensity={selected ? 0.35 : 0.15}
           roughness={0.8}
           transparent={xray}
           opacity={xray ? 0.18 : 1}
           depthWrite={!xray}
         />
-        <Edges color={selected ? '#1d4ed8' : part.locked ? '#9ca3af' : '#6b4f2a'} />
+        <Edges color={selected ? phase.strong : part.locked ? '#9ca3af' : '#6b4f2a'} />
       </mesh>
     </group>
   )
@@ -906,7 +909,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         <Dimensions box={dimBox} offset={selBox ? 60 : 120} axes={dimAxes} label={dimLabel} />
       )}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
-      {!capturing && mode === 'redigera' && selection.length === 1 && <EndLabels partId={selection[0]} />}
+      {!capturing && mode === 'detaljer' && selection.length === 1 && <EndLabels partId={selection[0]} />}
       {!capturing && screwView && <ScrewDots parts={parts} shown={shownParts} />}
       {parts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
@@ -988,7 +991,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       />
       {!capturing && (
         // On phones the bottom panel floats over the view, so the axes go top left
-        <GizmoHelper alignment={isTouch ? 'top-left' : 'bottom-right'} margin={isTouch ? [50, 120] : [60, 60]}>
+        <GizmoHelper alignment={isTouch ? 'top-left' : 'bottom-right'} margin={isTouch ? [50, 170] : [60, 60]}>
           <GizmoViewport labelColor="white" axisHeadScale={0.9} />
         </GizmoHelper>
       )}

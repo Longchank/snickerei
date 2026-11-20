@@ -20,10 +20,13 @@ Byggd för mobilen först — fungerar även på dator.
   varandra** (kant mot kant, i liv) och mot ett rutnät på 1–100 mm.
 - **Mått i 3D-vyn** för markerad del, eller totalmått när inget är markerat.
 - Rotera i 90°-steg, duplicera, ångra/gör om, "visa hela modellen".
-- **Två lägen: Bygg och Redigera.** I *Bygg* markerar varje tryck en hel
-  grupp och lägger till den i markeringen; en list längst ner har
-  Gruppera, Flytta, Vrid, Kopiera och Ta bort. I *Redigera* väljer ett tryck
-  en enskild del och visar dess detaljer (längd, ändar, fogar).
+- **Fyra steg, var och ett i sin färg**: 1 Bygg (lägg till och placera,
+  grupper, ramar) · 2 Detaljer (längder, ändar, urtag, håller det?) ·
+  3 Montering (steg för steg, skruv) · 4 Inköp (såglista, inköpslista,
+  priser). Hoppa fritt mellan stegen — modellen går att ändra i alla.
+  I *Bygg* markerar ett tryck en hel grupp och en list har Gruppera,
+  Flytta, Vrid, Spegla, Kopiera och Ta bort. I *Detaljer* väljer ett tryck
+  en enskild del och visar dess längd, ändar och fogar.
 - **Flytta** med pilar direkt i 3D-modellen (ett steg per tryck, 1–100 mm
   eller valfritt), eller tryck på en bräda för att flytta dit, kant i kant.
   Fri dragning finns under Avancerat i menyn.

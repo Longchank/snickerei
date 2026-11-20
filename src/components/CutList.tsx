@@ -52,7 +52,7 @@ export function CutList({ onPrint }: { onPrint: () => void }) {
       {usesExamples && <p className="warn">Vissa priser är exempelpriser — inte riktiga butikspriser.</p>}
 
       <h3>Skruv</h3>
-      <ScrewList />
+      <ScrewList buyOnly />
     </div>
   )
 }

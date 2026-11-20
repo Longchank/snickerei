@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { PHASES } from '../lib/phases'
 import { useStore } from '../lib/store'
 import type { Project } from '../lib/types'
 
@@ -23,7 +24,6 @@ export function Toolbar({ onPrint }: { onPrint: () => void }) {
         onChange={(e) => setProjectName(e.target.value)}
         aria-label="Projektnamn"
       />
-      <ModeSwitch />
       <div className="group">
         <button className="icon" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
           ↶
@@ -33,27 +33,31 @@ export function Toolbar({ onPrint }: { onPrint: () => void }) {
         </button>
         <Menu onPrint={onPrint} />
       </div>
+      <PhaseBar />
     </header>
   )
 }
 
-/** Bygg: whole groups, several at a time, add and move. Redigera: one part's details. */
-function ModeSwitch() {
+/** The four steps of a build, each in its own colour */
+function PhaseBar() {
   const mode = useStore((s) => s.settings.mode)
   const setMode = useStore((s) => s.setMode)
   return (
-    <div className="segmented mode-switch" role="group" aria-label="Läge">
-      <button className={mode === 'bygg' ? 'on' : ''} aria-pressed={mode === 'bygg'} onClick={() => setMode('bygg')}>
-        Bygg
-      </button>
-      <button
-        className={mode === 'redigera' ? 'on' : ''}
-        aria-pressed={mode === 'redigera'}
-        onClick={() => setMode('redigera')}
-      >
-        Redigera
-      </button>
-    </div>
+    <nav className="phase-bar" aria-label="Steg i bygget">
+      {PHASES.map((p) => (
+        <button
+          key={p.id}
+          className={mode === p.id ? 'on' : ''}
+          aria-current={mode === p.id ? 'step' : undefined}
+          style={{ '--c': p.color, '--c-soft': p.soft } as CSSProperties}
+          onClick={() => setMode(p.id)}
+          title={p.hint}
+        >
+          <span className="phase-n">{p.n}</span>
+          <span className="phase-label">{p.label}</span>
+        </button>
+      ))}
+    </nav>
   )
 }
 
