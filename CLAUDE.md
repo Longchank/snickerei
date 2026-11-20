@@ -336,6 +336,13 @@ comments in English).
   end moves the full difference, in between keep their relative place —
   while boards along the axis and sheets get longer/shorter, each end
   following a moving part it butts against. Profiles never change.
+  Anchoring spreads: a part butting against an anchored part follows it
+  (a leg tucked inside a corner behind an end rail stays in that corner;
+  owner report 2026-11-20 of legs leaving their corners). **Framed sheets
+  are never stretched board by board**: after the stretch/resize, any
+  sheet with `frame` gets its frame rebuilt from its settings
+  (`rebuildFrame` → `buildFrame`, legs to the floor from the sheet's new
+  height); joist count is kept, spacing follows.
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
   were editable in the 3D view): the Del panel shows no position. Moving and turning happen in the 3D view (Bygg: arrows,
   rings, editable green gaps, Avancerat free gizmo).

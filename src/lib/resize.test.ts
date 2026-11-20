@@ -66,3 +66,19 @@ describe('stretchParts', () => {
     expect(back.map(box)).toEqual(bench.map(box))
   })
 })
+
+describe('stretchParts keeps tucked-in parts with their corner', () => {
+  it('a leg inside the corner, behind an end rail, stays in that corner', () => {
+    // End rails at both ends (running along z, 70 wide along x), legs just inside them
+    const endL = at('endL', 'konstruktion-45x70', 600, [0, 1, 0], [0, 700, 0])
+    const endR = at('endR', 'konstruktion-45x70', 600, [0, 1, 0], [1130, 700, 0])
+    expect(box(endL).max[0] - box(endL).min[0]).toBe(70)
+    const legIn = at('legIn', 'konstruktion-45x95', 745, UP, [70, 0, 45])
+    const legInR = at('legInR', 'konstruktion-45x95', 745, UP, [1085, 0, 45])
+    const out = stretchParts([endL, endR, legIn, legInR], 0, 1500)
+    const byId = new Map(out.map((p) => [p.id, box(p)]))
+    expect(byId.get('legIn')!.min[0]).toBe(70) // still against the left end rail
+    expect(byId.get('legInR')!.max[0]).toBe(1430) // still against the right end rail
+    expect(byId.get('endR')!.max[0]).toBe(1500)
+  })
+})

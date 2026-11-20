@@ -236,3 +236,43 @@ export function splitSheet(sheet: Part): Part[] {
     [field]: round(end - edges[k]),
   }))
 }
+
+// ---------------------------------------------------------------- building
+
+/**
+ * The sheet and its frame boards for frame settings `f`, starting from the
+ * sheet as it is (`original`, whose own `frame` says how it was shaped
+ * before): the sheet grown or shrunk for covered legs and moved to sit on
+ * the frame, and fresh frame boards (ids `<sheet>:ram<n>`, `frameOf`).
+ */
+export function buildFrame(original: Part, f: SheetFrame, groupId?: string): { sheet: Part; parts: Part[] } {
+  // The long way is fixed once, so widening the sheet can't flip the frame
+  const frame: SheetFrame = f.axis === undefined ? { ...f, axis: original.frame?.axis ?? longAxis(original) } : f
+  const base = sheetForFrame(original, original.frame, frame)
+  const { parts: built, lift } = frameUnder(base, frame)
+  const sheet: Part = {
+    ...base,
+    frame,
+    groupId,
+    position: [base.position[0], round(base.position[1] + lift), base.position[2]],
+  }
+  const count: Record<string, number> = {}
+  const parts: Part[] = built.map(({ role, ...p }, i) => {
+    count[role] = (count[role] ?? 0) + 1
+    return { ...p, id: `${base.id}:ram${i}`, name: `${role} ${count[role]}`, frameOf: base.id, groupId }
+  })
+  return { sheet, parts }
+}
+
+/**
+ * Rebuild a framed sheet's frame where the sheet is now (after it was
+ * stretched or resized): same settings, legs down to the floor from the
+ * sheet's current height.
+ */
+export function rebuildFrame(sheet: Part): { sheet: Part; parts: Part[] } | null {
+  const f = sheet.frame
+  if (!f) return null
+  const top = boxOf(sheet).max[1]
+  const next = f.legs ? { ...f, legs: { ...f.legs, height: Math.round(top) } } : f
+  return buildFrame(sheet, next, sheet.groupId)
+}

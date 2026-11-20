@@ -2,10 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
-import { partBox, rotatePart, round, toAxisBox } from './geometry'
+import { partBox, rotatePart, toAxisBox } from './geometry'
 import { setSizeAlong, stretchParts } from './resize'
 import type { OwnSheetSizes, OwnStockLengths } from './cutlist'
-import { defaultJoists, frameUnder, isLyingSheet, longAxis, sheetForFrame } from './frame'
+import { buildFrame, defaultJoists, isLyingSheet, rebuildFrame, sheetForFrame } from './frame'
 import { cornerButt, cornerMiter, findCornerPartner, switchButtJoints } from './corner'
 import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
@@ -298,18 +298,8 @@ export const useStore = create<State>()(
           const fs = get().frameSheet
           if (!fs) return
           const { base: original, groupId } = fs
-          // The long way is fixed once, so widening the sheet can't flip the frame
-          f = f.axis === undefined ? { ...f, axis: original.frame?.axis ?? longAxis(original) } : f
-          // Widened (or narrowed back) when covering outside legs changes
-          const base = sheetForFrame(original, original.frame, f)
-          const { parts: built, lift } = frameUnder(base, f)
-          const up = (v: Vec3): Vec3 => [v[0], round(v[1] + lift), v[2]]
-          const sheet: Part = { ...base, frame: f, groupId, position: up(base.position) }
-          const count: Record<string, number> = {}
-          const frameParts: Part[] = built.map(({ role, ...p }, i) => {
-            count[role] = (count[role] ?? 0) + 1
-            return { ...p, id: `${base.id}:ram${i}`, name: `${role} ${count[role]}`, frameOf: base.id, groupId }
-          })
+          const { sheet, parts: frameParts } = buildFrame(original, f, groupId)
+          const base = original
           const apply = (snap: Snapshot): Snapshot => ({
             groups: snap.groups.some((g) => g.id === groupId) ? snap.groups : [...snap.groups, { id: groupId, name: 'Skiva med ram' }],
             parts: [...snap.parts.filter((p) => p.frameOf !== base.id && p.id !== base.id), sheet, ...frameParts],
@@ -566,8 +556,16 @@ export const useStore = create<State>()(
           if (!chosen.length) return
           const changed =
             chosen.length === 1 ? [setSizeAlong(chosen[0], axis, size)] : stretchParts(chosen, axis, size)
+          // A framed sheet that changed size or place gets its frame rebuilt from its
+          // settings, so rails, joists and legs fit it exactly (legs stay in the corners)
+          const rebuilt = changed.filter((p) => p.frame).map((p) => rebuildFrame(p)!)
+          const sheets = new Set(rebuilt.map((r) => r.sheet.id))
           const byId = new Map(changed.map((p) => [p.id, p]))
-          editParts((ps) => ps.map((p) => byId.get(p.id) ?? p))
+          for (const r of rebuilt) byId.set(r.sheet.id, r.sheet)
+          editParts((ps) => [
+            ...ps.filter((p) => !(p.frameOf && sheets.has(p.frameOf))).map((p) => byId.get(p.id) ?? p),
+            ...rebuilt.flatMap((r) => r.parts),
+          ])
         },
         rotateSelection: (axis) =>
           editSelection((ps) => (ps.length === 1 ? [rotatePart(ps[0], axis)] : rotateParts(ps, axis))),

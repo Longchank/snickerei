@@ -244,3 +244,46 @@ describe('outside legs at the ends', () => {
     expect(seamX).toBeLessThan(joist.max[0])
   })
 })
+
+describe('store: stretching a sheet with frame and legs', () => {
+  beforeEach(() => useStore.getState().newProject())
+
+  for (const placement of ['inside', 'outside', 'under', 'merged'] as const) {
+    it(`${placement}: legs stay in the corners when the whole build is stretched`, () => {
+      useStore.setState((s) => ({ project: { ...s.project, parts: [sheet] }, selection: ['s'] }))
+      const st = () => useStore.getState()
+      st().openFrame('s')
+      st().applyFrame({ ...st().project.parts.find((p) => p.id === 's')!.frame!, legs: { profileId: 'konstruktion-45x95', placement, height: 900 } })
+      st().closeFrame()
+      const check = (w: number, d: number, h: number) => {
+        const ps = st().project.parts
+        const all = ps.map(box)
+        const outer = { min: [0, 1, 2].map((i) => Math.min(...all.map((b) => b.min[i]))), max: [0, 1, 2].map((i) => Math.max(...all.map((b) => b.max[i]))) }
+        expect(outer.max[0] - outer.min[0]).toBe(w)
+        expect(outer.max[2] - outer.min[2]).toBe(d)
+        expect(outer.max[1]).toBe(h)
+        const sb = box(ps.find((p) => p.id === 's')!)
+        const legs = ps.filter((p) => p.name.startsWith('Ben')).map(box)
+        expect(legs).toHaveLength(4)
+        // Each leg is at a corner: touching the sheet's (or frame's) end along x
+        for (const l of legs) {
+          expect(l.min[1]).toBe(0)
+          const nearX = Math.min(Math.abs(l.min[0] - sb.min[0]), Math.abs(l.max[0] - sb.max[0]))
+          expect(nearX).toBeLessThanOrEqual(placement === 'inside' ? 45 : 0)
+        }
+        for (const p of ps) expect(overlapsOf(p, ps)).toEqual([])
+      }
+      // Select the whole group (sheet + frame) and stretch it
+      st().select(st().project.parts.map((p) => p.id))
+      const before = st().project.parts.map(box)
+      const w0 = Math.max(...before.map((b) => b.max[0])) - Math.min(...before.map((b) => b.min[0]))
+      const d0 = Math.max(...before.map((b) => b.max[2])) - Math.min(...before.map((b) => b.min[2]))
+      st().resizeSelection(0, w0 + 600)
+      check(w0 + 600, d0, 900)
+      st().resizeSelection(2, d0 + 100)
+      check(w0 + 600, d0 + 100, 900)
+      st().resizeSelection(1, 750)
+      check(w0 + 600, d0 + 100, 750)
+    })
+  }
+})

@@ -71,11 +71,36 @@ export function stretchParts(parts: Part[], axis: Axis, size: number): Part[] {
   const boxes = new Map(parts.map((p) => [p.id, boxOf(p)]))
   const fixed = parts.filter((p) => !freeSizeAlong(p, axis))
   const shifts = new Map<string, number>()
+  // 1. Parts at the near or far end are anchored there
   for (const p of fixed) {
     const b = boxes.get(p.id)!
-    const s =
-      Math.abs(b.min[axis] - m) < TOL ? 0 : Math.abs(b.max[axis] - M) < TOL ? delta : scale((b.min[axis] + b.max[axis]) / 2) - (b.min[axis] + b.max[axis]) / 2
-    shifts.set(p.id, s)
+    if (Math.abs(b.min[axis] - m) < TOL) shifts.set(p.id, 0)
+    else if (Math.abs(b.max[axis] - M) < TOL) shifts.set(p.id, delta)
+  }
+  // 2. A part butting against an anchored one follows it (a leg tucked inside a
+  //    corner, behind an end rail), spreading outward from both ends at once
+  let frontier = fixed.filter((p) => shifts.has(p.id))
+  while (frontier.length) {
+    const next: Part[] = []
+    for (const p of fixed) {
+      if (shifts.has(p.id)) continue
+      const b = boxes.get(p.id)!
+      const by = frontier.find((q) => {
+        const c = boxes.get(q.id)!
+        const butts = Math.abs(c.max[axis] - b.min[axis]) < TOL || Math.abs(b.max[axis] - c.min[axis]) < TOL
+        return butts && overlapsAcross(b, c, axis)
+      })
+      if (by) next.push(p)
+      if (by) shifts.set(p.id, shifts.get(by.id)!)
+    }
+    frontier = next
+  }
+  // 3. The rest keep their relative place
+  for (const p of fixed) {
+    if (shifts.has(p.id)) continue
+    const b = boxes.get(p.id)!
+    const c = (b.min[axis] + b.max[axis]) / 2
+    shifts.set(p.id, scale(c) - c)
   }
   /** How far an end at x of the stretchable part with box b moves */
   const endShift = (b: AxisBox, x: number) => {
