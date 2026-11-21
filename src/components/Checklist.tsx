@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { Info } from './Info'
 import { runChecks, type Issue } from '../lib/checks'
 import { phaseInfo } from '../lib/phases'
 import { screwJoints } from '../lib/screws'
@@ -48,7 +49,6 @@ export function Checklist() {
             {warn ? `${warn} att kolla` : ''}
           </strong>
         )}
-        <span className="small">Krockar, hållfasthet, skruv och inköp. Tryck på ett ! i 3D för att hoppa hit.</span>
       </div>
       <ul className="check-list">
         {issues.map((i) => {
@@ -98,7 +98,11 @@ export function Checklist() {
           )
         })}
       </ul>
-      <p className="hint small">Hållfasthet och skruv är uppskattningar efter tumregler — se dem som en checklista, inte en garanti.</p>
+      <Info label="Vad kontrolleras?">
+        Krockar, delar som svävar, hållfasthet, tippning, skruv man inte kommer åt, brädor och skivor som är större än butiken
+        säljer, och priser. Tryck på ett ! i 3D för att hoppa till punkten här. Hållfasthet och skruv är uppskattningar efter
+        tumregler — se dem som en checklista, inte en garanti.
+      </Info>
     </div>
   )
 }

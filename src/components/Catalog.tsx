@@ -1,3 +1,4 @@
+import { Info } from './Info'
 import { useState, type ReactNode } from 'react'
 import { CATEGORY_NAMES, getProfile, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
@@ -79,15 +80,15 @@ export function Catalog({ parts = true }: { parts?: boolean }) {
   return (
     <div className="catalog">
       <h2>Virke</h2>
-      <p className="hint">
+      <Info>
         Välj en bräda och tryck sedan där den ska sitta på modellen — vid början, mitten eller änden av en annan bräda,
-        eller på golvet. Tvärsnittet är låst — bara längden kan ändras.
-      </p>
+        eller på golvet. Tvärsnittet är låst — bara längden kan ändras. Skivor läggs med två tryck, hörn till hörn; deras
+        tjocklek är låst men längd och bredd är fria.
+      </Info>
       {BOARD_CATEGORIES.map((cat) => (
         <Category key={cat} cat={cat} />
       ))}
       <h2>Skivor</h2>
-      <p className="hint">Tjockleken är låst — längd och bredd är fria.</p>
       {SHEET_CATEGORIES.map((cat) => (
         <Category key={cat} cat={cat} />
       ))}

@@ -2124,3 +2124,139 @@ button.free-label.editable:hover:not(:disabled) {
 .app.mobile.sheet-open .place-top:has(.action-bar) {
   display: none;
 }
+
+/* ---- Saving space on the phone (owner 2026-11-21) ---- */
+/* Top bar: no logo; the step buttons on one line (number + name) */
+.app.mobile .toolbar .logo {
+  display: none;
+}
+.app.mobile .phase-bar button {
+  flex-direction: row;
+  gap: 4px;
+  min-height: 34px;
+  padding: 2px 4px;
+  font-size: 13px;
+}
+.app.mobile .phase-bar .phase-n {
+  width: 17px;
+  height: 17px;
+  font-size: 10.5px;
+}
+/* Bottom tabs: icon and name on one line; a thinner grab handle */
+.app.mobile .tabbar button {
+  flex-direction: row;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0;
+  font-size: 14px;
+}
+.app.mobile .tabbar .tab-icon {
+  font-size: 16px;
+}
+.app.mobile .sheet-handle {
+  padding: 5px 0 3px;
+}
+.app.mobile .sheet-handle span {
+  height: 4px;
+}
+/* Bygg bar: one row of icon buttons with a short label under each */
+.action-title strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.action-title .chip.similar {
+  min-height: 32px;
+  padding: 2px 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.action-buttons {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+.action-buttons button.act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 0 4px;
+  min-height: 48px;
+  font-size: 11.5px;
+  line-height: 1.1;
+}
+.action-buttons button.act.primary,
+.action-buttons button.act.primary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.action-buttons button.act.danger {
+  color: var(--danger);
+}
+.action-bar .switch-butt {
+  min-height: 40px;
+  margin-top: 5px;
+  font-size: 14px;
+}
+.action-bar {
+  gap: 6px;
+}
+/* Help text folded behind ⓘ */
+details.info {
+  margin: 2px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+details.info > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  cursor: pointer;
+  list-style: none;
+}
+details.info > summary::-webkit-details-marker {
+  display: none;
+}
+.info-i {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-size: 11px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, serif;
+}
+.info-body {
+  padding: 2px 0 4px;
+  line-height: 1.45;
+}
+.info-body p {
+  margin: 0 0 6px;
+}
+/* Small on/off chip instead of a full-width toggle button */
+.chip.view-toggle {
+  min-height: 36px;
+  margin: 2px 0 6px;
+}
+.chip.view-toggle.on,
+.chip.view-toggle.on:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.analysis-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.analysis-tools details.info {
+  margin: 0;
+}

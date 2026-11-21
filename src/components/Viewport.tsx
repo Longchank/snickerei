@@ -29,7 +29,7 @@ import { reorientOptions, worldAxisOf } from '../lib/place'
 import { buildSteps, isShown, type Step } from '../lib/steps'
 import { similarChoices } from '../lib/select'
 import { phaseInfo } from '../lib/phases'
-import { IconClose, IconHide, IconIsolate, IconLock, IconRuler, IconShow, IconSteps, IconTools, IconUnlock, IconXray } from './Icons'
+import { IconCopy, IconGroup, IconMirror, IconMove, IconRotate, IconTrash, IconUngroup, IconClose, IconHide, IconIsolate, IconLock, IconRuler, IconShow, IconSteps, IconTools, IconUnlock, IconXray } from './Icons'
 import { useChecks } from './Checklist'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
 import { bestSeams, sheetPlanWith } from '../lib/seams'
@@ -1086,44 +1086,52 @@ function ActionBar() {
       <div className="action-bar" role="toolbar" aria-label="Markerat">
         <div className="action-title">
           <strong>{label}</strong>
+          {similar.map((c) => (
+            <button key={c.kind} className="chip similar" onClick={() => select(c.ids)} title="Markera alla likadana delar">
+              ▣ {c.kind === 'size' ? `${profileName}×${sizeName}` : profileName} ({c.ids.length})
+            </button>
+          ))}
           <button className="link" onClick={clearSelection} aria-label="Avmarkera">
             ✕
           </button>
         </div>
         <div className="action-buttons">
           {group ? (
-            <button onClick={() => ungroup(group.id)}>Dela upp</button>
+            <button className="act" onClick={() => ungroup(group.id)} title="Dela upp gruppen">
+              <IconUngroup />
+              <span>Dela</span>
+            </button>
           ) : (
             <button
+              className="act"
               disabled={chosen.length < 2}
               onClick={() => groupSelection(`Grupp ${groups.length + 1}`)}
-              title={chosen.length < 2 ? 'Tryck på fler delar för att gruppera' : undefined}
+              title={chosen.length < 2 ? 'Tryck på fler delar för att gruppera' : 'Gruppera'}
             >
-              Gruppera
+              <IconGroup />
+              <span>Gruppera</span>
             </button>
           )}
-          <button className="primary" onClick={() => setMoveMode(true)}>
-            ✥ Flytta
+          <button className="act primary" onClick={() => setMoveMode(true)} title="Flytta">
+            <IconMove />
+            <span>Flytta</span>
           </button>
-          <button className="primary" onClick={() => setRotateMode(true)}>
-            ↻ Vrid
+          <button className="act primary" onClick={() => setRotateMode(true)} title="Vrid 90°">
+            <IconRotate />
+            <span>Vrid</span>
           </button>
-          <button onClick={() => setMirrorMode(true)} title="Spegelkopia eller vänd på plats">
-            ⇋ Spegla
+          <button className="act" onClick={() => setMirrorMode(true)} title="Spegelkopia eller vänd på plats">
+            <IconMirror />
+            <span>Spegla</span>
           </button>
-          <button onClick={duplicateSelection} title="Duplicera">
-            Kopiera
+          <button className="act" onClick={duplicateSelection} title="Kopiera">
+            <IconCopy />
+            <span>Kopiera</span>
           </button>
-          <button className="danger" onClick={removeSelection}>
-            Ta bort
+          <button className="act danger" onClick={removeSelection} title="Ta bort">
+            <IconTrash />
+            <span>Ta bort</span>
           </button>
-        </div>
-        <div className="action-row2">
-          {similar.map((c) => (
-            <button key={c.kind} onClick={() => select(c.ids)} title="Markera alla likadana delar">
-              ▣ Alla {c.kind === 'size' ? `${profileName} × ${sizeName}` : profileName} ({c.ids.length})
-            </button>
-          ))}
         </div>
         {butt && (
           <button
@@ -1151,11 +1159,7 @@ function ActionBar() {
             ⚠ Krockar på {collisions} {collisions === 1 ? 'ställe' : 'ställen'} (rött i 3D)
           </span>
         )}
-        {showNote ? (
-          <span className="action-hint">{note}</span>
-        ) : (
-          chosen.length === 1 && !group && <span className="action-hint">Tryck på fler delar för att markera dem också</span>
-        )}
+        {showNote && <span className="action-hint">{note}</span>}
       </div>
     </div>
   )

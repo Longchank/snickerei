@@ -151,6 +151,17 @@ comments in English).
   hidden (CSS `.sheet-open .place-top:has(.action-bar)`) and returns when
   it closes. Kontroll's "Visa i 3D" closes the list via
   `requestPanel(false)` (store `panelRequest`, applied by App).
+- **Saving screen space** (owner 2026-11-21: "shorten names, symbology,
+  collapsible menus", going menu by menu). Round 1: phone toolbar without
+  the logo; step buttons on one line (number + name); bottom tabs icon +
+  name on one line, thinner grab handle; Bygg action bar = one row of six
+  icon buttons with a short label under each (`button.act`: Gruppera/Dela
+  · Flytta · Vrid · Spegla · Kopiera · Ta bort; icons in `Icons.tsx`),
+  "▣ 45×95 (N)" select-similar chips in its title row, no "tap more parts"
+  hint; long help texts fold behind `<Info>` (ⓘ + short label, `Info.tsx`)
+  — catalog, screw advice, analysis load/disclaimer, Kontroll; full-width
+  3D toggles became small chips (`chip view-toggle`: "● Skruv i 3D",
+  "🎨 Färg i 3D"); no duplicate "Analys" heading.
 - **Kontroll before buying** (owner 2026-11-21, Inköp → Kontroll,
   `src/lib/checks.ts` `runChecks`, `components/Checklist.tsx`): gathers
   what the app already detects — collisions (each pair once), parts

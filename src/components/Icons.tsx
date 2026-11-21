@@ -71,3 +71,45 @@ export const IconUnlock = () => (
     <path d="M8 11V7a4 4 0 0 1 7.8-1.2" />
   </Svg>
 )
+export const IconGroup = () => (
+  <Svg>
+    <rect x="3" y="3" width="8" height="8" rx="1" />
+    <rect x="13" y="13" width="8" height="8" rx="1" />
+    <path d="M7 15v4a2 2 0 0 0 2 2h2M17 9V5a2 2 0 0 0-2-2h-2" />
+  </Svg>
+)
+export const IconUngroup = () => (
+  <Svg>
+    <rect x="3" y="3" width="8" height="8" rx="1" />
+    <rect x="13" y="13" width="8" height="8" rx="1" />
+    <path d="M14 4l6 6M20 4l-6 6" />
+  </Svg>
+)
+export const IconMove = () => (
+  <Svg>
+    <path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3" />
+  </Svg>
+)
+export const IconRotate = () => (
+  <Svg>
+    <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+    <path d="M21 3v5h-5" />
+  </Svg>
+)
+export const IconMirror = () => (
+  <Svg>
+    <path d="M12 3v18" strokeDasharray="2 2.5" />
+    <path d="M9 7 3 17h6V7ZM15 7l6 10h-6V7Z" />
+  </Svg>
+)
+export const IconCopy = () => (
+  <Svg>
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+  </Svg>
+)
+export const IconTrash = () => (
+  <Svg>
+    <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" />
+  </Svg>
+)

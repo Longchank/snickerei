@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Info } from './Info'
 import { SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, type Joint, type ScrewTotal } from '../lib/screws'
 import { buildSteps } from '../lib/steps'
 import { useStore } from '../lib/store'
@@ -100,17 +101,22 @@ export function ScrewList({ print = false, buyOnly = false }: { print?: boolean;
   return (
     <div className="screw-list">
       {!print && (
-        <button className={`analysis-view ${screwView ? 'on' : ''}`} aria-pressed={screwView} onClick={() => setScrewView(!screwView)}>
-          {screwView ? '✓ Skruvarna visas i 3D' : '● Visa skruv i 3D'}
+        <button className={`chip view-toggle ${screwView ? 'on' : ''}`} aria-pressed={screwView} onClick={() => setScrewView(!screwView)}>
+          {screwView ? '✓ Skruv i 3D' : '● Skruv i 3D'}
         </button>
       )}
       <h4 className="screw-heading">Totalt att köpa</h4>
       <TotalsTable totals={totals} colorOf={colorOf} />
-      <p className="hint small">
-        Färgen visar var skruven sitter i 3D{print ? '' : ' (markera en grupp för att bara se dess skruvar)'}. "Köp" har ca 10 %
-        extra; skruv säljs ofta i askar om 100–250 st. Förslag efter tumregler: skruven ska gå ca 1,5 gånger delens tjocklek
-        in i delen bakom (mer i ändträ), minst 2 per fog. Förborra i den mottagande delen med borren i tabellen.
-      </p>
+      {(() => {
+        const text = (
+          <>
+            Färgen visar var skruven sitter i 3D{print ? '' : ' (markera en grupp för att bara se dess skruvar)'}. "Köp" har ca
+            10 % extra; skruv säljs ofta i askar om 100–250 st. Förslag efter tumregler: skruven ska gå ca 1,5 gånger delens
+            tjocklek in i delen bakom (mer i ändträ), minst 2 per fog. Förborra i den mottagande delen med borren i tabellen.
+          </>
+        )
+        return print ? <p className="hint small">{text}</p> : <Info label="Om förslagen">{text}</Info>
+      })()}
       <h4 className="screw-heading">Steg för steg</h4>
       {!print && (
         <div className="step-chips" role="group" aria-label="Visa steg">

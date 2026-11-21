@@ -1,3 +1,4 @@
+import { Info } from './Info'
 import { useEffect, useMemo, useState } from 'react'
 import { PURPOSES, STATUS_COLOR, STATUS_LABEL, analyse, type Status } from '../lib/strength'
 import { useSelectedParts, useStore } from '../lib/store'
@@ -38,7 +39,6 @@ export function Analysis() {
   if (!parts.length) {
     return (
       <div className="inspector analysis">
-        <h2>Analys</h2>
         <p className="hint">Bygg något först — sedan visas vikt, hållfasthet, tippning och stabilitet här.</p>
       </div>
     )
@@ -46,7 +46,6 @@ export function Analysis() {
 
   return (
     <div className="inspector analysis">
-      <h2>Analys</h2>
       <p className="purpose-label">Vad ska det bli?</p>
       <div className="purpose-chips" role="group" aria-label="Användning">
         {(Object.keys(PURPOSES) as Purpose[]).map((k) => (
@@ -55,15 +54,16 @@ export function Analysis() {
           </button>
         ))}
       </div>
-      <p className="hint small">
-        Räknar med {preset.kgPerM2} kg/m² på fria ytor ({preset.hint})
-        {preset.pointKg ? `, eller ${preset.pointKg} kg på ett ställe` : ''}
-        {preset.longTerm ? ', som ligger kvar länge (träet kryper)' : ''}.
-      </p>
-
-      <button className={`analysis-view ${analysisView ? 'on' : ''}`} aria-pressed={analysisView} onClick={() => setAnalysisView(!analysisView)}>
-        {analysisView ? '✓ Färgar modellen' : '🎨 Visa i 3D-vyn'}
-      </button>
+      <div className="analysis-tools">
+        <button className={`chip view-toggle ${analysisView ? 'on' : ''}`} aria-pressed={analysisView} onClick={() => setAnalysisView(!analysisView)}>
+          {analysisView ? '✓ Färg i 3D' : '🎨 Färg i 3D'}
+        </button>
+        <Info label={`${preset.kgPerM2} kg/m²`}>
+          Räknar med {preset.kgPerM2} kg/m² på fria ytor ({preset.hint})
+          {preset.pointKg ? `, eller ${preset.pointKg} kg på ett ställe` : ''}
+          {preset.longTerm ? ', som ligger kvar länge (träet kryper)' : ''}.
+        </Info>
+      </div>
 
       <ul className="analysis-summary">
         <li>
@@ -186,10 +186,10 @@ export function Analysis() {
         </>
       )}
 
-      <p className="hint small disclaimer">
+      <Info label="Hur säkert är det?">
         Uppskattning med typvärden för virket (t.ex. C24) och enkla balkformler. Skruvar, lim, urtag och sneda snitt räknas
         inte. Bygg med marginal — det här är ingen hållfasthetsberäkning för bärande konstruktioner.
-      </p>
+      </Info>
 
       <h3>Markerat</h3>
       {selected.length ? (
