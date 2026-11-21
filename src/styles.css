@@ -1942,3 +1942,111 @@ button.free-label.editable:hover:not(:disabled) {
 .app.mobile.immersive .step-bar {
   top: calc(10px + env(safe-area-inset-top));
 }
+
+/* Checklist before buying (Inköp → Kontroll) and its "!" markers in 3D */
+.check-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+.check-summary.ok {
+  background: #dcfce7;
+  color: #166534;
+}
+.check-summary.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.check-summary.bad {
+  background: #fde8e6;
+  color: #9b2c22;
+}
+.check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.check-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.check-item.focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.check-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.check-body .small {
+  color: var(--muted);
+}
+.check-mark,
+.check-marker {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 800;
+  color: #fff;
+  background: #dc2626;
+}
+.check-item.warn .check-mark,
+.check-marker.warn {
+  background: #d97706;
+}
+.check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.check-actions button {
+  min-height: 40px;
+}
+.check-actions button.fix-in,
+.check-actions button.fix-in:hover:not(:disabled) {
+  color: #fff;
+  filter: none;
+}
+/* In 3D: a big round "!" (40 px tap target) with a white ring */
+.check-marker {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 3px solid #fff;
+  font-size: 17px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  position: relative;
+}
+.check-marker::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+}
+.check-marker:hover:not(:disabled) {
+  border-color: #fff;
+  background: #b91c1c;
+}
+.check-marker.warn:hover:not(:disabled) {
+  background: #b45309;
+}
+.check-marker.focused {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 4px var(--accent);
+}

@@ -125,7 +125,7 @@ comments in English).
   toolbar and the phone panel and the 3D selection colour. Panels per step
   (`PHASE_TABS` in App.tsx): Bygg = Lägg till · Delar; Detaljer = Del ·
   Analys; Montering = Steg & skruv (full `ScrewList`) · Delar; Inköp =
-  Listor (cut/shopping list, screws `buyOnly`) · Priser. Desktop: catalog
+  Kontroll · Listor (cut/shopping list, screws `buyOnly`) · Priser. Desktop: catalog
   left in every step, the step's other panels right. Taps (`pickPart`):
   Bygg toggles whole groups (action bar); Montering picks one group (its
   screws); Detaljer/Inköp pick one part. Entering Montering turns
@@ -140,6 +140,20 @@ comments in English).
   measuring still opens the Del slot in any step. With the phone panel
   open, the action/move/place bars sit at the top
   (`.sheet-open .place-top`) instead of behind the panel.
+- **Kontroll before buying** (owner 2026-11-21, Inköp → Kontroll,
+  `src/lib/checks.ts` `runChecks`, `components/Checklist.tsx`): gathers
+  what the app already detects — collisions (each pair once), parts
+  floating in the air, beams/posts warn/bad from the strength analysis,
+  tipping (only builds ≥ 400 mm tall — a lone board "tips" otherwise),
+  wobble, screws blocked or shorter than the rule of thumb, boards longer
+  than the longest stock length, sheet pieces larger than the store sheet,
+  missing prices and example prices. Each `Issue` has severity (bad first),
+  title, detail, parts, a 3D point `at` (or null) and the step it's fixed
+  in (`fix`). Items: "◎ Visa i 3D" (selects the parts) and "Fixa i N Steg
+  →" in that step's colour (switches step, selects). In Inköp the 3D view
+  shows a round "!" per issue (`CheckMarkers`, red = bad, amber = warn,
+  drei `Html`); a tap sets `checkFocus` (store, not persisted), which opens
+  the Kontroll tab and scrolls to and highlights that item.
 - **Moving** (`moveMode`, `src/lib/move.ts`): diegetic arrows in the 3D
   scene on the selection's six faces (`MoveArrows`, constant on-screen
   size via `useFrame`, big invisible tap zones) move one step

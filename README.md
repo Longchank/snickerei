@@ -23,7 +23,10 @@ Byggd för mobilen först — fungerar även på dator.
 - **Fyra steg, var och ett i sin färg**: 1 Bygg (lägg till och placera,
   grupper, ramar) · 2 Detaljer (längder, ändar, urtag, håller det?) ·
   3 Montering (steg för steg, skruv) · 4 Inköp (såglista, inköpslista,
-  priser). Hoppa fritt mellan stegen — modellen går att ändra i alla.
+  priser, och en **kontroll före köp**: krockar, delar som svävar, svaga
+  hyllor, skruv man inte kommer åt, brädor längre än butiken säljer och
+  saknade priser — med ett ! i 3D-modellen som man trycker på för att se
+  vad som är fel och hoppa till steget där det fixas). Hoppa fritt mellan stegen — modellen går att ändra i alla.
   I *Bygg* markerar ett tryck en hel grupp och en list har Gruppera,
   Flytta, Vrid, Spegla, Kopiera och Ta bort. I *Detaljer* väljer ett tryck
   en enskild del och visar dess längd, ändar och fogar.

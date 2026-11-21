@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Catalog, PartList } from './components/Catalog'
 import { ScrewList } from './components/ScrewList'
+import { Checklist } from './components/Checklist'
 import { CutList } from './components/CutList'
 import { Inspector } from './components/Inspector'
 import { Analysis } from './components/Analysis'
@@ -12,7 +13,7 @@ import { phaseInfo } from './lib/phases'
 import { useStore } from './lib/store'
 import type { Phase } from './lib/types'
 
-type Tab = 'lagg' | 'delar' | 'del' | 'analys' | 'steg' | 'lista' | 'priser'
+type Tab = 'lagg' | 'delar' | 'del' | 'analys' | 'steg' | 'koll' | 'lista' | 'priser'
 
 const TAB_INFO: Record<Tab, { label: string; icon: string; desktop: string }> = {
   lagg: { label: 'Lägg till', icon: '＋', desktop: 'Lägg till' },
@@ -20,6 +21,7 @@ const TAB_INFO: Record<Tab, { label: string; icon: string; desktop: string }> = 
   del: { label: 'Del', icon: '✎', desktop: 'Egenskaper' },
   analys: { label: 'Analys', icon: '◎', desktop: 'Analys' },
   steg: { label: 'Steg & skruv', icon: '🪜', desktop: 'Steg och skruv' },
+  koll: { label: 'Kontroll', icon: '✓', desktop: 'Kontroll' },
   lista: { label: 'Listor', icon: '☰', desktop: 'Såg- och inköpslista' },
   priser: { label: 'Priser', icon: 'kr', desktop: 'Priser' },
 }
@@ -29,7 +31,7 @@ const PHASE_TABS: Record<Phase, Tab[]> = {
   bygg: ['lagg', 'delar'],
   detaljer: ['del', 'analys'],
   montering: ['steg', 'delar'],
-  inkop: ['lista', 'priser'],
+  inkop: ['koll', 'lista', 'priser'],
 }
 
 function useMediaQuery(query: string) {
@@ -98,6 +100,13 @@ export function App() {
       setSheetOpen(useStore.getState().selection.length > 0 || !mobile)
     } else setSheetOpen(true)
   }, [mode, mobile])
+  // A "!" tapped in 3D: show that item in the checklist
+  const checkFocus = useStore((s) => s.checkFocus)
+  useEffect(() => {
+    if (!checkFocus) return
+    setTab('koll')
+    setSheetOpen(true)
+  }, [checkFocus])
   useEffect(() => {
     if (measureMode) {
       setTab('del')
@@ -142,6 +151,7 @@ export function App() {
       {activeTab === 'lagg' && <Catalog parts={false} />}
       {activeTab === 'delar' && <PartList />}
       {activeTab === 'steg' && <ScrewList />}
+      {activeTab === 'koll' && <Checklist />}
       {activeTab === 'del' && <Inspector />}
       {activeTab === 'analys' && <Analysis />}
       {activeTab === 'lista' && <CutList onPrint={print} />}

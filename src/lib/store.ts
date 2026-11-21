@@ -69,6 +69,9 @@ interface State {
   /** Lock parts (they drop out of the selection) / unlock some or all */
   lockParts: (ids: string[]) => void
   unlockParts: (ids?: string[]) => void
+  /** The checklist item to show (a "!" in 3D was tapped); n changes on every tap */
+  checkFocus: { id: string; n: number } | null
+  focusCheck: (id: string) => void
   /** X-ray: everything not selected is see-through */
   xray: boolean
   setXray: (on: boolean) => void
@@ -323,6 +326,8 @@ export const useStore = create<State>()(
           const open = ids && new Set(ids)
           editParts((ps) => ps.map((p) => (p.locked && (!open || open.has(p.id)) ? { ...p, locked: undefined } : p)))
         },
+        checkFocus: null,
+        focusCheck: (id) => set((s) => ({ checkFocus: { id, n: (s.checkFocus?.n ?? 0) + 1 } })),
         xray: false,
         setXray: (xray) => set({ xray }),
         screwView: false,

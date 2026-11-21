@@ -29,6 +29,7 @@ import { reorientOptions, worldAxisOf } from '../lib/place'
 import { buildSteps, isShown, type Step } from '../lib/steps'
 import { similarChoices } from '../lib/select'
 import { phaseInfo } from '../lib/phases'
+import { useChecks } from './Checklist'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
@@ -562,6 +563,37 @@ function EndLabels({ partId }: { partId: string }) {
   )
 }
 
+/** Inköp: a "!" in 3D for each checklist item; a tap shows it in the list */
+function CheckMarkers() {
+  const issues = useChecks()
+  const focusCheck = useStore((s) => s.focusCheck)
+  const select = useStore((s) => s.select)
+  const focused = useStore((s) => s.checkFocus?.id)
+  return (
+    <>
+      {issues.map((i) =>
+        i.at ? (
+          <Html key={i.id} position={i.at} center zIndexRange={focused === i.id ? [9, 8] : [6, 0]}>
+            <button
+              type="button"
+              className={`check-marker ${i.severity}${focused === i.id ? ' focused' : ''}`}
+              title={i.title}
+              aria-label={i.title}
+              onClick={(e) => {
+                e.stopPropagation()
+                focusCheck(i.id)
+                if (i.partIds.length) select(i.partIds)
+              }}
+            >
+              !
+            </button>
+          </Html>
+        ) : null,
+      )}
+    </>
+  )
+}
+
 const AXIS_NAME = ['Bredd', 'Höjd', 'Djup']
 
 /** Dimension line with a label in the middle; tap the label to type a new size when it can change. */
@@ -910,6 +942,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       )}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && mode === 'detaljer' && selection.length === 1 && <EndLabels partId={selection[0]} />}
+      {!capturing && mode === 'inkop' && <CheckMarkers />}
       {!capturing && screwView && <ScrewDots parts={parts} shown={shownParts} />}
       {parts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
