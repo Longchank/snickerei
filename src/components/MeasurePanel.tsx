@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { Info } from './Info'
 import { matchGuides, offBy, seatsText, type GuideMatch, type MeasureKind } from '../lib/ergonomics'
 import { unionBox } from '../lib/joints'
 import { freeSpace, measureValue, otherBoxes } from '../lib/measure'
@@ -9,9 +10,9 @@ import type { Measurement, Part } from '../lib/types'
 const fmt = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',')
 
 const KIND_LABEL: Record<MeasureKind, string> = {
-  height: 'Höjd över golvet',
-  vgap: 'Fritt mellan ytor (lodrätt)',
-  horizontal: 'Avstånd (vågrätt)',
+  height: 'Höjd från golvet',
+  vgap: 'Fritt mellan, lodrätt',
+  horizontal: 'Avstånd, vågrätt',
 }
 
 /** Up to three guideline matches: ✓ inside the range, ≈ close to it. */
@@ -44,7 +45,8 @@ function GuideLine({ m, value }: { m: GuideMatch; value: number }) {
   )
 }
 
-const pointLabel = (p: Measurement['a']) => (p.floor ? 'golvet' : SNAP_LABEL[p.snap ?? 'face'].toLowerCase())
+const pointLabel = (p: Measurement['a']) =>
+  p.floor ? 'golvet' : !p.snap || p.snap === 'face' ? 'ytan' : SNAP_LABEL[p.snap].toLowerCase()
 
 /** What each end snapped to, and the straight-line distance when it differs. */
 function PointInfo({ m }: { m: Measurement }) {
@@ -64,54 +66,73 @@ function PointInfo({ m }: { m: Measurement }) {
   )
 }
 
-/** Measuring mode: the saved measurements with what they're good for. */
+/** Measuring mode: the saved measurements, one row each; tap a row for guidelines and details. */
 export function MeasurePanel() {
   const measurements = useStore((s) => s.project.measurements)
-  const pending = useStore((s) => s.pendingPoint)
   const removeMeasurement = useStore((s) => s.removeMeasurement)
   const clearMeasurements = useStore((s) => s.clearMeasurements)
   const setMeasureMode = useStore((s) => s.setMeasureMode)
+  const [open, setOpen] = useState<string | null>(null)
 
   return (
     <div className="inspector measure-panel">
       <div className="inspector-head">
         <strong className="selection-count">📏 Mät</strong>
-        <button onClick={() => setMeasureMode(false)}>Klar</button>
+        {measurements.length > 0 && (
+          <button className="link" onClick={clearMeasurements}>
+            Rensa
+          </button>
+        )}
+        <button className="primary" onClick={() => setMeasureMode(false)}>
+          Klar
+        </button>
       </div>
-      <p className="hint small">
-        {pending
-          ? 'Tryck på den andra ytan — eller golvet.'
-          : 'Tryck på en yta, sedan en till. Punkten fäster mot hörn, kantmitt, ytans mitt och delens mitt (c/c) — tryck på knappen överst för att byta.  Avståndet mäts rakt ut från den första ytan: höjd från golvet, fritt mellan två hyllor, längd mellan två sidor. Två tryck på samma yta mäter längs ytan, t.ex. hur lång en sits är.'}
-      </p>
-      {measurements.length === 0 && <p className="hint">Inga mått än.</p>}
+      {measurements.length === 0 && <p className="hint small">Inga mått än — tryck på två ytor i 3D-vyn.</p>}
       <ol className="measure-list">
         {measurements.map((m, i) => {
           const { value, kind } = measureValue(m)
+          const best = matchGuides(value, kind)[0]
+          const isOpen = open === m.id
           return (
-            <li key={m.id}>
+            <li key={m.id} className={isOpen ? 'open' : ''}>
               <div className="measure-head">
-                <span className="measure-index">{i + 1}</span>
-                <strong>{fmt(value)} mm</strong>
-                <span className="muted small">{KIND_LABEL[kind]}</span>
+                <button className="measure-row" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : m.id)}>
+                  <span className="measure-index">{i + 1}</span>
+                  <strong>{fmt(value)} mm</strong>
+                  <span className="muted small">{KIND_LABEL[kind]}</span>
+                </button>
                 <button className="link" aria-label={`Ta bort mått ${i + 1}`} onClick={() => removeMeasurement(m.id)}>
                   ✕
                 </button>
               </div>
-              <PointInfo m={m} />
-              <GuideList value={value} kind={kind} />
-              {kind === 'horizontal' && value >= 600 && m.a.snap !== 'center' && m.b.snap !== 'center' && (
-                <p className="muted small">Som bänk eller bordskant: {seatsText(value)} (60 cm/person).</p>
+              {!isOpen && best && (
+                <p className="measure-best small">
+                  <span className={`guide-mark ${best.fit}`}>{best.fit === 'ok' ? '✓' : '≈'}</span> {best.guide.label}
+                </p>
+              )}
+              {isOpen && (
+                <>
+                  <PointInfo m={m} />
+                  <GuideList value={value} kind={kind} />
+                  {kind === 'horizontal' && value >= 600 && m.a.snap !== 'center' && m.b.snap !== 'center' && (
+                    <p className="muted small">Som bänk eller bordskant: {seatsText(value)} (60 cm/person).</p>
+                  )}
+                </>
               )}
             </li>
           )
         })}
       </ol>
-      {measurements.length > 0 && (
-        <button className="danger" onClick={clearMeasurements}>
-          Ta bort alla mått
-        </button>
-      )}
-      <p className="hint small riktvarden">Riktvärden: vanliga mått för möbler, inte krav. Anpassa efter dig själv.</p>
+      <Info label="Hur mäts det?">
+        <p>
+          Tryck på en yta, sedan en till (eller golvet). Avståndet mäts rakt ut från den första ytan: höjd från golvet, fritt
+          mellan två hyllor, längd mellan två sidor. Två tryck på samma yta mäter längs ytan, t.ex. hur lång en sits är.
+        </p>
+        <p>
+          Punkten fäster mot hörn, kantmitt, ytans mitt och delens mitt (c/c) — knappen överst i vyn byter fästpunkt. Tryck på
+          ett mått för riktvärden: vanliga mått för möbler, inte krav.
+        </p>
+      </Info>
     </div>
   )
 }

@@ -2519,3 +2519,38 @@ details.info > summary::-webkit-details-marker {
   min-height: 42px;
   font-size: 15px;
 }
+
+/* ---- Measuring panel, simpler (owner 2026-11-21) ---- */
+.measure-panel .inspector-head {
+  align-items: center;
+  gap: 8px;
+}
+.measure-panel .inspector-head .selection-count {
+  flex: 1;
+}
+.measure-panel .inspector-head .primary {
+  min-height: 40px;
+  padding: 0 16px;
+}
+.measure-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  padding: 2px 0;
+  min-height: 40px;
+  text-align: left;
+}
+.measure-row:hover:not(:disabled) {
+  background: none;
+}
+.measure-best {
+  margin: 0 0 2px 30px;
+  color: var(--muted);
+}
+.measure-best .guide-mark.ok {
+  color: #16a34a;
+}

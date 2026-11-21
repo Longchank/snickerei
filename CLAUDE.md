@@ -305,7 +305,15 @@ comments in English).
   half of each face so a table's corner legs don't hide the space under it.
   Guideline ranges (`GUIDES`) are general furniture practice from memory,
   labelled "riktvärden" in the UI — not sourced; don't present as rules.
-  `project.measurements` persist; they're not in undo history.
+  `project.measurements` persist; they're not in undo history. **Mät panel
+  simplified** (owner 2026-11-21: "a lot of information"): header "📏 Mät ·
+  Rensa · Klar"; one row per measurement ("1 · 765 mm · Höjd från golvet ·
+  ✕") with only the best guideline under it ("✓ Barstol"); tapping a row
+  shows what the ends snapped to, all guidelines and the seats line. The
+  how-to paragraph and the "riktvärden" note are behind ⓘ "Hur mäts det?";
+  the in-view hint says what to tap next. Kind labels: "Höjd från
+  golvet", "Fritt mellan, lodrätt", "Avstånd, vågrätt"; a plain face tap
+  reads "ytan" (was "på ytan").
 - **Phone layout = floating panels** (owner, 2026-11-17, modelled on their
   projector-mount viewer): the 3D canvas always fills the screen; the
   toolbar and bottom panel are see-through cards on top (blur, rounded),
