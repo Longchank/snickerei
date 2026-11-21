@@ -31,6 +31,7 @@ import { similarChoices } from '../lib/select'
 import { phaseInfo } from '../lib/phases'
 import { IconCopy, IconGroup, IconMirror, IconMove, IconRotate, IconTrash, IconUngroup, IconClose, IconHide, IconIsolate, IconLock, IconRuler, IconShow, IconSteps, IconTools, IconUnlock, IconXray } from './Icons'
 import { useChecks } from './Checklist'
+import { Fold } from './Fold'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
@@ -1385,19 +1386,28 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
     return Math.round(worldAxisOf(p.rotation, 0) === A ? p.length : p.width ?? 0)
   })
   const bought = plan ? plan.sheets.length : 0
+  const summary =
+    (pieces.length > 1 ? `${pieces.length} bitar: ${pieces.join(' + ')} mm` : `Hel skiva: ${pieces[0]} mm`) +
+    (plan
+      ? plan.tooLarge.length
+        ? ` · ${plan.tooLarge.length} ${plan.tooLarge.length === 1 ? 'bit ryms' : 'bitar ryms'} inte på en skiva ${plan.sheetSize.join('×')}`
+        : ` · köp ${bought} ${bought === 1 ? 'skiva' : 'skivor'} ${plan.sheetSize.join('×')}${plan.cost !== null ? ` (${Math.round(plan.cost)} kr)` : ''}`
+      : '')
+  const status = plan?.tooLarge.length ? (
+    <span className="fold-bad">⚠ ryms inte</span>
+  ) : (
+    `${pieces.length > 1 ? `${pieces.length} bitar` : 'Hel'}${plan ? ` · köp ${bought}` : ''}`
+  )
   return (
-    <div className="frame-seams">
-      <span className="frame-label">Skarvar i skivan</span>
-      <div className="frame-legs-options" role="group" aria-label="Skarvar">
+    <Fold id="frame-seams" title="Skarvar i skivan" status={status} className="frame-seams">
+      <div className="frame-legs-options seam-joists" role="group" aria-label="Skarvar">
         <button className={`chip ${seams.length === 0 ? 'on' : ''}`} aria-pressed={seams.length === 0} onClick={() => setSeams([])}>
           Hel
         </button>
         <button className="chip smart" onClick={() => setSeams(bestSeams(sheetId, parts, prices, kerf, sizes).seams)}>
           ✦ Smartast
         </button>
-      </div>
-      <div className="frame-legs-options seam-joists" role="group" aria-label="Skarv över tvärregel">
-        <span className="muted small">Skarv över tvärregel:</span>
+        <span className="muted small">Över regel</span>
         {Array.from({ length: f.joists }, (_, k) => k + 1).map((i) => {
           const on = seams.includes(i)
           return (
@@ -1413,14 +1423,8 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
           )
         })}
       </div>
-      <p className="hint small seam-summary">
-        {pieces.length > 1 ? `${pieces.length} bitar: ${pieces.join(' + ')} mm` : `Hel skiva: ${pieces[0]} mm`}
-        {plan &&
-          (plan.tooLarge.length
-            ? ` · ${plan.tooLarge.length} ${plan.tooLarge.length === 1 ? 'bit ryms' : 'bitar ryms'} inte på en skiva ${plan.sheetSize.join('×')}`
-            : ` · köp ${bought} ${bought === 1 ? 'skiva' : 'skivor'} ${plan.sheetSize.join('×')}${plan.cost !== null ? ` (${Math.round(plan.cost)} kr)` : ''}`)}
-      </p>
-    </div>
+      <p className="hint small seam-summary">{summary}</p>
+    </Fold>
   )
 }
 
@@ -1540,21 +1544,36 @@ function FrameBar() {
   const set = (patch: Partial<typeof f>) => applyFrame({ ...f, ...patch })
   const spacing = joistSpacing(sheet, f)
   const sheetTop = toAxisBox(partBox(sheet)).max[1]
+  const profileSelect = (value: string, label: string, onChange: (id: string) => void) => (
+    <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+      {FRAME_PROFILES.map((p) => (
+        <option key={p.id} value={p.id}>
+          {shortName(p).replace('x', '×')}
+        </option>
+      ))}
+    </select>
+  )
+  const legName = LEG_OPTIONS.find(([v]) => v === (f.legs?.placement ?? null))?.[1] ?? 'Inga'
+  const legStatus = f.legs
+    ? `${legName}${f.legs.placement === 'outside' ? ((f.legs.side ?? 'long') === 'long' ? ' långsida' : ' kortsida') : ''} · ${shortName(getProfile(f.legs.profileId)).replace('x', '×')} · ${Math.round(sheetTop)} mm`
+    : 'Inga'
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar frame-bar" role="toolbar" aria-label="Ram under skivan">
-        <strong>Ram under skivan</strong>
-        <div className="frame-profiles" role="group" aria-label="Virke">
-          {FRAME_PROFILES.map((p) => (
-            <button key={p.id} className={`chip ${f.profileId === p.id ? 'on' : ''}`} aria-pressed={f.profileId === p.id} onClick={() => set({ profileId: p.id })}>
-              {shortName(p)}
-            </button>
-          ))}
+        <div className="frame-head">
+          <strong>▦ Ram under skivan</strong>
+          <button className="icon danger" onClick={removeFrame} title="Ta bort ramen" aria-label="Ta bort ramen">
+            <IconTrash />
+          </button>
+          <button className="primary" onClick={closeFrame}>
+            Klar
+          </button>
         </div>
         <div className="frame-row">
-          <div className="segmented" role="group" aria-label="Hur reglarna ligger">
+          {profileSelect(f.profileId, 'Virke till ramen', (profileId) => set({ profileId }))}
+          <div className="segmented small-seg" role="group" aria-label="Hur reglarna ligger">
             <button className={f.onEdge ? 'on' : ''} aria-pressed={f.onEdge} onClick={() => set({ onEdge: true })}>
-              På högkant
+              Högkant
             </button>
             <button className={!f.onEdge ? 'on' : ''} aria-pressed={!f.onEdge} onClick={() => set({ onEdge: false })}>
               Flatt
@@ -1570,11 +1589,10 @@ function FrameBar() {
           <button aria-label="Fler tvärreglar" disabled={f.joists >= 20} onClick={() => set({ joists: f.joists + 1 })}>
             +
           </button>
-          <span className="muted small">c/c {fmtMm(Math.round(spacing))} mm</span>
+          <span className="muted small">c/c {fmtMm(Math.round(spacing))}</span>
         </div>
         {f.joists > 0 && <SeamPicker sheetId={sheet.id} />}
-        <div className="frame-legs">
-          <span className="frame-label">Ben</span>
+        <Fold id="frame-legs" title="Ben" status={legStatus} className="frame-ben">
           <div className="frame-legs-options" role="group" aria-label="Ben">
             {LEG_OPTIONS.map(([value, label]) => {
               const on = value === null ? !f.legs : f.legs?.placement === value
@@ -1603,11 +1621,11 @@ function FrameBar() {
           </div>
           {f.legs?.placement === 'outside' && (
             <div className="frame-row">
-              <div className="segmented" role="group" aria-label="Vilka sidor benen sitter på">
+              <div className="segmented small-seg" role="group" aria-label="Vilka sidor benen sitter på">
                 {(
                   [
-                    ['long', 'På långsidorna'],
-                    ['short', 'På kortsidorna'],
+                    ['long', 'Långsidor'],
+                    ['short', 'Kortsidor'],
                   ] as const
                 ).map(([side, label]) => {
                   const on = (f.legs!.side ?? 'long') === side
@@ -1618,49 +1636,20 @@ function FrameBar() {
                   )
                 })}
               </div>
+              <label className="check frame-cover" title="Förläng skivan så att den täcker benen">
+                <input type="checkbox" checked={!!f.legs.cover} onChange={(e) => set({ legs: { ...f.legs!, cover: e.target.checked } })} />
+                Skiva över
+              </label>
             </div>
-          )}
-          {f.legs?.placement === 'outside' && (
-            <label className="check frame-cover">
-              <input
-                type="checkbox"
-                checked={!!f.legs.cover}
-                onChange={(e) => set({ legs: { ...f.legs!, cover: e.target.checked } })}
-              />
-              Förläng skivan över benen
-            </label>
           )}
           {f.legs && (
             <div className="frame-row">
-              <select
-                aria-label="Virke till benen"
-                value={f.legs.profileId}
-                onChange={(e) => set({ legs: { ...f.legs!, profileId: e.target.value } })}
-              >
-                {FRAME_PROFILES.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {shortName(p)}
-                  </option>
-                ))}
-              </select>
+              {profileSelect(f.legs.profileId, 'Virke till benen', (profileId) => set({ legs: { ...f.legs!, profileId } }))}
               <span className="frame-label">Höjd</span>
-              <NumberField
-                value={Math.round(sheetTop)}
-                min={1}
-                suffix="mm"
-                onCommit={(h) => set({ legs: { ...f.legs!, height: h } })}
-              />
+              <NumberField value={Math.round(sheetTop)} min={1} suffix="mm" onCommit={(h) => set({ legs: { ...f.legs!, height: h } })} />
             </div>
           )}
-        </div>
-        <div className="place-actions">
-          <button className="danger" onClick={removeFrame}>
-            Ta bort ramen
-          </button>
-          <button className="primary" onClick={closeFrame}>
-            Klar
-          </button>
-        </div>
+        </Fold>
       </div>
     </div>
   )

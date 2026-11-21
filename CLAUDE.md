@@ -171,6 +171,14 @@ comments in English).
   angle + ⇅; "↔ hörn mot X" line; explanations behind ⓘ), **Fogar**
   (open, status "⚠ N krockar" / "N urtag"), **Klyvning** (closed). Panel
   content 1014 → 702 px for a board with a miter and two collisions.
+  Round 3, **frame bar**: title row "▦ Ram under skivan · 🗑 · Klar"
+  (remove + done moved up); frame profile is a `<select>` next to
+  Högkant/Flatt (was 13 chips); joists stepper row; **Skarvar i skivan**
+  and **Ben** are `Fold`s (closed by default) with status "Hel · köp 1" /
+  "⚠ ryms inte" and "Innanför · 45×95 · 900 mm"; outside legs:
+  "Långsidor/Kortsidor" + "Skiva över" (was "Förläng skivan över benen")
+  on one row; leg profile select + Höjd on one row. Bar content 674 px
+  (scrolling) → 378 px with Ben open.
 - **Kontroll before buying** (owner 2026-11-21, Inköp → Kontroll,
   `src/lib/checks.ts` `runChecks`, `components/Checklist.tsx`): gathers
   what the app already detects — collisions (each pair once), parts
@@ -340,7 +348,7 @@ comments in English).
   to 900. Reopening the bar takes the height from where the sheet is now.
   `frameUnder` returns parts already at their final height — only the
   sheet is moved by `lift` (a double lift was a bug, fixed 2026-11-19).
-  **"Förläng skivan över benen"** (owner 2026-11-19, checkbox with
+  **"Förläng skivan över benen"** (now labelled "Skiva över"; owner 2026-11-19, checkbox with
   *Utanför*, `legs.cover`): the sheet is widened by the leg thickness on
   both long sides (`sheetForFrame`, `coverExtent`); the frame stays under
   the original footprint, so the legs end up under the sheet's edge.
