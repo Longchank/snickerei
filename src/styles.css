@@ -2474,3 +2474,48 @@ details.info > summary::-webkit-details-marker {
   min-height: 42px;
   font-size: 15px;
 }
+
+/* ---- Kontroll + Steg & skruv, compact (round 6) ---- */
+.check-item {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 4px;
+}
+.check-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  padding: 4px;
+  min-height: 40px;
+  text-align: left;
+}
+.check-row:hover:not(:disabled) {
+  background: none;
+}
+.check-row strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+.check-act {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 8px;
+  font-weight: 600;
+}
+.check-detail {
+  flex-basis: 100%;
+  margin: 0 4px 6px 38px;
+  color: var(--muted);
+}
+.check-list {
+  gap: 6px;
+}
+.screw-list .fold > summary {
+  min-height: 42px;
+  font-size: 15px;
+}

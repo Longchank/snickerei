@@ -191,7 +191,13 @@ comments in English).
   "Hur räknas priset?", one short line when no shop prices are fetched,
   "Exempelpriser där pris saknas", and each material is a `Fold` (closed;
   status "i projektet · N egna priser"), materials used in the project
-  first; "(standard — ändra efter din butik)" → "(standard)".
+  first; "(standard — ändra efter din butik)" → "(standard)". Round 6,
+  **Kontroll + Steg & skruv**: a Kontroll item is one row (! + title, then
+  "◎" = show in 3D and "→ N" = fix in step N in that step's colour); the
+  explanation shows when the row is tapped or its "!" was tapped in 3D
+  (`open` state follows `checkFocus`). Steg & skruv: "Totalt att köpa" is
+  a closed `Fold` ("20 st · 2 storlekar"; plain heading in the printout),
+  so the build steps come first.
 - **Kontroll before buying** (owner 2026-11-21, Inköp → Kontroll,
   `src/lib/checks.ts` `runChecks`, `components/Checklist.tsx`): gathers
   what the app already detects — collisions (each pair once), parts
@@ -201,8 +207,9 @@ comments in English).
   than the longest stock length, sheet pieces larger than the store sheet,
   missing prices and example prices. Each `Issue` has severity (bad first),
   title, detail, parts, a 3D point `at` (or null) and the step it's fixed
-  in (`fix`). Items: "◎ Visa i 3D" (selects the parts) and "Fixa i N Steg
-  →" in that step's colour (switches step, selects). In Inköp the 3D view
+  in (`fix`). Items (compact rows since round 6): "◎" (selects the parts
+  and closes the list) and "→ N" in that step's colour (switches step,
+  selects). In Inköp the 3D view
   shows a round "!" per issue (`CheckMarkers`, red = bad, amber = warn,
   drei `Html`); a tap sets `checkFocus` (store, not persisted), which opens
   the Kontroll tab and scrolls to and highlights that item.

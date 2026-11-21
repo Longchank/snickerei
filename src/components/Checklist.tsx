@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Info } from './Info'
 import { runChecks, type Issue } from '../lib/checks'
 import { phaseInfo } from '../lib/phases'
@@ -31,8 +31,12 @@ export function Checklist() {
   const requestPanel = useStore((s) => s.requestPanel)
   const parts = useStore((s) => s.project.parts)
   const refs = useRef(new Map<string, HTMLLIElement>())
+  // Which item shows its explanation: the one tapped, or the "!" tapped in 3D
+  const [open, setOpen] = useState<string | null>(null)
   useEffect(() => {
-    if (focus) refs.current.get(focus.id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (!focus) return
+    setOpen(focus.id)
+    refs.current.get(focus.id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [focus])
   if (!parts.length) return <p className="hint">Lägg till delar först — sedan kontrolleras bygget här innan du handlar.</p>
   const bad = issues.filter((i) => i.severity === 'bad').length
@@ -62,38 +66,45 @@ export function Checklist() {
               }}
               className={`check-item ${i.severity}${focus?.id === i.id ? ' focused' : ''}`}
             >
-              <span className="check-mark" aria-label={i.severity === 'bad' ? 'Måste åtgärdas' : 'Bör kollas'}>
-                !
-              </span>
-              <div className="check-body">
+              <button
+                className="check-row"
+                aria-expanded={open === i.id}
+                onClick={() => setOpen(open === i.id ? null : i.id)}
+              >
+                <span className="check-mark" aria-label={i.severity === 'bad' ? 'Måste åtgärdas' : 'Bör kollas'}>
+                  !
+                </span>
                 <strong>{i.title}</strong>
-                <span className="small">{i.detail}</span>
-                <div className="check-actions">
-                  {i.partIds.length > 0 && (
-                    <button
-                      onClick={() => {
-                        select(i.partIds)
-                        // One window at a time: close the list so the parts are in view
-                        requestPanel(false)
-                      }}
-                    >
-                      ◎ Visa i 3D
-                    </button>
-                  )}
-                  {i.fix !== 'inkop' && (
-                    <button
-                      className="fix-in"
-                      style={{ background: fix.color, borderColor: fix.color }}
-                      onClick={() => {
-                        setMode(i.fix)
-                        if (i.partIds.length) select(i.fix === 'detaljer' ? i.partIds.slice(0, 1) : i.partIds)
-                      }}
-                    >
-                      Fixa i {fix.n} {fix.label} →
-                    </button>
-                  )}
-                </div>
-              </div>
+              </button>
+              {i.partIds.length > 0 && (
+                <button
+                  className="check-act"
+                  title="Visa i 3D"
+                  aria-label={`Visa i 3D: ${i.title}`}
+                  onClick={() => {
+                    select(i.partIds)
+                    // One window at a time: close the list so the parts are in view
+                    requestPanel(false)
+                  }}
+                >
+                  ◎
+                </button>
+              )}
+              {i.fix !== 'inkop' && (
+                <button
+                  className="check-act fix-in"
+                  style={{ background: fix.color, borderColor: fix.color }}
+                  title={`Fixa i ${fix.n} ${fix.label}`}
+                  aria-label={`Fixa i ${fix.n} ${fix.label}: ${i.title}`}
+                  onClick={() => {
+                    setMode(i.fix)
+                    if (i.partIds.length) select(i.fix === 'detaljer' ? i.partIds.slice(0, 1) : i.partIds)
+                  }}
+                >
+                  → {fix.n}
+                </button>
+              )}
+              {open === i.id && <p className="check-detail small">{i.detail}</p>}
             </li>
           )
         })}

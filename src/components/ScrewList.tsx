@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Fold } from './Fold'
 import { Info } from './Info'
 import { SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, type Joint, type ScrewTotal } from '../lib/screws'
 import { buildSteps } from '../lib/steps'
@@ -105,8 +106,20 @@ export function ScrewList({ print = false, buyOnly = false }: { print?: boolean;
           {screwView ? '✓ Skruv i 3D' : '● Skruv i 3D'}
         </button>
       )}
-      <h4 className="screw-heading">Totalt att köpa</h4>
-      <TotalsTable totals={totals} colorOf={colorOf} />
+      {print ? (
+        <>
+          <h4 className="screw-heading">Totalt att köpa</h4>
+          <TotalsTable totals={totals} colorOf={colorOf} />
+        </>
+      ) : (
+        <Fold
+          id="screws-total"
+          title="Totalt att köpa"
+          status={`${totals.reduce((n, t) => n + t.toBuy, 0)} st · ${totals.length} ${totals.length === 1 ? 'storlek' : 'storlekar'}`}
+        >
+          <TotalsTable totals={totals} colorOf={colorOf} />
+        </Fold>
+      )}
       {(() => {
         const text = (
           <>
