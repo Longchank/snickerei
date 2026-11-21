@@ -221,7 +221,9 @@ comments in English).
   Röntgen · Dölj · Visa bara · Lås (the last three act on the selection,
   disabled without one; they moved here from the Bygg action bar) and,
   when relevant, "Visa N dolda" / "Lås upp N" with a count badge. Folded
-  in, tools that are on and the show/unlock buttons stay visible.
+  in, tools that are on and the show/unlock buttons stay visible. Picking
+  a tool folds the menu in (owner report 2026-11-21: the open menu's label
+  pills covered the step bar's › button after choosing "Steg för steg").
   `toolsOpen` (store, not persisted): opening it closes the phone panel
   and opening the panel folds it in (the view is its own stacking context,
   so the menu can't sit above the panel); while open it's above the

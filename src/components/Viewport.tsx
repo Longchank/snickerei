@@ -1225,7 +1225,11 @@ function ViewTools() {
             disabled={t.disabled}
             title={t.label}
             aria-label={t.label}
-            onClick={t.run}
+            onClick={() => {
+              t.run()
+              // One window at a time: the menu folds in once a tool is picked
+              setOpen(false)
+            }}
           >
             {t.icon}
             {t.badge ? <span className="tool-badge">{t.badge}</span> : null}
