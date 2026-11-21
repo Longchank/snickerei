@@ -566,8 +566,9 @@ function EndLabels({ partId }: { partId: string }) {
 }
 
 /** Inköp: a "!" in 3D for each checklist item; a tap shows it in the list */
-function CheckMarkers() {
-  const issues = useChecks()
+function CheckMarkers({ shown }: { shown: Set<string> }) {
+  // Issues about parts that are hidden (or outside the step) get no marker
+  const issues = useChecks().filter((i) => !i.partIds.length || i.partIds.some((id) => shown.has(id)))
   const focusCheck = useStore((s) => s.focusCheck)
   const select = useStore((s) => s.select)
   const focused = useStore((s) => s.checkFocus?.id)
@@ -770,6 +771,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     [parts, projectGroups, activeStep],
   )
   const shownParts = useMemo(() => parts.filter((p) => isShown(p, step)), [parts, step])
+  const shownIds = useMemo(() => new Set(shownParts.map((p) => p.id)), [shownParts])
   const measureHover = useStore((s) => s.measureHover)
   const snapTypes = useStore((s) => s.settings.snapTypes)
   /** What snapped while dragging, drawn as guide lines */
@@ -944,9 +946,9 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       )}
       {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && mode === 'detaljer' && selection.length === 1 && <EndLabels partId={selection[0]} />}
-      {!capturing && mode === 'inkop' && <CheckMarkers />}
+      {!capturing && mode === 'inkop' && <CheckMarkers shown={shownIds} />}
       {!capturing && screwView && <ScrewDots parts={parts} shown={shownParts} />}
-      {parts.filter((p) => p.frame?.seams?.length).map((p) => (
+      {shownParts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
       ))}
       {!capturing && measurements.map((m, i) => <MeasureLine key={m.id} m={m} index={i} />)}
