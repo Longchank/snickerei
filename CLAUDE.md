@@ -424,7 +424,11 @@ comments in English).
   load presets are **typical figures from general knowledge, not
   sourced** — the UI calls it all "uppskattning". Method: bounding boxes;
   a horizontal part is held up by parts under it or beside it reaching
-  lower (legs); loads flow top-down (own weight + preset on free tops,
+  lower (legs), or by a board running across it that its end butts into
+  (`buttsInto`: a joist or end rail screwed into a rail, even at the same
+  height — owner report 2026-11-21 of joists "floating"; ties in the
+  top-down order put the hanging part first so its load reaches the rail);
+  loads flow top-down (own weight + preset on free tops,
   passed to supports, point loads to the nearest support); each free span
   is checked as simply supported (overhangs as cantilevers) with
   utilisation vs 0.6·fm and sag vs span/300 (overhang /150); status

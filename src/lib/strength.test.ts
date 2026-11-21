@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
+import { buildFrame } from './frame'
 import { analyse, partWeightKg } from './strength'
-import type { Part, Vec3 } from './types'
+import type { FrameLegs, Part, Vec3 } from './types'
 
 /** A part whose bounding box starts at `min` */
 function at(id: string, profileId: string, length: number, rotation: Part['rotation'], min: Vec3, width?: number): Part {
@@ -138,4 +139,24 @@ describe('own load per part', () => {
     // Half of 200 kg + half the shelf + the post itself
     expect(p.loadKg).toBeCloseTo(100 + 0.9 + 0.9, 0)
   })
+})
+
+describe('a frame under a sheet', () => {
+  // Owner report 2026-11-21: joists right under the sheet showed as floating
+  const sheet: Part = { id: 's', name: 'Skiva', profileId: 'plywood-18', length: 1800, width: 600, position: [0, 400, 0], rotation: [0, 0, 0] }
+  const frame = { profileId: 'konstruktion-45x70', joists: 2, onEdge: true }
+  const placements: (FrameLegs['placement'] | null)[] = [null, 'inside', 'outside', 'under', 'merged']
+  for (const placement of placements)
+    it(`nothing floats, joists and end rails pass their load on (legs: ${placement ?? 'none'})`, () => {
+      const f = placement ? { ...frame, legs: { profileId: 'konstruktion-45x95', placement, height: 900 } } : frame
+      const built = buildFrame(sheet, f)
+      const parts = [built.sheet, ...built.parts]
+      const a = analyse(parts, 'bord')
+      if (placement) expect(a.floating.map((id) => parts.find((p) => p.id === id)!.name)).toEqual([])
+      else {
+        // Without legs the frame hangs in the air as a whole — only the long rails have nothing under them
+        const floating = a.floating.map((id) => parts.find((p) => p.id === id)!.name)
+        expect(floating.every((n) => /lång/i.test(n))).toBe(true)
+      }
+    })
 })

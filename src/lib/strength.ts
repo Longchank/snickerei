@@ -98,6 +98,26 @@ interface Contact {
 }
 
 /** Parts that hold `p` up: under it, or beside it reaching lower (legs, posts) */
+/** A board's long horizontal axis (x or z), or null for sheets and standing boards */
+function lengthAxisOf(p: Part, b: AxisBox): 0 | 2 | null {
+  if (kindOf(p) === 'sheet' || !isHorizontal(p, b)) return null
+  const s = size(b)
+  return s[0] >= s[2] ? 0 : 2
+}
+
+/**
+ * p's end butts against q's side (a joist into a rail, an end rail between
+ * two long rails): a screwed joint that carries p, even at the same height.
+ * Not two boards end to end — q must run across p.
+ */
+function buttsInto(p: Part, b: AxisBox, q: Part, c: AxisBox): boolean {
+  const h = lengthAxisOf(p, b)
+  if (h === null || lengthAxisOf(q, c) === h) return false
+  const across = h === 0 ? 2 : 0
+  const touching = Math.abs(b.min[h] - c.max[h]) <= TOL || Math.abs(c.min[h] - b.max[h]) <= TOL
+  return touching && overlap(b, c, 1) > 0.5 && overlap(b, c, across) > 0.5
+}
+
 function supportsOf(p: Part, b: AxisBox, axis: Axis, parts: Part[]): Contact[] {
   const out: Contact[] = []
   for (const q of parts) {
@@ -114,6 +134,8 @@ function supportsOf(p: Part, b: AxisBox, axis: Axis, parts: Part[]): Contact[] {
         if (touching && overlap(b, c, other) > -TOL) ok = true
       }
     }
+    // Its end screwed to the side of a board running across it
+    if (!ok && buttsInto(p, b, q, c)) ok = true
     if (!ok) continue
     const from = Math.max(b.min[axis], c.min[axis]) - b.min[axis]
     const to = Math.min(b.max[axis], c.max[axis]) - b.min[axis]
@@ -283,7 +305,24 @@ export function analyse(parts: Part[], purpose: Purpose): Analysis {
   const beams: BeamResult[] = []
   const posts: PostResult[] = []
   const floating: string[] = []
-  const order = [...parts].sort((a, b) => boxes.get(b.id)!.max[1] - boxes.get(a.id)!.max[1])
+  // Top down, so loads are passed on before the part below is checked. At the
+  // same height, a part hanging on another by its end (a joist on a rail)
+  // goes before it: depth = how long the chain of such joints below it is.
+  const depth = new Map<string, number>()
+  const hangsOn = new Map(
+    parts.map((p) => [p.id, parts.filter((q) => q.id !== p.id && buttsInto(p, boxes.get(p.id)!, q, boxes.get(q.id)!))]),
+  )
+  const depthOf = (p: Part, seen = new Set<string>()): number => {
+    if (depth.has(p.id)) return depth.get(p.id)!
+    if (seen.has(p.id)) return 0
+    seen.add(p.id)
+    const d = Math.max(0, ...hangsOn.get(p.id)!.map((q) => depthOf(q, seen) + 1))
+    depth.set(p.id, d)
+    return d
+  }
+  const order = [...parts].sort(
+    (a, b) => boxes.get(b.id)!.max[1] - boxes.get(a.id)!.max[1] || depthOf(b) - depthOf(a),
+  )
 
   for (const p of order) {
     const b = boxes.get(p.id)!
