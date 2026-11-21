@@ -25,9 +25,9 @@ export function useChecks(): Issue[] {
 export function Checklist() {
   const issues = useChecks()
   const focus = useStore((s) => s.checkFocus)
-  const focusCheck = useStore((s) => s.focusCheck)
   const select = useStore((s) => s.select)
   const setMode = useStore((s) => s.setMode)
+  const requestPanel = useStore((s) => s.requestPanel)
   const parts = useStore((s) => s.project.parts)
   const refs = useRef(new Map<string, HTMLLIElement>())
   useEffect(() => {
@@ -72,8 +72,9 @@ export function Checklist() {
                   {i.partIds.length > 0 && (
                     <button
                       onClick={() => {
-                        focusCheck(i.id)
                         select(i.partIds)
+                        // One window at a time: close the list so the parts are in view
+                        requestPanel(false)
                       }}
                     >
                       ◎ Visa i 3D

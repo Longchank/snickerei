@@ -2118,3 +2118,9 @@ button.free-label.editable:hover:not(:disabled) {
 .view-buttons:has(.tools-toggle.open) {
   z-index: 30;
 }
+
+/* One window at a time on the phone: with the panel open, the Bygg action
+   bar steps aside (it comes back when the panel closes) */
+.app.mobile.sheet-open .place-top:has(.action-bar) {
+  display: none;
+}

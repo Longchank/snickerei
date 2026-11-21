@@ -81,9 +81,24 @@ export function App() {
   useEffect(() => {
     if (toolsOpen && mobile) setSheetOpen(false)
   }, [toolsOpen, mobile])
+  // One window at a time on the phone: opening the panel folds in the tool
+  // menu and finishes the floating tool bars (move, turn, mirror, frame) —
+  // their changes are already made, like pressing Klar. Placing stays armed,
+  // since the panel is where you pick the next board.
   useEffect(() => {
-    if (sheetOpen && mobile) useStore.getState().setToolsOpen(false)
+    if (!sheetOpen || !mobile) return
+    const st = useStore.getState()
+    st.setToolsOpen(false)
+    if (st.moveMode) st.setMoveMode(false)
+    if (st.rotateMode) st.setRotateMode(false)
+    if (st.mirrorMode) st.setMirrorMode(false)
+    if (st.frameSheet) st.closeFrame()
   }, [sheetOpen, mobile])
+  // Something asked for the panel to open or close (e.g. "Visa i 3D")
+  const panelRequest = useStore((s) => s.panelRequest)
+  useEffect(() => {
+    if (panelRequest && mobile) setSheetOpen(panelRequest.open)
+  }, [panelRequest, mobile])
   // A board was added from Lägg till: close the menu so it shows in the view
   const partCount = useStore((s) => s.project.parts.length)
   const lastCount = useRef(partCount)
@@ -128,6 +143,10 @@ export function App() {
     if (hasSelection && st.settings.mode === 'detaljer' && !st.placeProfile && !st.moveMode && !st.rotateMode) {
       setTab('del')
       setSheetOpen(true)
+    } else if (mobile && hasSelection && (st.settings.mode === 'bygg' || tabRef.current === 'delar')) {
+      // One window at a time: picked from a list (or in Bygg, where the
+      // action bar takes over) — the list closes so what was picked is in view
+      setSheetOpen(false)
     }
     // Every pick counts, also of the part that's already selected
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,6 +158,8 @@ export function App() {
   let activeTab: Tab = tabs.includes(tab) ? tab : tabs[0]
   if (measureMode) activeTab = 'del'
   const phase = phaseInfo(mode)
+  const tabRef = useRef(activeTab)
+  tabRef.current = activeTab
 
   const print = async () => {
     // Clean view for the snapshot: nothing selected, no overlays, whole model in frame

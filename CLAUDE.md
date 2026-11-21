@@ -140,6 +140,17 @@ comments in English).
   measuring still opens the Del slot in any step. With the phone panel
   open, the action/move/place bars sit at the top
   (`.sheet-open .place-top`) instead of behind the panel.
+- **One window at a time on the phone** (owner 2026-11-21: "select the
+  group in the list … hide the list after I have selected it. This goes
+  for all functions"): a pick from a list (`tab === 'delar'`) or any pick
+  in Bygg closes the panel, so the Bygg action bar shows; in Detaljer a
+  pick opens Del (the panel *is* its window). Opening the panel folds in
+  the tool menu and finishes move / turn / mirror / frame (like Klar —
+  changes are already made); placing stays armed (the panel is where the
+  next board is picked). With the panel open the Bygg action bar is
+  hidden (CSS `.sheet-open .place-top:has(.action-bar)`) and returns when
+  it closes. Kontroll's "Visa i 3D" closes the list via
+  `requestPanel(false)` (store `panelRequest`, applied by App).
 - **Kontroll before buying** (owner 2026-11-21, Inköp → Kontroll,
   `src/lib/checks.ts` `runChecks`, `components/Checklist.tsx`): gathers
   what the app already detects — collisions (each pair once), parts
