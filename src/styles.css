@@ -2448,3 +2448,29 @@ details.info > summary::-webkit-details-marker {
   align-items: center;
   gap: 5px;
 }
+
+/* ---- Lists and prices, compact (round 5) ---- */
+.list-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.list-summary strong {
+  flex: 1;
+  font-size: 18px;
+}
+.list-summary button {
+  min-height: 40px;
+}
+.warn-chip {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.lists .fold > summary {
+  min-height: 42px;
+  font-size: 15px;
+}

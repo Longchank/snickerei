@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { CATEGORY_NAMES, EXAMPLE_PRICES, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
+import { CATEGORY_NAMES, EXAMPLE_PRICES, getProfile, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { ageInDays, formatAge, formatDate, formatKr, STALE_DAYS } from '../lib/format'
 import { supplierEntries } from '../lib/prices'
 import { useStore } from '../lib/store'
 import type { PriceEntry, Profile, ProfileCategory } from '../lib/types'
+import { Fold } from './Fold'
+import { Info } from './Info'
 import { NumberField } from './NumberField'
 
 /** Cheapest supplier price, as kr/lm for boards or kr/sheet for sheets. */
@@ -23,13 +25,15 @@ export function PriceList() {
   const disabled = useStore((s) => s.disabledSuppliers)
   const setSupplierEnabled = useStore((s) => s.setSupplierEnabled)
   const supplierPrices = useMemo(() => files.map((f) => ({ file: f, entries: supplierEntries(f) })), [files])
+  const parts = useStore((s) => s.project.parts)
+  const usedCats = useMemo(() => new Set(parts.map((p) => getProfile(p.profileId).category)), [parts])
 
   return (
     <div className="lists">
-      <p className="hint">
-        Ordning: ditt eget pris → butikspriser (billigast vinner) → exempelpris. Virke i kr per löpmeter, skivor i kr
-        per skiva.
-      </p>
+      <Info label="Hur räknas priset?">
+        Ordning: ditt eget pris → butikspriser (billigast vinner) → exempelpris. Virke i kr per löpmeter, skivor i kr per
+        skiva. Under varje material kan du ändra vilka längder och skivstorlekar din butik säljer.
+      </Info>
       {supplierPrices.map(({ file }) => (
         <label key={file.supplier} className="check">
           <input
@@ -45,23 +49,29 @@ export function PriceList() {
           </span>
         </label>
       ))}
-      {files.length === 0 && (
-        <p className="hint">
-          Butikspriser hämtas inte just nu. Skriv in dina egna priser nedan (kr per löpmeter eller per skiva), eller
-          använd exempelpriserna för en ungefärlig kostnad.
-        </p>
-      )}
+      {files.length === 0 && <p className="hint small tight">Butikspriser hämtas inte just nu — skriv in egna priser.</p>}
       {files.length > 0 && <SourceNote />}
       <label className="check">
         <input type="checkbox" checked={useExamplePrices} onChange={(e) => setUseExamplePrices(e.target.checked)} />
-        Använd exempelpriser där riktiga priser saknas
+        Exempelpriser där pris saknas
       </label>
 
-      {(Object.keys(CATEGORY_NAMES) as ProfileCategory[]).map((cat) => {
+      {(Object.keys(CATEGORY_NAMES) as ProfileCategory[])
+        // Materials in the project first
+        .sort((a, b) => Number(usedCats.has(b)) - Number(usedCats.has(a)))
+        .map((cat) => {
         const sheet = SHEET_CATEGORIES.includes(cat)
         return (
-          <section key={cat}>
-            <h3>{CATEGORY_NAMES[cat]}</h3>
+          <Fold
+            key={cat}
+            id={`price-${cat}`}
+            title={CATEGORY_NAMES[cat]}
+            status={(() => {
+              const n = PROFILES.filter((p) => p.category === cat && ownPrices.some((e) => e.profileId === p.id)).length
+              const used = usedCats.has(cat) ? 'i projektet' : ''
+              return [used, n ? `${n} egna priser` : ''].filter(Boolean).join(' · ') || '–'
+            })()}
+          >
             {sheet ? <SheetSizes category={cat} /> : <BoardLengths category={cat} />}
             <table className="price-table">
               <thead>
@@ -107,7 +117,7 @@ export function PriceList() {
                 })}
               </tbody>
             </table>
-          </section>
+          </Fold>
         )
       })}
     </div>
@@ -177,7 +187,7 @@ function SheetSizes({ category }: { category: ProfileCategory }) {
     <div className="sheet-sizes">
       <div className="sheet-sizes-head">
         <span className="small">
-          <strong>Skivstorlekar</strong> {own ? '(dina)' : '(standard — ändra efter din butik)'}
+          <strong>Skivstorlekar</strong> {own ? '(dina)' : '(standard)'}
         </span>
         {own && (
           <button className="link" onClick={() => setSizes(category, null)}>
@@ -243,7 +253,7 @@ function BoardLengths({ category }: { category: ProfileCategory }) {
     <div className="sheet-sizes">
       <div className="sheet-sizes-head">
         <span className="small">
-          <strong>Längder i butiken</strong> {own ? '(dina)' : '(standard — ändra efter din butik)'}
+          <strong>Längder i butiken</strong> {own ? '(dina)' : '(standard)'}
         </span>
         {own && (
           <button className="link" onClick={() => setLengths(category, null)}>

@@ -183,7 +183,15 @@ comments in English).
   explanation line is the row's tooltip), then one row of controls (move
   steps; Vrid/Tippa/Sida; Spegla: "↔ Sidled / ⤢ Djup / ↕ Höjd" with axis
   colour dots + "⧉ Spegelkopia / ⇋ Vänd på plats"). Heights 136/134/189
-  → 102/106/147 px.
+  → 102/106/147 px. Round 5, **Listor + Priser**: Listor starts with a
+  summary row "≈ 910 kr · [exempelpris] · 🖨 PDF", then `Fold`s
+  **Inköpslista** (open; status "3 st · 910 kr"; "Sågblad" kerf field at
+  its end), **Såglista** (closed; "N bitar"), **Skruv** (closed; "N st");
+  the duplicate example-price box is gone. Priser: explanation behind ⓘ
+  "Hur räknas priset?", one short line when no shop prices are fetched,
+  "Exempelpriser där pris saknas", and each material is a `Fold` (closed;
+  status "i projektet · N egna priser"), materials used in the project
+  first; "(standard — ändra efter din butik)" → "(standard)".
 - **Kontroll before buying** (owner 2026-11-21, Inköp → Kontroll,
   `src/lib/checks.ts` `runChecks`, `components/Checklist.tsx`): gathers
   what the app already detects — collisions (each pair once), parts
