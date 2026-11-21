@@ -178,7 +178,12 @@ comments in English).
   "⚠ ryms inte" and "Innanför · 45×95 · 900 mm"; outside legs:
   "Långsidor/Kortsidor" + "Skiva över" (was "Förläng skivan över benen")
   on one row; leg profile select + Höjd on one row. Bar content 674 px
-  (scrolling) → 378 px with Ben open.
+  (scrolling) → 378 px with Ben open. Round 4, **Flytta / Vrid / Spegla
+  bars**: shared title row `BarHead` (icon + name · ↶ · Klar; the old
+  explanation line is the row's tooltip), then one row of controls (move
+  steps; Vrid/Tippa/Sida; Spegla: "↔ Sidled / ⤢ Djup / ↕ Höjd" with axis
+  colour dots + "⧉ Spegelkopia / ⇋ Vänd på plats"). Heights 136/134/189
+  → 102/106/147 px.
 - **Kontroll before buying** (owner 2026-11-21, Inköp → Kontroll,
   `src/lib/checks.ts` `runChecks`, `components/Checklist.tsx`): gathers
   what the app already detects — collisions (each pair once), parts
@@ -443,7 +448,7 @@ comments in English).
   adds nothing isn't offered.
 - **Spegla** (owner 2026-11-20, `src/lib/mirror.ts`): Bygg action bar
   "⇋ Spegla" → `MirrorBar` (`mirrorMode`, not persisted): direction
-  Vänster–höger / Fram–bak / Upp–ner, then "⧉ Spegelkopia" or "⇋ Vänd på
+  Sidled / Djup / Höjd (was Vänster–höger / Fram–bak / Upp–ner), then "⧉ Spegelkopia" or "⇋ Vänd på
   plats". A part keeps its rotation and moves to its mirror place
   (`mirrorPart`); what isn't symmetric follows: along the length the
   `ends` swap, across a 'face' (width) or 'edge' (thickness) cut the angle

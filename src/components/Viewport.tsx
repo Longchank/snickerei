@@ -1238,18 +1238,33 @@ function ViewTools() {
 
 const STEPS = [1, 5, 10, 50, 100]
 
-/** Moving: step size, rotation, undo and done. The arrows are in the 3D view. */
+/** Title row shared by the move / turn / mirror bars: icon + name (hint on hover), undo, done */
+function BarHead({ icon, title, hint, onDone }: { icon: ReactNode; title: string; hint: string; onDone: () => void }) {
+  const undo = useStore((s) => s.undo)
+  const canUndo = useStore((s) => s.past.length > 0)
+  return (
+    <div className="bar-head" title={hint}>
+      <span className="bar-icon">{icon}</span>
+      <strong>{title}</strong>
+      <button className="icon" onClick={undo} disabled={!canUndo} aria-label="Ångra" title="Ångra">
+        ↶
+      </button>
+      <button className="primary" onClick={onDone}>
+        Klar
+      </button>
+    </div>
+  )
+}
+
+/** Moving: step size; the arrows are in the 3D view, and a tap on a board moves the selection there. */
 function MoveBar() {
   const step = useStore((s) => s.settings.moveStep)
   const setSettings = useStore((s) => s.setSettings)
-  const undo = useStore((s) => s.undo)
-  const canUndo = useStore((s) => s.past.length > 0)
   const setMoveMode = useStore((s) => s.setMoveMode)
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar" role="toolbar" aria-label="Flytta">
-        <strong>Flytta</strong>
-        <span>Tryck på pilarna — eller på en bräda där delen ska sitta</span>
+        <BarHead icon={<IconMove />} title="Flytta" hint="Tryck på pilarna — eller på en bräda där delen ska sitta" onDone={() => setMoveMode(false)} />
         <div className="move-steps" role="group" aria-label="Steg">
           {STEPS.map((s) => (
             <button key={s} className={step === s ? 'on' : ''} aria-pressed={step === s} onClick={() => setSettings({ moveStep: s })}>
@@ -1260,14 +1275,6 @@ function MoveBar() {
             <NumberField value={step} min={1} suffix="mm" onCommit={(v) => setSettings({ moveStep: v })} />
           </label>
         </div>
-        <div className="place-actions">
-          <button onClick={undo} disabled={!canUndo} aria-label="Ångra">
-            ↶
-          </button>
-          <button className="primary" onClick={() => setMoveMode(false)}>
-            Klar
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -1276,14 +1283,11 @@ function MoveBar() {
 /** Turning: 90° per tap on the rings in the view; plain buttons as a fallback. */
 function RotateBar() {
   const rotateStep = useStore((s) => s.rotateSelectionStep)
-  const undo = useStore((s) => s.undo)
-  const canUndo = useStore((s) => s.past.length > 0)
   const setRotateMode = useStore((s) => s.setRotateMode)
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar" role="toolbar" aria-label="Vrid">
-        <strong>Vrid 90°</strong>
-        <span>Tryck på pilarna på ringarna — eller här:</span>
+        <BarHead icon={<IconRotate />} title="Vrid 90°" hint="Tryck på pilarna på ringarna — eller här" onDone={() => setRotateMode(false)} />
         <div className="rotate-buttons">
           <button onClick={() => rotateStep(1, 1)} title="Vrid runt lodlinjen (grön ring)">
             <span className="ring-dot" style={{ background: AXIS_COLOR[1] }} />↻ Vrid
@@ -1295,57 +1299,45 @@ function RotateBar() {
             <span className="ring-dot" style={{ background: AXIS_COLOR[2] }} />↻ Sida
           </button>
         </div>
-        <div className="place-actions">
-          <button onClick={undo} disabled={!canUndo} aria-label="Ångra">
-            ↶ Ångra
-          </button>
-          <button className="primary" onClick={() => setRotateMode(false)}>
-            Klar
-          </button>
-        </div>
       </div>
     </div>
   )
 }
 
-const MIRROR_AXES: { axis: 0 | 1 | 2; label: string }[] = [
-  { axis: 0, label: 'Vänster–höger' },
-  { axis: 2, label: 'Fram–bak' },
-  { axis: 1, label: 'Upp–ner' },
+const MIRROR_AXES: { axis: 0 | 1 | 2; label: string; title: string }[] = [
+  { axis: 0, label: '↔ Sidled', title: 'Vänster–höger' },
+  { axis: 2, label: '⤢ Djup', title: 'Fram–bak' },
+  { axis: 1, label: '↕ Höjd', title: 'Upp–ner' },
 ]
 
 /** Mirroring: pick a direction, then a mirrored copy or a flip in place. */
 function MirrorBar() {
   const [axis, setAxis] = useState<0 | 1 | 2>(0)
   const mirror = useStore((s) => s.mirrorSelection)
-  const undo = useStore((s) => s.undo)
-  const canUndo = useStore((s) => s.past.length > 0)
   const setMirrorMode = useStore((s) => s.setMirrorMode)
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar" role="toolbar" aria-label="Spegla">
-        <strong>Spegla</strong>
-        <div className="move-steps" role="group" aria-label="Riktning">
+        <BarHead
+          icon={<IconMirror />}
+          title="Spegla"
+          hint="Kopian hamnar på andra sidan modellens mitt (eller bredvid). Geringar och urtag speglas också."
+          onDone={() => setMirrorMode(false)}
+        />
+        <div className="move-steps mirror-axes" role="group" aria-label="Riktning">
           {MIRROR_AXES.map((a) => (
-            <button key={a.axis} className={axis === a.axis ? 'on' : ''} aria-pressed={axis === a.axis} onClick={() => setAxis(a.axis)}>
+            <button key={a.axis} className={axis === a.axis ? 'on' : ''} aria-pressed={axis === a.axis} title={a.title} onClick={() => setAxis(a.axis)}>
               <span className="ring-dot" style={{ background: AXIS_COLOR[a.axis] }} />
               {a.label}
             </button>
           ))}
         </div>
-        <span>Kopian hamnar på andra sidan modellens mitt (eller bredvid). Geringar och urtag speglas också.</span>
-        <div className="rotate-buttons">
-          <button className="primary" onClick={() => mirror(axis, true)}>
+        <div className="rotate-buttons two">
+          <button className="primary" onClick={() => mirror(axis, true)} title="Spegelkopia på andra sidan">
             ⧉ Spegelkopia
           </button>
-          <button onClick={() => mirror(axis, false)}>⇋ Vänd på plats</button>
-        </div>
-        <div className="place-actions">
-          <button onClick={undo} disabled={!canUndo} aria-label="Ångra">
-            ↶ Ångra
-          </button>
-          <button className="primary" onClick={() => setMirrorMode(false)}>
-            Klar
+          <button onClick={() => mirror(axis, false)} title="Vänd det markerade på plats">
+            ⇋ Vänd på plats
           </button>
         </div>
       </div>

@@ -2406,3 +2406,45 @@ details.info > summary::-webkit-details-marker {
   font-size: 14px;
   min-height: 40px;
 }
+
+/* ---- Move / turn / mirror bars, compact (round 4) ---- */
+.bar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bar-head .bar-icon {
+  display: inline-grid;
+  place-items: center;
+  color: var(--accent);
+}
+.bar-head strong {
+  flex: 1;
+  text-align: left;
+}
+.bar-head .icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 18px;
+}
+.bar-head .primary {
+  min-height: 40px;
+  padding: 0 16px;
+}
+.move-bar {
+  gap: 6px;
+}
+.rotate-buttons.two {
+  grid-template-columns: 1fr 1fr;
+}
+.rotate-buttons button {
+  min-height: 40px;
+}
+.mirror-axes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
