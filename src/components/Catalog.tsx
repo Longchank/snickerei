@@ -1,5 +1,5 @@
+import { Fold } from './Fold'
 import { Info } from './Info'
-import { useState, type ReactNode } from 'react'
 import { CATEGORY_NAMES, getProfile, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
 import type { Part, ProfileCategory } from '../lib/types'
@@ -7,42 +7,6 @@ import type { Part, ProfileCategory } from '../lib/types'
 const BOARD_CATEGORIES = (Object.keys(CATEGORY_NAMES) as ProfileCategory[]).filter(
   (c) => !SHEET_CATEGORIES.includes(c),
 )
-
-const FOLD_KEY = 'snickerei-open-folds'
-function readFolds(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(FOLD_KEY) ?? '[]')
-  } catch {
-    return []
-  }
-}
-
-/** A section that folds away; closed by default, remembers being opened on this device. */
-function Fold({ id, title, children, count }: { id: string; title: ReactNode; children: ReactNode; count?: number }) {
-  const [open, setOpen] = useState(() => readFolds().includes(id))
-  return (
-    <details
-      className="fold"
-      open={open}
-      onToggle={(e) => {
-        const now = (e.currentTarget as HTMLDetailsElement).open
-        setOpen(now)
-        try {
-          const rest = readFolds().filter((x) => x !== id)
-          localStorage.setItem(FOLD_KEY, JSON.stringify(now ? [...rest, id] : rest))
-        } catch {
-          /* storage unavailable: just don't remember */
-        }
-      }}
-    >
-      <summary>
-        <span>{title}</span>
-        {count !== undefined && <span className="muted small">{count}</span>}
-      </summary>
-      {open && children}
-    </details>
-  )
-}
 
 function Category({ cat }: { cat: ProfileCategory }) {
   const addPart = useStore((s) => s.addPart)

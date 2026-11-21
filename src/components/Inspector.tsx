@@ -8,6 +8,8 @@ import { describeNotch, overlapsOf, toLocalBox, trimAgainst, unionBox } from '..
 import { activePrices, useSelectedParts, useStore } from '../lib/store'
 import { stockOptions } from '../lib/cutlist'
 import type { EndCut, Part, Profile } from '../lib/types'
+import { Fold } from './Fold'
+import { Info } from './Info'
 import { MeasurePanel } from './MeasurePanel'
 import { NumberField } from './NumberField'
 
@@ -20,10 +22,7 @@ export function Inspector() {
   if (selected.length === 0) {
     return (
       <div className="inspector empty">
-        <p className="hint">
-          Tryck på en del i 3D-vyn för att se och ändra den — längd, ändar och fogar. Tryck på <strong>Mät</strong>{' '}
-          för att mäta mellan ytor.
-        </p>
+        <p className="hint">Tryck på en del i 3D-vyn för att ändra längd, ändar och fogar.</p>
         <Shortcuts />
       </div>
     )
@@ -75,33 +74,25 @@ function SinglePart({ part }: { part: Part }) {
             <NumberField value={part.length} min={1} suffix="mm" onCommit={(length) => updatePart(part.id, { length })} />
           </div>
         )}
+        {group && (
+          <button
+            className="chip group-chip"
+            title={`Del av gruppen ${group.name} — tryck för att markera hela gruppen`}
+            onClick={() => select(parts.filter((p) => p.groupId === group.id).map((p) => p.id))}
+          >
+            ▣ {group.name}
+          </button>
+        )}
         <button className="icon" onClick={clearSelection} aria-label="Avmarkera">
           ✕
         </button>
       </div>
-      <p className="hint small dim-hint">
-        {prof.kind === 'sheet' ? 'Längd × bredd. Tjockleken är låst.' : 'Tvärsnittet är låst — längden går att ändra.'}
-      </p>
-      {group && (
-        <p className="hint small">
-          Del av gruppen <strong>{group.name}</strong>.{' '}
-          <button
-            className="link inline"
-            onClick={() => select(parts.filter((p) => p.groupId === group.id).map((p) => p.id))}
-          >
-            Markera hela gruppen
-          </button>
-        </p>
-      )}
-
       {prof.kind === 'sheet' && sheetSizes.length > 0 && (
-        <p className="hint small">
-          Skivan säljs i {sheetSizes.map((x) => x.join(' × ')).join(', ')} mm.
-        </p>
+        <p className="hint small tight">Butiken: {sheetSizes.map((x) => x.join('×')).join(', ')} mm</p>
       )}
       {hasGrain(prof) && (
-        <div className="field">
-          <span>Fiberriktning</span>
+        <div className="field compact-field">
+          <span>Fiber</span>
           <div className="segmented" role="group" aria-label="Fiberriktning">
             {(
               [
@@ -125,8 +116,8 @@ function SinglePart({ part }: { part: Part }) {
       )}
 
       <Ends part={part} />
-      <Rip part={part} />
       <Joints part={part} />
+      <Rip part={part} />
       <Shortcuts />
     </div>
   )
@@ -143,9 +134,13 @@ function Joints({ part }: { part: Part }) {
   const overlaps = useMemo(() => overlapsOf(part, parts), [part, parts])
 
   if (!overlaps.length && !part.notches?.length) return null
+  const status = overlaps.length ? (
+    <span className="fold-bad">⚠ {overlaps.length} {overlaps.length === 1 ? 'krock' : 'krockar'}</span>
+  ) : (
+    `${part.notches!.length} urtag`
+  )
   return (
-    <section className="joints">
-      <h3>Fogar</h3>
+    <Fold id="del-joints" title="Fogar" status={status} defaultOpen className="joints">
       {overlaps.map(({ other, box }) => {
         const canTrim = trimAgainst(part, box) !== null
         const dims = [0, 1, 2].map((i) => fmt(box.max[i] - box.min[i])).join(' × ')
@@ -188,7 +183,7 @@ function Joints({ part }: { part: Part }) {
           </button>
         </div>
       ))}
-    </section>
+    </Fold>
   )
 }
 
@@ -211,11 +206,7 @@ const canMiter = (a: Part, b: Part, box: AxisBox) => miterCorner(a, b, box, toLo
 
 type EndKind = 'rak' | 'face' | 'edge'
 
-const END_HELP: Record<EndKind, string> = {
-  rak: 'Rakt kapad, 90°.',
-  face: 'Snett kapad över bredsidan, som i hörnet på en tavelram.',
-  edge: 'Snett kapad över smalsidan — sågas med brädan på högkant.',
-}
+const END_LABEL: Record<EndKind, string> = { rak: 'Rak', face: 'Gering', edge: 'Högkant' }
 
 /** Square, miter or bevel at each end, with an angle and which side keeps the long point. */
 function Ends({ part }: { part: Part }) {
@@ -227,63 +218,65 @@ function Ends({ part }: { part: Part }) {
     () => ([0, 1] as const).map((i) => findCornerPartner(part, i, parts)),
     [part, parts],
   )
+  const kindOf = (i: 0 | 1): EndKind => (ends[i]?.angle ? ends[i]!.plane : 'rak')
+  const status = ([0, 1] as const)
+    .map((i) => (kindOf(i) === 'rak' ? 'Rak' : `${END_LABEL[kindOf(i)]} ${Math.abs(ends[i]!.angle)}°`))
+    .join(' · ')
   return (
-    <section className="ends">
-      <h3>Ändar</h3>
-      <p className="hint small">Ändarna är märkta på brädan i 3D-vyn.</p>
+    <Fold id="del-ends" title="Ändar" status={status} defaultOpen className="ends">
       {([0, 1] as const).map((i) => {
         const cut = ends[i]
-        const kind: EndKind = cut?.angle ? cut.plane : 'rak'
+        const kind = kindOf(i)
         const angle = Math.abs(cut?.angle ?? 45)
         const sign = (cut?.angle ?? 1) < 0 ? -1 : 1
         const set = (plane: EndCut['plane'], a: number, sg: number) => setEndCut(part.id, i, { plane, angle: a * sg })
         const name = `${endName(part, i)} änden`
         return (
-          <div key={i} className="end-row named">
-            <span className="end-label">
-              <span className="end-tag">{endName(part, i)}</span> änden
+          <div key={i} className="end-line">
+            <span className="end-tag" title={name}>
+              {endName(part, i)}
             </span>
-            <div className="segmented" role="group" aria-label={name}>
-              {(
-                [
-                  ['rak', 'Rak'],
-                  ['face', 'Gering'],
-                  ['edge', 'Högkant'],
-                ] as const
-              ).map(([k, label]) => (
+            <div className="segmented small-seg" role="group" aria-label={name}>
+              {(['rak', 'face', 'edge'] as const).map((k) => (
                 <button
                   key={k}
                   className={kind === k ? 'on' : ''}
                   aria-pressed={kind === k}
                   onClick={() => (k === 'rak' ? setEndCut(part.id, i, null) : set(k, angle, sign))}
                 >
-                  {label}
+                  {END_LABEL[k]}
                 </button>
               ))}
             </div>
-            <p className="hint small end-partner">
-              {END_HELP[kind]}
-              {partners[i] && (
-                <>
-                  {' '}
-                  Möter <strong>{partners[i]!.part.name}</strong> i ett hörn, så båda ändarna anpassas
-                  {kind === 'rak' ? ' (den här brädan går igenom)' : ''}. Längderna ändras inte — en bräda kan flyttas.
-                </>
-              )}
-            </p>
             {kind !== 'rak' && cut && !partners[i] && (
               <div className="end-angle">
                 <NumberField value={angle} min={0} suffix="°" onCommit={(a) => set(cut.plane, Math.min(80, a), sign)} />
-                <button onClick={() => set(cut.plane, angle, -sign)} title="Vänd vinkeln åt andra hållet">
-                  ⇅ Vänd
+                <button onClick={() => set(cut.plane, angle, -sign)} title="Vänd vinkeln åt andra hållet" aria-label="Vänd vinkeln">
+                  ⇅
                 </button>
               </div>
+            )}
+            {partners[i] && (
+              <span className="end-partner small" title="Båda ändarna anpassas; längderna ändras inte — en bräda kan flyttas">
+                ↔ hörn mot {partners[i]!.part.name}
+                {kind === 'rak' ? ', går igenom' : ''}
+              </span>
             )}
           </div>
         )
       })}
-      {part.ends?.some((e) => e?.angle) && <p className="hint small">Längden mäts på långsidan.</p>}
-    </section>
+      <Info label="Rak, gering, högkant?">
+        <p>Ändarna är märkta på brädan i 3D-vyn.</p>
+        <p>
+          <strong>Rak</strong>: kapad 90°. <strong>Gering</strong>: snett över bredsidan, som i hörnet på en tavelram.{' '}
+          <strong>Högkant</strong>: snett över smalsidan — sågas med brädan på högkant. ⇅ vänder vinkeln.
+        </p>
+        <p>
+          Möter änden en annan brädas ände i ett hörn anpassas båda; längderna ändras inte — en bräda kan flyttas. Med
+          snett snitt mäts längden på långsidan.
+        </p>
+      </Info>
+    </Fold>
   )
 }
 
@@ -293,27 +286,22 @@ function Rip({ part }: { part: Part }) {
   const [angle, setAngle] = useState(45)
   if (part.rip) {
     return (
-      <section className="ends">
-        <h3>Klyvning</h3>
+      <Fold id="del-rip" title="Klyvning" status={`Fransk list ${part.rip.half === 0 ? 'A' : 'B'} · ${part.rip.angle}°`} className="ends">
         <p className="hint small">
-          Halva {part.rip.half === 0 ? 'A' : 'B'} av en bräda klyvd på längden i {part.rip.angle}° (fransk list).
-          Räknas som en bräda i såglistan.
+          Halva {part.rip.half === 0 ? 'A' : 'B'} av en bräda klyvd på längden i {part.rip.angle}° (fransk list). Räknas som en
+          bräda i såglistan.
         </p>
-      </section>
+      </Fold>
     )
   }
   return (
-    <section className="ends">
-      <h3>Klyvning</h3>
-      <div className="end-row">
-        <span className="end-label">Vinkel</span>
-        <div className="end-angle">
-          <NumberField value={angle} min={0} suffix="°" onCommit={(a) => setAngle(Math.min(75, a))} />
-          <button onClick={() => frenchCleat(part.id, angle)}>Gör fransk list</button>
-        </div>
+    <Fold id="del-rip" title="Klyvning" status="Fransk list" className="ends">
+      <div className="end-angle">
+        <NumberField value={angle} min={0} suffix="°" onCommit={(a) => setAngle(Math.min(75, a))} />
+        <button onClick={() => frenchCleat(part.id, angle)}>Gör fransk list</button>
       </div>
       <p className="hint small">Klyver delen på längden till två listar med sned kant (A och B).</p>
-    </section>
+    </Fold>
   )
 }
 
@@ -352,7 +340,9 @@ function MultipleParts({ parts }: { parts: Part[] }) {
           ✕
         </button>
       </div>
-      <p className="hint small">{parts.map((p) => p.name).join(', ')}</p>
+      <p className="hint small names-line" title={parts.map((p) => p.name).join(', ')}>
+        {parts.map((p) => p.name).join(', ')}
+      </p>
 
       {group ? (
         <div className="buttons group-actions">

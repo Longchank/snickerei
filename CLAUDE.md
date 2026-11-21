@@ -161,7 +161,16 @@ comments in English).
   hint; long help texts fold behind `<Info>` (ⓘ + short label, `Info.tsx`)
   — catalog, screw advice, analysis load/disclaimer, Kontroll; full-width
   3D toggles became small chips (`chip view-toggle`: "● Skruv i 3D",
-  "🎨 Färg i 3D"); no duplicate "Analys" heading.
+  "🎨 Färg i 3D"); no duplicate "Analys" heading. Round 2, **Del panel**:
+  header "45×95 × [L] mm  ▣ Grupp  ✕" (the group chip selects the group;
+  the "cross-section is locked" line is gone); sheets show "Butiken:
+  2440×1220 mm"; "Fiber" one row. Sections are `Fold`s (`components/
+  Fold.tsx`, extracted from Catalog; `status` text on the header,
+  `defaultOpen`, open/closed remembered per device): **Ändar** (open,
+  status "Gering 45° · Rak"; one row per end: tag · Rak/Gering/Högkant ·
+  angle + ⇅; "↔ hörn mot X" line; explanations behind ⓘ), **Fogar**
+  (open, status "⚠ N krockar" / "N urtag"), **Klyvning** (closed). Panel
+  content 1014 → 702 px for a board with a miter and two collisions.
 - **Kontroll before buying** (owner 2026-11-21, Inköp → Kontroll,
   `src/lib/checks.ts` `runChecks`, `components/Checklist.tsx`): gathers
   what the app already detects — collisions (each pair once), parts
