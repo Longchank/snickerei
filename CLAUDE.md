@@ -154,6 +154,19 @@ comments in English).
   shows a round "!" per issue (`CheckMarkers`, red = bad, amber = warn,
   drei `Html`); a tap sets `checkFocus` (store, not persisted), which opens
   the Kontroll tab and scrolls to and highlights that item.
+- **View tool menu** (owner 2026-11-21, `ViewTools` in Viewport.tsx,
+  icons in `components/Icons.tsx`): the right edge of the view has ⤢ (fit)
+  and ⛶ (full screen), then a tool button that folds out the global 3D
+  tools as square line-icon buttons (Lucide-style SVGs, same look as the
+  two glyphs) with a dark label pill to the left: Mät · Steg för steg ·
+  Röntgen · Dölj · Visa bara · Lås (the last three act on the selection,
+  disabled without one; they moved here from the Bygg action bar) and,
+  when relevant, "Visa N dolda" / "Lås upp N" with a count badge. Folded
+  in, tools that are on and the show/unlock buttons stay visible.
+  `toolsOpen` (store, not persisted): opening it closes the phone panel
+  and opening the panel folds it in (the view is its own stacking context,
+  so the menu can't sit above the panel); while open it's above the
+  action/move bars (`:has(.tools-toggle.open)`).
 - **Moving** (`moveMode`, `src/lib/move.ts`): diegetic arrows in the 3D
   scene on the selection's six faces (`MoveArrows`, constant on-screen
   size via `useFrame`, big invisible tap zones) move one step
@@ -362,26 +375,26 @@ comments in English).
 - **Steg för steg** (owner 2026-11-20: "I build groups first, then the
   whole; the step by step should only show the selected step",
   `src/lib/steps.ts`): each group with parts is a step (group order),
-  then "Montering" (everything). "🪜 Steg" in the view opens `StepBar`
+  then "Montering" (everything). "Steg för steg" in the view tool menu opens `StepBar`
   ("‹ Steg 2/3 · Ben › ✕", `activeStep`, not persisted); the 3D view
   draws only the step's parts (`isShown`), fit/total dims follow, and
   Listor → Skruv shows only that step's sections (`ScrewSection.step`:
   group id, or 'montering' for joints between groups/loose parts), with
   step chips "Alla · 1. Ram · 2. Ben · 3. Montering". **Hide**
-  (`part.hidden`, undoable): Bygg action bar "🙈 Dölj" / "◎ Visa bara
-  detta" (isolate); "👁 N dolda · Visa" chip in the view shows all again.
+  (`part.hidden`, undoable): view tool menu "Dölj" / "Visa bara" (isolate);
+  "Visa N dolda" there shows all again.
   Hidden parts still count in lists, screws and analysis. Other
   recommended basics are parked under "Later / parked ideas".
 - **Lås, Röntgen, Markera likadana** (owner 2026-11-20). **Lås**
-  (`part.locked`, undoable; Bygg action bar "🔒 Lås"): a locked part can't
+  (`part.locked`, undoable; view tool menu "Lås"): a locked part can't
   be selected anywhere — `select`/`tapPart`/`pickPart`/`groupMembers` drop
   it and `selected()` ignores it, so nothing moves, changes or deletes it.
   A tap on it in 3D passes through to what's behind (no
   `stopPropagation`); the fuzzy miss-pick ignores it. It's still a target
   for placing, measuring and "move next to". Grey edges in 3D; the Delar
-  list shows it disabled with a 🔒 button to unlock just it; the view chip
-  "🔒 N låsta · Lås upp" unlocks all. Regenerated frame boards lose the
-  lock. **Röntgen** (`xray`, not persisted, view button "👓 Röntgen"):
+  list shows it disabled with a 🔒 button to unlock just it; "Lås upp N"
+  in the view tool menu unlocks all. Regenerated frame boards lose the
+  lock. **Röntgen** (`xray`, not persisted, view tool menu):
   everything not selected is see-through (opacity 0.18, no depth write;
   the material is remounted via its key, as three.js won't switch
   transparency live). **Markera likadana** (`src/lib/select.ts`,

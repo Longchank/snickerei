@@ -76,6 +76,14 @@ export function App() {
   useEffect(() => {
     if ((placing || moving || turning || framing) && mobile) setSheetOpen(false)
   }, [placing, moving, turning, framing, mobile])
+  // The view's tool menu and the phone panel share the right edge: one at a time
+  const toolsOpen = useStore((s) => s.toolsOpen)
+  useEffect(() => {
+    if (toolsOpen && mobile) setSheetOpen(false)
+  }, [toolsOpen, mobile])
+  useEffect(() => {
+    if (sheetOpen && mobile) useStore.getState().setToolsOpen(false)
+  }, [sheetOpen, mobile])
   // A board was added from Lägg till: close the menu so it shows in the view
   const partCount = useStore((s) => s.project.parts.length)
   const lastCount = useRef(partCount)

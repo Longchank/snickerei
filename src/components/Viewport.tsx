@@ -19,7 +19,7 @@ import {
 } from 'three'
 import type { Group } from 'three'
 import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { getProfile, hasGrain, PROFILES, shortName } from '../lib/catalog'
 import { eulerOf, partBox, partSize, round, toAxisBox, type AxisBox } from '../lib/geometry'
 import { cutters, type Cutter } from '../lib/cuts'
@@ -29,6 +29,7 @@ import { reorientOptions, worldAxisOf } from '../lib/place'
 import { buildSteps, isShown, type Step } from '../lib/steps'
 import { similarChoices } from '../lib/select'
 import { phaseInfo } from '../lib/phases'
+import { IconClose, IconHide, IconIsolate, IconLock, IconRuler, IconShow, IconSteps, IconTools, IconUnlock, IconXray } from './Icons'
 import { useChecks } from './Checklist'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
 import { bestSeams, sheetPlanWith } from '../lib/seams'
@@ -1045,11 +1046,8 @@ function ActionBar() {
   const setMoveMode = useStore((s) => s.setMoveMode)
   const setRotateMode = useStore((s) => s.setRotateMode)
   const switchButt = useStore((s) => s.switchButtJoints)
-  const hideParts = useStore((s) => s.hideParts)
-  const lockParts = useStore((s) => s.lockParts)
   const select = useStore((s) => s.select)
   const setMirrorMode = useStore((s) => s.setMirrorMode)
-  const isolateParts = useStore((s) => s.isolateParts)
   const ids = new Set(selection)
   const chosen = parts.filter((p) => ids.has(p.id))
   // Two boards meeting in a square corner: offer to swap which runs through
@@ -1121,15 +1119,6 @@ function ActionBar() {
           </button>
         </div>
         <div className="action-row2">
-          <button onClick={() => hideParts(selection)} title="Dölj det markerade i 3D (räknas fortfarande i listorna)">
-            🙈 Dölj
-          </button>
-          <button onClick={() => isolateParts(selection)} title="Dölj allt utom det markerade">
-            ◎ Visa bara detta
-          </button>
-          <button onClick={() => lockParts(selection)} title="Lås: kan inte markeras, flyttas eller ändras. Man kan fortfarande bygga mot den.">
-            🔒 Lås
-          </button>
           {similar.map((c) => (
             <button key={c.kind} onClick={() => select(c.ids)} title="Markera alla likadana delar">
               ▣ Alla {c.kind === 'size' ? `${profileName} × ${sizeName}` : profileName} ({c.ids.length})
@@ -1169,6 +1158,76 @@ function ActionBar() {
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * The view's tool menu (right side): a button that folds out the global 3D
+ * tools — measure, step by step, X-ray, and hide / show only / lock for the
+ * selection. Tools that are switched on, and "show hidden" / "unlock" when
+ * something is hidden or locked, stay visible with the menu folded in.
+ */
+function ViewTools() {
+  const open = useStore((s) => s.toolsOpen)
+  const setOpen = useStore((s) => s.setToolsOpen)
+  const measureMode = useStore((s) => s.measureMode)
+  const setMeasureMode = useStore((s) => s.setMeasureMode)
+  const activeStep = useStore((s) => s.activeStep)
+  const setActiveStep = useStore((s) => s.setActiveStep)
+  const xray = useStore((s) => s.xray)
+  const setXray = useStore((s) => s.setXray)
+  const selection = useStore((s) => s.selection)
+  const parts = useStore((s) => s.project.parts)
+  const groups = useStore((s) => s.project.groups)
+  const hideParts = useStore((s) => s.hideParts)
+  const isolateParts = useStore((s) => s.isolateParts)
+  const lockParts = useStore((s) => s.lockParts)
+  const unlockParts = useStore((s) => s.unlockParts)
+  const showAllParts = useStore((s) => s.showAllParts)
+  const hidden = parts.filter((p) => p.hidden).length
+  const locked = parts.filter((p) => p.locked).length
+  const none = selection.length === 0
+  type Tool = { key: string; icon: ReactNode; label: string; on?: boolean; show: boolean; disabled?: boolean; badge?: number; tone?: string; run: () => void }
+  const tools: Tool[] = [
+    { key: 'mat', icon: <IconRuler />, label: 'Mät', on: measureMode, tone: 'measure', show: true, run: () => setMeasureMode(!measureMode) },
+    { key: 'steg', icon: <IconSteps />, label: 'Steg för steg', on: !!activeStep, show: true, run: () => setActiveStep(activeStep ? null : buildSteps(parts, groups)[0]?.id ?? null) },
+    { key: 'xray', icon: <IconXray />, label: 'Röntgen', on: xray, show: true, run: () => setXray(!xray) },
+    { key: 'dolj', icon: <IconHide />, label: none ? 'Dölj (markera något)' : 'Dölj markerat', show: true, disabled: none, run: () => hideParts(selection) },
+    { key: 'bara', icon: <IconIsolate />, label: none ? 'Visa bara (markera något)' : 'Visa bara markerat', show: true, disabled: none, run: () => isolateParts(selection) },
+    { key: 'las', icon: <IconLock />, label: none ? 'Lås (markera något)' : 'Lås markerat', show: true, disabled: none, run: () => lockParts(selection) },
+    { key: 'visa', icon: <IconShow />, label: `Visa ${hidden} dolda`, badge: hidden, show: hidden > 0, run: showAllParts },
+    { key: 'upp', icon: <IconUnlock />, label: `Lås upp ${locked}`, badge: locked, show: locked > 0, run: () => unlockParts() },
+  ]
+  // Folded in: only what's switched on or needs attention
+  const shown = tools.filter((t) => t.show && (open || t.on || t.badge))
+  return (
+    <>
+      <button
+        className={`icon tools-toggle ${open ? 'open' : ''}`}
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        title={open ? 'Stäng verktygen' : 'Verktyg: mät, steg, röntgen, dölj, lås'}
+        aria-label={open ? 'Stäng verktygen' : 'Verktyg'}
+      >
+        {open ? <IconClose /> : <IconTools />}
+      </button>
+      {shown.map((t) => (
+        <div key={t.key} className="tool-row">
+          {open && <span className="tool-label">{t.label}</span>}
+          <button
+            className={`icon tool ${t.on ? `on ${t.tone ?? ''}` : ''}`}
+            aria-pressed={t.on === undefined ? undefined : t.on}
+            disabled={t.disabled}
+            title={t.label}
+            aria-label={t.label}
+            onClick={t.run}
+          >
+            {t.icon}
+            {t.badge ? <span className="tool-badge">{t.badge}</span> : null}
+          </button>
+        </div>
+      ))}
+    </>
   )
 }
 
@@ -1700,7 +1759,6 @@ export function Viewport({
   const rotateMode = useStore((s) => s.rotateMode)
   const mirrorMode = useStore((s) => s.mirrorMode)
   const mode = useStore((s) => s.settings.mode)
-  const setMeasureMode = useStore((s) => s.setMeasureMode)
   const pending = useStore((s) => s.pendingPoint !== null)
   const placeProfile = useStore((s) => s.placeProfile)
   const snapChoice = useStore((s) => s.snapChoice)
@@ -1712,13 +1770,6 @@ export function Viewport({
   const groups = useStore((s) => s.project.groups)
   const steps = useMemo(() => buildSteps(parts, groups), [parts, groups])
   const activeStep = useStore((s) => s.activeStep)
-  const setActiveStep = useStore((s) => s.setActiveStep)
-  const showAllParts = useStore((s) => s.showAllParts)
-  const hiddenCount = parts.filter((p) => p.hidden).length
-  const lockedCount = parts.filter((p) => p.locked).length
-  const unlockParts = useStore((s) => s.unlockParts)
-  const xray = useStore((s) => s.xray)
-  const setXray = useStore((s) => s.setXray)
   const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode && !mirrorMode && !framing
 
   return (
@@ -1737,40 +1788,7 @@ export function Viewport({
           ⛶
         </button>
       )}
-      <button
-        className={`multi-toggle ${measureMode ? 'on measure' : ''}`}
-        aria-pressed={measureMode}
-        onClick={() => setMeasureMode(!measureMode)}
-        title="Mät: tryck på två ytor eller golvet"
-      >
-        📏 Mät
-      </button>
-      <button
-        className={`multi-toggle ${activeStep ? 'on' : ''}`}
-        aria-pressed={!!activeStep}
-        onClick={() => setActiveStep(activeStep ? null : steps[0]?.id ?? null)}
-        title="Bygg steg för steg: varje grupp är ett steg, sist monteringen"
-      >
-        🪜 Steg
-      </button>
-      <button
-        className={`multi-toggle ${xray ? 'on' : ''}`}
-        aria-pressed={xray}
-        onClick={() => setXray(!xray)}
-        title="Röntgen: allt utom det markerade blir genomskinligt"
-      >
-        👓 Röntgen
-      </button>
-      {lockedCount > 0 && (
-        <button className="multi-toggle hidden-chip" onClick={() => unlockParts()} title="Lås upp alla låsta delar">
-          🔒 {lockedCount} låsta · Lås upp
-        </button>
-      )}
-      {hiddenCount > 0 && (
-        <button className="multi-toggle hidden-chip" onClick={showAllParts} title="Visa alla dolda delar igen">
-          👁 {hiddenCount} dolda · Visa
-        </button>
-      )}
+      <ViewTools />
     </div>
     {activeStep && <StepBar steps={steps} />}
     {placeProfile && <PlaceBanner profileId={placeProfile} />}

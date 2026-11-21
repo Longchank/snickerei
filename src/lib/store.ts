@@ -72,6 +72,9 @@ interface State {
   /** The checklist item to show (a "!" in 3D was tapped); n changes on every tap */
   checkFocus: { id: string; n: number } | null
   focusCheck: (id: string) => void
+  /** The view's tool menu is folded out (the phone panel closes meanwhile) */
+  toolsOpen: boolean
+  setToolsOpen: (on: boolean) => void
   /** X-ray: everything not selected is see-through */
   xray: boolean
   setXray: (on: boolean) => void
@@ -328,6 +331,8 @@ export const useStore = create<State>()(
         },
         checkFocus: null,
         focusCheck: (id) => set((s) => ({ checkFocus: { id, n: (s.checkFocus?.n ?? 0) + 1 } })),
+        toolsOpen: false,
+        setToolsOpen: (toolsOpen) => set({ toolsOpen }),
         xray: false,
         setXray: (xray) => set({ xray }),
         screwView: false,

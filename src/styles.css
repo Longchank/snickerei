@@ -2050,3 +2050,71 @@ button.free-label.editable:hover:not(:disabled) {
   transform: scale(1.25);
   box-shadow: 0 0 0 4px var(--accent);
 }
+
+/* The view's tool menu (ViewTools): square icon buttons like ⤢ / ⛶, with a
+   label pill to the left while the menu is open */
+.tool-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.view-buttons .icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  position: relative;
+}
+.mobile .view-buttons .icon {
+  width: 44px;
+  height: 44px;
+}
+.view-buttons .icon.on,
+.view-buttons .icon.on:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.view-buttons .icon.on.measure,
+.view-buttons .icon.on.measure:hover:not(:disabled) {
+  background: #ea580c;
+  border-color: #ea580c;
+}
+.view-buttons .icon:disabled {
+  opacity: 0.45;
+}
+.view-buttons .tools-toggle.open {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tool-label {
+  background: rgba(31, 41, 55, 0.88);
+  color: #fff;
+  font-size: 13px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.tool-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+.tool-icon {
+  display: block;
+}
+/* The open tool menu sits above the floating action/move bars in the view */
+.view-buttons:has(.tools-toggle.open) {
+  z-index: 30;
+}
