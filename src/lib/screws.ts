@@ -204,9 +204,17 @@ export function screwJoints(parts: Part[], counts: Record<string, number> = {}):
         p[va] = zigzag ? c.box.min[va] + across * (k % 2 === 0 ? 0.25 : 0.75) : (c.box.min[va] + c.box.max[va]) / 2
         return p
       })
-      // Is the side the screws go in from covered by another part?
+      // Is the side the screws go in from covered by another part — one that's
+      // already there when this joint is screwed? Build order (screwSections):
+      // each group on its own, then the groups joined together, then loose
+      // parts. So inside a group only that group's parts count; joining
+      // groups, every grouped part; a joint with a loose part, everything.
+      const g1 = through.groupId
+      const g2 = into.groupId
+      const present = (q: Part) =>
+        g1 && g2 ? (g1 === g2 ? q.groupId === g1 : !!q.groupId) : true
       const covering = parts.find((q) => {
-        if (q.id === through.id || q.id === into.id) return false
+        if (q.id === through.id || q.id === into.id || !present(q)) return false
         const qb = boxes.get(q.id)!
         return points.some((p) => AXES.every((x) => {
           const v = x === n ? p[x] - dir[x] * 2 : p[x]

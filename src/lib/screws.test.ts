@@ -199,3 +199,22 @@ describe('hand-set screw count in the store', () => {
     expect(s().project.screwCounts).toBeUndefined()
   })
 })
+
+describe('blocked access follows the build order', () => {
+  // A rail screwed up into a leg (both in group "ram"), with a sill under the
+  // rail that belongs to another group, attached later
+  const rail = (g?: string) => ({ ...at('Regel', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 45, 0]), groupId: g })
+  const sill = (g?: string) => ({ ...at('Syll', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0]), groupId: g })
+  const leg = (g?: string) => ({ ...at('Ben', 'konstruktion-45x95', 1000, UP, [1155, 90, 0]), groupId: g })
+  const railLeg = (parts: Part[]) => screwJoints(parts).find((j) => j.into.id === 'Ben')!
+
+  it('inside a group, a part from a group added later does not block', () => {
+    expect(railLeg([sill('golv'), rail('ram'), leg('ram')]).blockedBy).toBeNull()
+  })
+  it('a part of the same group (already there) still blocks', () => {
+    expect(railLeg([sill('ram'), rail('ram'), leg('ram')]).blockedBy).toBe('Syll')
+  })
+  it('without groups everything is there, as before', () => {
+    expect(railLeg([sill(), rail(), leg()]).blockedBy).toBe('Syll')
+  })
+})

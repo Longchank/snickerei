@@ -453,7 +453,11 @@ comments in English).
   (`blockedBy`): if another part covers the face the screws go in from
   (e.g. up through a rail that lies on a sill), the joint says
   "Åtkomst blockerad … snedskruva, skruva före X sätts dit, eller
-  vinkeljärn".
+  vinkeljärn". The check follows the build order (owner 2026-11-22:
+  "each group should be screwed first, then the total"): inside a group
+  only that group's parts can block; joining groups, every grouped part;
+  a joint with a loose (ungrouped) part, everything — screws covered later
+  by another group are fine.
 - **Steg för steg** (owner 2026-11-20: "I build groups first, then the
   whole; the step by step should only show the selected step",
   `src/lib/steps.ts`): each group with parts is a step (group order),
