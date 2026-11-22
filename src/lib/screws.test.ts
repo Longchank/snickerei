@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { chooseScrew, pilotBit, planJoint, screwJoints, screwName, screwSections, screwTotals } from './screws'
+import { chooseScrew, countJointEdit, flipJointEdit, pilotBit, pointOffsets, planJoint, screwJoints, screwName, screwSections, screwTotals } from './screws'
 import type { Part, Vec3 } from './types'
 
 function at(id: string, profileId: string, length: number, rotation: Part['rotation'], min: Vec3, width?: number): Part {
@@ -291,10 +291,13 @@ describe('planJoint ("Ny fog": tap a face)', () => {
   const top = at('top', 'plywood-18', 1200, [0, 0, 0], [0, 45, 0], 95)
   const up: Vec3 = [0, 1, 0]
 
-  it('finds the part behind the tapped face and guesses the end from the tap', () => {
+  it('finds the part behind the tapped face and puts the screws at the tap, inside the face', () => {
     const plan = planJoint([rail, top], 'top', [1100, 63, 50], up)!
     expect(plan.into.id).toBe('rail')
-    expect(plan.anchor).toBe('end')
+    expect(plan.anchor).toBe('tap')
+    expect((plan.points[0][0] + plan.points[1][0]) / 2).toBe(1100)
+    const atEnd = planJoint([rail, top], 'top', [1195, 63, 50], up)!
+    expect(Math.max(...atEnd.points.map((p) => p[0]))).toBe(1160)
     expect(plan.dir).toEqual([0, -1, 0])
     expect(plan.points).toHaveLength(2)
     expect(plan.points.every((p) => p[1] === 63)).toBe(true)
@@ -309,7 +312,7 @@ describe('planJoint ("Ny fog": tap a face)', () => {
     expect(Math.min(...start.points.map((p) => p[0]))).toBeLessThan(100)
     const a = planJoint([rail, top], 'top', [600, 63, 50], up)!
     const b = planJoint([rail, top], 'top', [600, 63, 50], up, { flip: true })!
-    expect(a.anchor).toBe('center')
+    expect(a.anchor).toBe('tap')
     expect(a.points[0][2]).toBe(b.points[1][2]) // mirrored across
     expect(a.points[0][2]).not.toBe(b.points[0][2])
   })
@@ -324,5 +327,34 @@ describe('planJoint ("Ny fog": tap a face)', () => {
 
   it('nothing behind the face: no joint', () => {
     expect(planJoint([rail, top], 'top', [600, 45, 50], [0, -1, 0])).toBeNull()
+  })
+})
+
+describe('editing a joint (count, diagonal)', () => {
+  // A 45x95 lying across another: a short, square contact
+  const sill = at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+  const rail = at('rail', 'konstruktion-45x95', 600, [0, 1, 0], [300, 45, -200])
+  const joint = (edits = {}) => screwJoints([sill, rail], edits)[0]
+
+  it('flips the zigzag of spread screws, and mirrors hand-placed ones', () => {
+    const j = joint()
+    expect(j.count).toBe(2)
+    const flipped = joint({ [j.key]: flipJointEdit(j) })
+    expect(flipped.flip).toBe(true)
+    expect(flipped.points[0]).not.toEqual(j.points[0])
+    const placed = joint({ [j.key]: { points: [pointOffsets(j)[0]] } })
+    const mirrored = joint({ [j.key]: flipJointEdit(placed) })
+    const [, va] = j.axes
+    expect(mirrored.points[0][va]).toBeCloseTo(j.area.min[va] + j.area.max[va] - placed.points[0][va])
+  })
+
+  it('changes the count: spread ones re-spread, hand-placed ones keep their spots', () => {
+    const j = joint()
+    expect(countJointEdit(j, 3)).toEqual({ count: 3, points: undefined })
+    const placed = joint({ [j.key]: { points: [pointOffsets(j)[0]] } })
+    const more = countJointEdit(placed, 2).points!
+    expect(more).toHaveLength(2)
+    expect(more[0]).toEqual(pointOffsets(placed)[0])
+    expect(countJointEdit(placed, 0).points).toHaveLength(1)
   })
 })

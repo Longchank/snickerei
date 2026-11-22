@@ -60,6 +60,12 @@ export interface Joint {
   predrill: { bit: number; reason: string } | null
   /** The screw is shorter than the rule of thumb (the receiving part is too thin) */
   short: boolean
+  /** Thickness screwed through and of the part behind, along the screw */
+  t: number
+  depth: number
+  /** Screws placed by hand (Ny fog, or moved one by one) rather than spread out */
+  placed: boolean
+  flip: boolean
   /** Where the screw heads go: on the outer face of the part screwed through */
   points: Vec3[]
   /** The rule-of-thumb count; `count` differs when set by hand (0 when switched off) */
@@ -192,6 +198,8 @@ export interface ScrewEdit {
   manual?: boolean
   /** Screws placed one by one in 3D: offsets from the through part's box corner (min x, y, z) */
   points?: Vec3[]
+  /** The other diagonal (zigzag starts on the other side) */
+  flip?: boolean
 }
 
 /** Screw sizes on offer, for a size picker: of the same type as `s` (wood/sheet screws share sizes) */
@@ -229,7 +237,7 @@ function buildJoint(
   const screw: Screw = chosen
     ? { ...auto.screw, d: edit!.d!, length: edit!.length!, type: sheet ? 'skivskruv' : edit!.d! >= 8 ? 'konstruktionsskruv' : 'träskruv' }
     : auto.screw
-  const short = chosen ? screw.length - t < (endGrain ? 40 : 30) : auto.short
+  const short = chosen ? screw.length - t < SHORT_FRACTION * wantBite(t, endGrain) : auto.short
   const u = Math.max(...AXES.filter((x) => x !== n).map((x) => size(c.box, x)))
   const key = jointKey(through, into)
   const suggested = screwCount(u, sheet)
@@ -264,7 +272,7 @@ function buildJoint(
         const p = [0, 0, 0] as Vec3
         p[n] = face
         p[ua] = pos
-        p[va] = zigzag ? c.box.min[va] + across * (k % 2 === 0 ? 0.25 : 0.75) : (c.box.min[va] + c.box.max[va]) / 2
+        p[va] = zigzag ? c.box.min[va] + across * ((k % 2 === 0) !== !!edit?.flip ? 0.25 : 0.75) : (c.box.min[va] + c.box.max[va]) / 2
         return p
       })
   // Is the side the screws go in from covered by another part — one that's
@@ -295,13 +303,17 @@ function buildJoint(
     key,
     off,
     manual: !!edit?.manual,
-    custom: !!edit && !edit.manual && (edit.count !== undefined || !!chosen || off || !!placed),
+    custom: !!edit && !edit.manual && (edit.count !== undefined || !!chosen || off || !!placed || !!edit.flip),
     area: c.box,
     axes: [ua, va],
     origin: [...tb.min] as Vec3,
     endGrain,
     predrill: reason ? { bit: pilotBit(screw.d, mdf), reason } : null,
     short,
+    t,
+    depth,
+    placed: !!placed,
+    flip: !!edit?.flip,
   }
 }
 
@@ -431,7 +443,8 @@ export function screwSections(joints: Joint[], groups: { id: string; name: strin
   return [...byKey.values()].sort((x, y) => order[x.kind] - order[y.kind])
 }
 
-export type JointAnchor = 'start' | 'center' | 'end'
+/** Where the screws cluster on the face: at the tap (default), or at its start / centre / end */
+export type JointAnchor = 'tap' | 'start' | 'center' | 'end'
 
 /** A joint being placed by hand ("Ny fog"): where the screws go and how far they reach */
 export interface JointPlan {
@@ -457,9 +470,8 @@ export interface JointPlan {
 /**
  * "Ny fog": a tap on a face of `through` at `hit` (outward `normal`) — the
  * screws go in there, through that part and into the part right behind it.
- * The tap's position along the face guesses start / centre / end (outer
- * thirds); `count` screws cluster there, zigzagging across (flip = the
- * other diagonal). Null when nothing is behind the tapped face.
+ * `count` screws cluster around the tap (kept 40 mm in from the face's
+ * ends), zigzagging across (flip = the other diagonal). Null when nothing is behind the tapped face.
  */
 export function planJoint(
   parts: Part[],
@@ -497,13 +509,21 @@ export function planJoint(
   const [ulo, uhi] = span(ua)
   const [vlo, vhi] = span(va)
   const len = uhi - ulo
-  const frac = len > 0 ? (hit[ua] - ulo) / len : 0.5
-  const anchor: JointAnchor = opts.anchor ?? (frac < 1 / 3 ? 'start' : frac > 2 / 3 ? 'end' : 'center')
+  const anchor: JointAnchor = opts.anchor ?? 'tap'
   const count = Math.max(1, Math.min(10, opts.count ?? 2))
   const margin = Math.min(40, len * 0.2)
   const step = count > 1 ? Math.min(60, (len - 2 * margin) / (count - 1)) : 0
+  // Centred on the tap, but kept inside the face (40 mm from its ends)
+  const half = ((count - 1) * step) / 2
+  const lo = ulo + margin + half
+  const hi = uhi - margin - half
+  const atTap = lo <= hi ? Math.min(hi, Math.max(lo, hit[ua])) : (ulo + uhi) / 2
   const along = Array.from({ length: count }, (_, k) =>
-    anchor === 'start' ? ulo + margin + k * step : anchor === 'end' ? uhi - margin - k * step : (ulo + uhi) / 2 + (k - (count - 1) / 2) * step,
+    anchor === 'start'
+      ? ulo + margin + k * step
+      : anchor === 'end'
+        ? uhi - margin - k * step
+        : (anchor === 'center' ? (ulo + uhi) / 2 : atTap) + (k - (count - 1) / 2) * step,
   )
   const across = vhi - vlo
   const zigzag = count >= 2 && across >= 30
@@ -529,4 +549,42 @@ export function planJoint(
       : auto
   const bite = screw.length - t
   return { through, into, key: jointKey(through, into), anchor, points, dir, screw, t, depth, bite, wantBite: wantBite(t, endGrain), poke: bite > depth }
+}
+
+/** A joint's screw spots as offsets from the through part's box corner (how ScrewEdit stores them) */
+export function pointOffsets(j: Joint, points: Vec3[] = j.points): Vec3[] {
+  return points.map((p) => p.map((v, i) => Math.round((v - j.origin[i]) * 10) / 10) as Vec3)
+}
+
+/** The other diagonal: hand-placed screws are mirrored across the contact, spread ones flip the zigzag */
+export function flipJointEdit(j: Joint): Partial<ScrewEdit> {
+  if (!j.placed) return { flip: !j.flip || undefined }
+  const [, va] = j.axes
+  const mirrored = j.points.map((p) => {
+    const q = [...p] as Vec3
+    q[va] = j.area.min[va] + j.area.max[va] - p[va]
+    return q
+  })
+  return { points: pointOffsets(j, mirrored) }
+}
+
+/**
+ * A new screw count for a joint. Spread screws are just re-spread; hand-placed
+ * ones keep their spots — one more goes 30 mm on from the last (back if
+ * there's no room), one fewer drops the last.
+ */
+export function countJointEdit(j: Joint, n: number): Partial<ScrewEdit> {
+  const want = Math.max(1, Math.min(20, n))
+  if (!j.placed) return { count: want, points: undefined }
+  const [ua] = j.axes
+  const pts = [...j.points]
+  while (pts.length > want) pts.pop()
+  while (pts.length < want) {
+    const last = pts[pts.length - 1]
+    const p = [...last] as Vec3
+    const room = j.area.max[ua] - last[ua]
+    p[ua] = Math.min(j.area.max[ua], Math.max(j.area.min[ua], last[ua] + (room > 30 ? 30 : -30)))
+    pts.push(p)
+  }
+  return { points: pointOffsets(j, pts), count: undefined }
 }

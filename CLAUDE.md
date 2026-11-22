@@ -491,20 +491,25 @@ comments in English).
   `setScrewEdit(key, {points: offsets, manual if new})`, appended to an
   existing joint's points (and switches an off joint back on). Old
   `manual` joints without points still use `manualContact`. Tapping a joint's name selects both parts in 3D.
-  **Single screws in 3D** (owner 2026-11-22, "redigera enskilda skruvar
-  i 3D"): in Montering a screw dot is tappable (`ScrewDot` `onTap`, bigger
-  invisible target) → `screwFocus {key, index}` (store, not persisted;
-  cleared by opening the panel or switching step, and closes the phone
-  panel) → `ScrewBar` (BarHead "🔩 Skruv 2/5" · ↶ · Klar; ‹ › through
-  the joint's screws; move 10 mm along the contact's two in-plane axes,
-  "◀ Vänster / Höger ▶", "▼ Ner / Upp ▲", "◀ Bak / Fram ▶" with axis
-  colours; "+ Lägg till" 30 mm along; "🗑 Ta bort", the last one switches
-  the joint off). The focused dot is bigger with a white ring (both
-  transparent so the dot draws on top). Hand-placed spots are
-  `ScrewEdit.points`, offsets from the through part's box min (so they
-  follow it when moved), clamped onto the contact (`Joint.area`, `axes`,
-  `origin`); they set the count; − / + in the Skruv list drops them
-  (re-spreads).  `screwJoints(parts,
+  **Tapping a screw selects its joint** (owner 2026-11-22, replaced the
+  single-screw ScrewBar): `screwFocus {key}` (store, not persisted;
+  cleared by opening the panel or switching step, closes the phone
+  panel), all its screws get the white ring, and `JointEditBar` opens
+  (BarHead "🔩 Fog" · ↶ · ✕): "Skiva → Regel · 4,0×40 · biter 22 mm"
+  (green / amber short / red "sticker ut"), − N + (`countJointEdit`:
+  spread screws re-spread; hand-placed ones keep their spots, + adds one
+  30 mm on, − drops the last), ⟋/⟍ (`flipJointEdit`: spread → `ScrewEdit
+  .flip` flips the zigzag; placed → mirrored across the contact), size
+  select, "↺ Förslag", "🗑 Ta bort skruvarna" (off) / "Ta bort fogen"
+  (manual). **Montering → Skruv: tapping a joint's name** selects both
+  parts, opens the same bar and zooms to the joint (`fitView(box)` —
+  fitView now takes an optional box, the joint's contact ± 60 mm).
+  `Joint` carries `t`, `depth`, `placed`, `flip`. Hand-placed spots are
+  `ScrewEdit.points`, offsets from the through part's box min
+  (`pointOffsets`), clamped onto the contact. **Ny fog**: no Början/
+  Mitten/Änden buttons any more — the screws centre on the tap (kept
+  40 mm in from the face's ends, `anchor: 'tap'`); its bar and the joint
+  bar close with ✕ (`BarHead closeX`) instead of Klar.  `screwJoints(parts,
   edits)` everywhere (list, 3D dots, totals, Kontroll). `normalizeProject`
   also keeps `purpose` (it used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
   0.75 × d MDF, rounded to 0.5 mm) near an end (< 10 × d), into/through

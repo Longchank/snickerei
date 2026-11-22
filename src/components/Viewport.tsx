@@ -36,7 +36,7 @@ import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from 
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
-import { planJoint, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointAnchor, type JointPlan } from '../lib/screws'
+import { planJoint, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointPlan, countJointEdit, flipJointEdit } from '../lib/screws'
 import { selectionOverlaps, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -70,7 +70,8 @@ const fuzzyPickRef: { current: ((clientX: number, clientY: number, maxPx: number
 
 const FIT_EVENT = 'snickerei:fit'
 /** Move the camera so the whole model is in view. */
-export const fitView = () => window.dispatchEvent(new Event(FIT_EVENT))
+/** Frame the shown model, or just this box (e.g. a joint) */
+export const fitView = (box?: { min: Vec3; max: Vec3 }) => window.dispatchEvent(new CustomEvent(FIT_EVENT, { detail: box }))
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 /** How far (screen px) from a board a tap still counts as a tap on it */
@@ -825,8 +826,8 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
 
   // Fit the model in view on request, and once at start-up
   useEffect(() => {
-    const fit = () => {
-      const box = unionBox(shownParts.length ? shownParts : parts)
+    const fit = (e?: Event) => {
+      const box = (e as CustomEvent | undefined)?.detail ?? unionBox(shownParts.length ? shownParts : parts)
       if (!box || !controls || !(camera instanceof PerspectiveCamera)) return
       // On phones the toolbar and panel float over the view: fit the model
       // into the visible gap between them, not behind them
@@ -1304,7 +1305,7 @@ function ViewTools() {
 const STEPS = [1, 5, 10, 50, 100]
 
 /** Title row shared by the move / turn / mirror bars: icon + name (hint on hover), undo, done */
-function BarHead({ icon, title, hint, onDone }: { icon: ReactNode; title: string; hint: string; onDone: () => void }) {
+function BarHead({ icon, title, hint, onDone, closeX = false }: { icon: ReactNode; title: string; hint: string; onDone: () => void; closeX?: boolean }) {
   const undo = useStore((s) => s.undo)
   const canUndo = useStore((s) => s.past.length > 0)
   return (
@@ -1314,9 +1315,15 @@ function BarHead({ icon, title, hint, onDone }: { icon: ReactNode; title: string
       <button className="icon" onClick={undo} disabled={!canUndo} aria-label="Ångra" title="Ångra">
         ↶
       </button>
-      <button className="primary" onClick={onDone}>
-        Klar
-      </button>
+      {closeX ? (
+        <button className="icon bar-close" onClick={onDone} aria-label="Stäng" title="Stäng">
+          ✕
+        </button>
+      ) : (
+        <button className="primary" onClick={onDone}>
+          Klar
+        </button>
+      )}
     </div>
   )
 }
@@ -1410,89 +1417,98 @@ function MirrorBar() {
   )
 }
 
-const AXIS_DIR: [string, string][] = [
-  ['◀ Vänster', 'Höger ▶'],
-  ['▼ Ner', 'Upp ▲'],
-  ['◀ Bak', 'Fram ▶'],
-]
-const SCREW_STEP = 10
-
 /**
- * One screw, edited in 3D (Montering: tap a screw dot): move it along the
- * surface it sits on, step to the next screw in the joint, add one next to
- * it or remove it. The joint's screws then keep these hand-placed spots
- * (relative to the part screwed through) until its count is changed.
+ * A joint, edited in 3D (Montering: tap one of its screws, or its name in
+ * Skruv): how many screws, which diagonal, which screw — like "Ny fog" —
+ * and how far they bite. 🗑 takes the screws out (or the joint, if it was
+ * added by hand).
  */
-function ScrewBar() {
+function JointEditBar() {
   const focus = useStore((s) => s.screwFocus)
   const focusScrew = useStore((s) => s.focusScrew)
   const parts = useStore((s) => s.project.parts)
   const edits = useStore((s) => s.project.screwEdits)
   const setScrewEdit = useStore((s) => s.setScrewEdit)
   const joint = useMemo(() => (focus ? screwJoints(parts, edits).find((j) => j.key === focus.key) : undefined), [focus, parts, edits])
-  if (!focus || !joint || !joint.points.length) return null
-  const index = Math.min(focus.index, joint.points.length - 1)
-  const pts = joint.points
-  const save = (next: Vec3[]) =>
-    setScrewEdit(joint.key, { points: next.map((p) => p.map((v, i) => Math.round((v - joint.origin[i]) * 10) / 10) as Vec3), count: undefined })
-  const clampTo = (v: number, i: number) => Math.min(joint.area.max[i], Math.max(joint.area.min[i], v))
-  const move = (axis: number, d: number) => save(pts.map((p, k) => (k === index ? (p.map((v, i) => (i === axis ? clampTo(v + d, i) : v)) as Vec3) : p)))
-  const remove = () => {
-    if (pts.length === 1) {
-      setScrewEdit(joint.key, { off: true, points: undefined })
-      focusScrew(null)
-      return
-    }
-    save(pts.filter((_, k) => k !== index))
-    focusScrew({ key: joint.key, index: Math.max(0, index - 1) })
-  }
-  const add = () => {
-    const [ua] = joint.axes
-    const p = [...pts[index]] as Vec3
-    const room = joint.area.max[ua] - p[ua]
-    p[ua] = clampTo(p[ua] + (room > 30 ? 30 : -30), ua)
-    save([...pts, p])
-    focusScrew({ key: joint.key, index: pts.length })
-  }
+  if (!focus || !joint) return null
+  const edit = edits?.[joint.key]
+  const bite = joint.screw.length - joint.t
+  const poke = joint.screw.length > joint.t + joint.depth
+  const status = poke ? 'poke' : joint.short ? 'short' : 'ok'
+  const close = () => focusScrew(null)
   return (
     <div className="measure-top place-top">
-      <div className="place-banner move-bar screw-bar" role="toolbar" aria-label="Skruv">
-        <BarHead
-          icon={<span aria-hidden>🔩</span>}
-          title={`Skruv ${index + 1}/${pts.length}`}
-          hint="Flytta skruven längs ytan, lägg till eller ta bort"
-          onDone={() => focusScrew(null)}
-        />
-        <div className="screw-bar-sub">
-          <button aria-label="Föregående skruv" disabled={pts.length < 2} onClick={() => focusScrew({ key: joint.key, index: (index - 1 + pts.length) % pts.length })}>
-            ‹
-          </button>
-          <span className="small">
-            {joint.through.name} → {joint.into.name} · {screwName(joint.screw)}
+      <div className="place-banner move-bar joint-bar joint-edit-bar" role="toolbar" aria-label="Fog">
+        <BarHead icon={<span aria-hidden>🔩</span>} title={joint.manual ? 'Fog (egen)' : 'Fog'} hint="Ändra antal, diagonal och skruv" onDone={close} closeX />
+        <p className={`joint-reach small ${joint.off ? '' : status}`}>
+          <span className="joint-parts">
+            {joint.through.name} → {joint.into.name}
           </span>
-          <button aria-label="Nästa skruv" disabled={pts.length < 2} onClick={() => focusScrew({ key: joint.key, index: (index + 1) % pts.length })}>
-            ›
-          </button>
-        </div>
-        <div className="screw-moves">
-          {joint.axes.map((a) => (
-            <div key={a} className="screw-move-pair">
-              <button onClick={() => move(a, -SCREW_STEP)} title={`${SCREW_STEP} mm`}>
-                <span className="ring-dot" style={{ background: AXIS_COLOR[a] }} />
-                {AXIS_DIR[a][0]}
+          {!joint.off && (
+            <span>
+              {joint.screw.d.toFixed(1).replace('.', ',')}×{joint.screw.length} ·{' '}
+              {poke ? `sticker ut ${Math.round(joint.screw.length - joint.t - joint.depth)} mm` : `biter ${Math.round(bite)} mm`}
+            </span>
+          )}
+        </p>
+        {joint.off ? (
+          <div className="joint-row">
+            <span className="muted small">Ingen skruv i fogen</span>
+            <button onClick={() => setScrewEdit(joint.key, { off: undefined })}>↺ Skruva igen</button>
+          </div>
+        ) : (
+          <>
+            <div className="joint-row">
+              <span className="screw-stepper" role="group" aria-label="Antal skruv">
+                <button aria-label="Färre skruv" disabled={joint.count <= 1} onClick={() => setScrewEdit(joint.key, countJointEdit(joint, joint.count - 1))}>
+                  −
+                </button>
+                <strong>{joint.count}</strong>
+                <button aria-label="Fler skruv" disabled={joint.count >= 20} onClick={() => setScrewEdit(joint.key, countJointEdit(joint, joint.count + 1))}>
+                  +
+                </button>
+              </span>
+              <button className="diag" aria-label="Byt diagonal" title="Byt diagonal" disabled={joint.count < 2} onClick={() => setScrewEdit(joint.key, flipJointEdit(joint))}>
+                {joint.flip ? '⟍' : '⟋'}
               </button>
-              <button onClick={() => move(a, SCREW_STEP)} title={`${SCREW_STEP} mm`}>
-                {AXIS_DIR[a][1]}
+              <select
+                aria-label="Skruv"
+                value={edit?.d && edit.length ? `${edit.d}x${edit.length}` : ''}
+                onChange={(e) => {
+                  const [d, length] = e.target.value ? e.target.value.split('x').map(Number) : [undefined, undefined]
+                  setScrewEdit(joint.key, { d, length })
+                }}
+              >
+                <option value="">{edit?.d ? 'Förslag' : `${joint.screw.d.toFixed(1).replace('.', ',')}×${joint.screw.length} ✦`}</option>
+                {sizeOptions(joint.screw).map((o) => (
+                  <option key={`${o.d}x${o.length}`} value={`${o.d}x${o.length}`}>
+                    {o.d.toFixed(1).replace('.', ',')}×{o.length}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="rotate-buttons two">
+              {joint.custom && !joint.manual ? (
+                <button onClick={() => setScrewEdit(joint.key, null)} title={`Tillbaka till förslaget (${joint.suggested} st)`}>
+                  ↺ Förslag
+                </button>
+              ) : (
+                <span />
+              )}
+              <button
+                className="danger"
+                onClick={() => {
+                  if (joint.manual) {
+                    setScrewEdit(joint.key, null)
+                    close()
+                  } else setScrewEdit(joint.key, { off: true, points: undefined })
+                }}
+              >
+                🗑 {joint.manual ? 'Ta bort fogen' : 'Ta bort skruvarna'}
               </button>
             </div>
-          ))}
-        </div>
-        <div className="rotate-buttons two">
-          <button onClick={add}>+ Lägg till</button>
-          <button className="danger" onClick={remove}>
-            🗑 Ta bort
-          </button>
-        </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -1507,12 +1523,6 @@ function useJointPlan(): JointPlan | null | undefined {
     [draft, parts],
   )
 }
-
-const JOINT_ANCHORS: { id: JointAnchor; label: string }[] = [
-  { id: 'start', label: 'Början' },
-  { id: 'center', label: 'Mitten' },
-  { id: 'end', label: 'Änden' },
-]
 
 /** How well the screw bites: green = by the rule of thumb, amber = short, red = comes out the far side */
 function biteStatus(plan: JointPlan): 'ok' | 'short' | 'poke' {
@@ -1556,7 +1566,7 @@ function JointBar() {
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar joint-bar" role="toolbar" aria-label="Ny fog">
-        <BarHead icon={<span aria-hidden>🔩</span>} title="Ny fog" hint="Tryck på ytan där skruvarna ska in" onDone={() => setJointMode(false)} />
+        <BarHead icon={<span aria-hidden>🔩</span>} title="Ny fog" hint="Tryck på ytan där skruvarna ska in" onDone={() => setJointMode(false)} closeX />
         {!draft && <p className="bar-hint small">Tryck på ytan där skruvarna ska in.</p>}
         {draft && !plan && <p className="bar-hint small warn">Ingen del bakom ytan — tryck på en yta som ligger mot en annan del.</p>}
         {plan && draft && (
@@ -1572,13 +1582,6 @@ function JointBar() {
                   : `biter ${Math.round(plan.bite)} mm${status === 'short' ? ` (bör vara ${Math.round(plan.wantBite)})` : ''}`}
               </span>
             </p>
-            <div className="seg" role="group" aria-label="Var på ytan">
-              {JOINT_ANCHORS.map((a) => (
-                <button key={a.id} className={plan.anchor === a.id ? 'on' : ''} aria-pressed={plan.anchor === a.id} onClick={() => change({ anchor: a.id })}>
-                  {a.label}
-                </button>
-              ))}
-            </div>
             <div className="joint-row">
               <span className="screw-stepper" role="group" aria-label="Antal skruv">
                 <button aria-label="Färre skruv" disabled={draft.count <= 1} onClick={() => change({ count: draft.count - 1 })}>
@@ -1782,7 +1785,7 @@ function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
             key={`${j.key}-${k}`}
             at={[p[0] - j.dir[0] * 2, p[1] - j.dir[1] * 2, p[2] - j.dir[2] * 2]}
             color={colorOf.get(screwName(j.screw))!}
-            focused={focus?.key === j.key && focus.index === k}
+            focused={focus?.key === j.key}
             onTap={editable ? () => focusScrew({ key: j.key, index: k }) : undefined}
           />
         )),
@@ -2138,7 +2141,7 @@ export function Viewport({
       </button>
     )}
     <div className="view-buttons">
-      <button className="icon" onClick={fitView} title="Visa hela modellen" aria-label="Visa hela modellen">
+      <button className="icon" onClick={() => fitView()} title="Visa hela modellen" aria-label="Visa hela modellen">
         ⤢
       </button>
       {onImmersive && !immersive && (
@@ -2153,7 +2156,7 @@ export function Viewport({
     {moveMode && count > 0 && <MoveBar />}
     {rotateMode && count > 0 && <RotateBar />}
     {mirrorMode && count > 0 && <MirrorBar />}
-    {mode === 'montering' && <ScrewBar />}
+    {mode === 'montering' && <JointEditBar />}
     {mode === 'montering' && <JointBar />}
     {framing && <FrameBar />}
     {showActions && <ActionBar />}

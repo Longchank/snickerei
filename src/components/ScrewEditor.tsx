@@ -4,6 +4,8 @@ import { useStore } from '../lib/store'
 import { Dot, MoreAboutScrews } from './ScrewList'
 import { Fold } from './Fold'
 import { Info } from './Info'
+import { fitView } from './Viewport'
+import type { Vec3 } from '../lib/types'
 
 const mm = (v: number) => v.toFixed(1).replace('.', ',')
 
@@ -78,11 +80,11 @@ export function ScrewEditor() {
       <Info label="Hur ändrar jag?">
         <p>
           ✦ = appens förslag. Ändra antal med − / +, välj en annan skruv i listan, eller tryck 🗑 för att ta bort skruvarna i en fog (t.ex. om den
-          limmas). ↺ går tillbaka till förslaget. Markera en del i 3D för att bara se dess fogar. Tryck på en skruv i 3D för
-          att flytta, lägga till eller ta bort just den — ändrar du antalet här placeras fogens skruvar om automatiskt.
+          limmas). ↺ går tillbaka till förslaget. Markera en del i 3D för att bara se dess fogar. Tryck på en skruv i 3D,
+          eller på fogens namn här, för att välja fogen och ändra den: antal, diagonal och skruv.
         </p>
         <p>
-          "+ Ny fog": tryck på ytan där skruvarna ska in — delen bakom hittas själv. Välj början, mitten eller änden, antal, diagonal och
+          "+ Ny fog": tryck på ytan där skruvarna ska in — delen bakom hittas själv. Skruvarna hamnar där du trycker; välj antal, diagonal och
           skruv; linjen i 3D visar hur långt skruven når (grön = bra, gul = kort, röd = sticker ut). Allt går att ångra.
         </p>
       </Info>
@@ -96,6 +98,7 @@ function JointRow({ j, color }: { j: Joint; color?: string }) {
   const setScrewEdit = useStore((s) => s.setScrewEdit)
   const select = useStore((s) => s.select)
   const requestPanel = useStore((s) => s.requestPanel)
+  const focusScrew = useStore((s) => s.focusScrew)
   const sizeValue = edit?.d && edit.length ? `${edit.d}x${edit.length}` : ''
   const options = sizeOptions(j.screw)
   return (
@@ -103,10 +106,14 @@ function JointRow({ j, color }: { j: Joint; color?: string }) {
       <div className="edit-joint-head">
         <button
           className="link joint-name"
-          title="Visa delarna i 3D"
+          title="Visa fogen i 3D och ändra den"
           onClick={() => {
+            // Zoom in on the joint and open its editor (the panel closes)
             select([j.through.id, j.into.id])
+            focusScrew({ key: j.key, index: 0 })
             requestPanel(false)
+            const pad = 60
+            setTimeout(() => fitView({ min: j.area.min.map((v) => v - pad) as Vec3, max: j.area.max.map((v) => v + pad) as Vec3 }), 350)
           }}
         >
           {j.through.name} → {j.into.name}
