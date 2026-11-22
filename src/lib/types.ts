@@ -155,6 +155,8 @@ export interface Project {
   groups: Group[]
   /** Measurements the user has made with the measuring tool */
   measurements: Measurement[]
+  /** Screws per joint set by hand ("through|into" part ids); absent = the suggestion */
+  screwCounts?: Record<string, number>
   /** What it's for (Analys); unset = Förvaring */
   purpose?: Purpose
 }

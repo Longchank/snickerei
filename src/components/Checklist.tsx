@@ -11,11 +11,12 @@ import { usePlan } from './CutList'
 export function useChecks(): Issue[] {
   const parts = useStore((s) => s.project.parts)
   const purpose = useStore((s) => s.project.purpose ?? 'forvaring')
+  const counts = useStore((s) => s.project.screwCounts)
   const { plan } = usePlan()
   return useMemo(() => {
     if (!parts.length) return []
-    return runChecks(parts, analyse(parts, purpose), screwJoints(parts), plan)
-  }, [parts, purpose, plan])
+    return runChecks(parts, analyse(parts, purpose), screwJoints(parts, counts), plan)
+  }, [parts, purpose, plan, counts])
 }
 
 /**

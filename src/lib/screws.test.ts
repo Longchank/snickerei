@@ -66,13 +66,13 @@ describe('screwJoints', () => {
     expect(joints[0].endGrain).toBe(true)
   })
 
-  it('a sheet on joists: sheet screws through the sheet, c/c ~200', () => {
+  it('a sheet on joists: sheet screws through the sheet, c/c ~300', () => {
     const j1 = at('j1', 'konstruktion-45x70', 1000, [0, 1, 0], [0, 0, 0])
     const sheet = at('s', 'plywood-12', 1000, [0, 1, 0], [0, 45, 0], 600)
     const [j] = screwJoints([j1, sheet])
     expect(j.through.id).toBe('s')
     expect(j.screw.type).toBe('skivskruv')
-    expect(j.count).toBe(6) // 1000 / 200 + 1
+    expect(j.count).toBe(5) // ceil(1000 / 300) + 1
   })
 
   it('ignores parts that only meet at an edge, overlap, or stand apart', () => {
@@ -106,12 +106,12 @@ describe('screw positions', () => {
     // Through the sill from below (its underside, y = 0), screwing up into the post
     expect(j.dir).toEqual([0, 1, 0])
     expect(j.points).toHaveLength(2)
-    for (const p of j.points) {
-      expect(p[1]).toBe(0)
-      expect(p[0]).toBeCloseTo(1177.5, 1) // the post's centre along x
-    }
-    // Spread across the 95 mm contact: 23.75 and 71.25
-    expect(j.points.map((p) => p[2]).sort((a, b) => a - b)).toEqual([23.75, 71.25])
+    for (const p of j.points) expect(p[1]).toBe(0)
+    // Two screws sit diagonally: spread along the 95 mm side (23.75 / 71.25)
+    // and a quarter in from each side across the 45 mm one (1166.25 / 1188.75)
+    const pts = [...j.points].sort((a, b) => a[2] - b[2])
+    expect(pts.map((p) => p[2])).toEqual([23.75, 71.25])
+    expect(pts.map((p) => p[0])).toEqual([1166.25, 1188.75])
   })
 
   it('a sheet on a joist gets a row along the joist, 40 mm in from the ends', () => {
@@ -158,5 +158,44 @@ describe('blocked access', () => {
     // Rail onto sill: screws go in from the rail's top, which is free there
     const railSill = joints.find((j) => [j.through.id, j.into.id].sort().join() === 'Regel,Syll')!
     expect(railSill.blockedBy).toBeNull()
+  })
+})
+
+describe('screw layout and hand-set counts', () => {
+  const sill = at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+  const post = at('post', 'konstruktion-45x95', 1000, UP, [1155, 45, 0])
+
+  it('a short row zigzags across the contact', () => {
+    const [j] = screwJoints([sill, post], { 'sill|post': 4 })
+    const across = j.points.map((p) => p[0])
+    expect(new Set(across).size).toBe(2) // alternating sides
+    expect(across[0]).not.toBe(across[1])
+    expect(across[0]).toBe(across[2])
+  })
+
+  it('a hand-set count replaces the suggestion and keeps it for "back to suggestion"', () => {
+    const [auto] = screwJoints([sill, post])
+    const [hand] = screwJoints([sill, post], { [auto.key]: 3 })
+    expect(auto.key).toBe('sill|post')
+    expect(hand.count).toBe(3)
+    expect(hand.points).toHaveLength(3)
+    expect(hand.suggested).toBe(auto.count)
+    expect(screwTotals([hand]).reduce((n, t) => n + t.count, 0)).toBe(3)
+  })
+})
+
+describe('hand-set screw count in the store', () => {
+  it('is saved with the project, undoable, and null goes back to the suggestion', async () => {
+    const { useStore } = await import('./store')
+    const s = () => useStore.getState()
+    s().newProject()
+    s().setScrewCount('a|b', 3)
+    expect(s().project.screwCounts).toEqual({ 'a|b': 3 })
+    s().setScrewCount('a|b', 99)
+    expect(s().project.screwCounts).toEqual({ 'a|b': 20 }) // capped
+    s().undo()
+    expect(s().project.screwCounts).toEqual({ 'a|b': 3 })
+    s().setScrewCount('a|b', null)
+    expect(s().project.screwCounts).toBeUndefined()
   })
 })

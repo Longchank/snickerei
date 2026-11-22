@@ -40,7 +40,8 @@ function TotalsTable({ totals, colorOf }: { totals: ScrewTotal[]; colorOf: Map<s
   )
 }
 
-function JointList({ joints, colorOf }: { joints: Joint[]; colorOf: Map<string, string> }) {
+function JointList({ joints, colorOf, editable = false }: { joints: Joint[]; colorOf: Map<string, string>; editable?: boolean }) {
+  const setScrewCount = useStore((s) => s.setScrewCount)
   return (
     <ul className="joint-list">
       {joints.map((j) => (
@@ -48,10 +49,28 @@ function JointList({ joints, colorOf }: { joints: Joint[]; colorOf: Map<string, 
           <strong>
             {j.through.name} → {j.into.name}
           </strong>
-          <span>
+          <span className="joint-screws">
             <Dot color={colorOf.get(screwName(j.screw))} />
-            {j.count} st {screwName(j.screw)}
+            {editable ? (
+              <span className="screw-stepper" role="group" aria-label={`Antal skruv, ${j.through.name} → ${j.into.name}`}>
+                <button aria-label="Färre skruv" disabled={j.count <= 1} onClick={() => setScrewCount(j.key, j.count - 1)}>
+                  −
+                </button>
+                <strong>{j.count}</strong>
+                <button aria-label="Fler skruv" disabled={j.count >= 20} onClick={() => setScrewCount(j.key, j.count + 1)}>
+                  +
+                </button>
+              </span>
+            ) : (
+              <>{j.count} st </>
+            )}
+            {screwName(j.screw)}
             {j.endGrain ? ' · i ändträ' : ''}
+            {editable && j.count !== j.suggested && (
+              <button className="link reset-count" title={`Tillbaka till förslaget (${j.suggested} st)`} onClick={() => setScrewCount(j.key, null)}>
+                ↺ {j.suggested}
+              </button>
+            )}
           </span>
           {j.predrill && (
             <span className="predrill">
@@ -79,7 +98,8 @@ function JointList({ joints, colorOf }: { joints: Joint[]; colorOf: Map<string, 
 export function ScrewList({ print = false, buyOnly = false }: { print?: boolean; buyOnly?: boolean }) {
   const parts = useStore((s) => s.project.parts)
   const groups = useStore((s) => s.project.groups)
-  const joints = useMemo(() => screwJoints(parts), [parts])
+  const counts = useStore((s) => s.project.screwCounts)
+  const joints = useMemo(() => screwJoints(parts, counts), [parts, counts])
   const totals = useMemo(() => screwTotals(joints), [joints])
   const sections = useMemo(() => screwSections(joints, groups), [joints, groups])
   const screwView = useStore((s) => s.screwView)
@@ -156,7 +176,7 @@ export function ScrewList({ print = false, buyOnly = false }: { print?: boolean;
               </span>
             </summary>
             <TotalsTable totals={secTotals} colorOf={colorOf} />
-            <JointList joints={sec.joints} colorOf={colorOf} />
+            <JointList joints={sec.joints} colorOf={colorOf} editable={!print} />
           </details>
         )
       })}

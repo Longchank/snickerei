@@ -10,8 +10,11 @@
  *   boards — never poking out of the far side
  * - diameter grows with the piece screwed through (4.0 for thin boards …
  *   6.0 for 45 mm and long screws, 8.0 konstruktionsskruv above 160 mm)
- * - at least 2 per joint, more for wide contacts; sheets c/c ~200 mm,
- *   long overlaps c/c ~300 mm
+ * - at least 2 per joint, more for wide contacts; sheets and long overlaps
+ *   c/c ~300 mm (owner 2026-11-22: c/c 200 put too many in plywood)
+ * - two screws sit diagonally, short rows zigzag across the contact, so a
+ *   joint isn't split along one line of grain and you know which diagonal
+ *   to use when screwing groups together
  * - pre-drill near ends (closer than 10 × d), into MDF, and for 8 mm screws
  * - pilot bit ≈ the screw's core: about 0.6 × d in softwood, 0.75 × d in MDF
  * - pressure-treated wood → stainless A4 or C4-coated screws
@@ -54,6 +57,10 @@ export interface Joint {
   short: boolean
   /** Where the screw heads go: on the outer face of the part screwed through */
   points: Vec3[]
+  /** The rule-of-thumb count; `count` differs when set by hand */
+  suggested: number
+  /** Id of the joint for hand-set counts: "through|into" */
+  key: string
   /** Which way the screws go in (unit vector along one axis) */
   dir: Vec3
   /** Another part covers the side the screws go in from (no room for the screwdriver): its name */
@@ -117,7 +124,7 @@ export function chooseScrew(t: number, depth: number, endGrain: boolean, sheet: 
 
 /** How many screws for a contact rectangle whose longer side is u */
 function screwCount(u: number, sheet: boolean): number {
-  if (sheet) return Math.max(2, Math.ceil(u / 200) + 1)
+  if (sheet) return Math.max(2, Math.ceil(u / 300) + 1)
   if (u > 250) return Math.max(2, Math.ceil(u / 300) + 1)
   // 2 up to a 95-wide board, then one more per ~50 mm
   return u <= 100 ? 2 : u <= 150 ? 3 : u <= 200 ? 4 : 5
@@ -135,6 +142,9 @@ function spread(lo: number, hi: number, n: number): number[] {
 /** Colours for the screw sizes, in the order of the totals table */
 export const SCREW_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#4b5563']
 
+/** Key for a joint's hand-set screw count */
+export const jointKey = (through: Part, into: Part) => `${through.id}|${into.id}`
+
 /** Distance from a point along the part's length to its nearest end */
 function distToEnd(p: Part, b: AxisBox, at: number[]): number {
   const L = worldAxisOf(p.rotation, 0)
@@ -142,7 +152,7 @@ function distToEnd(p: Part, b: AxisBox, at: number[]): number {
 }
 
 /** All screwed joints in the build, one per pair of touching parts */
-export function screwJoints(parts: Part[]): Joint[] {
+export function screwJoints(parts: Part[], counts: Record<string, number> = {}): Joint[] {
   const boxes = new Map(parts.map((p) => [p.id, boxOf(p)]))
   const out: Joint[] = []
   for (let i = 0; i < parts.length; i++)
@@ -170,7 +180,9 @@ export function screwJoints(parts: Part[]): Joint[] {
       const outdoor = throughProf.category === 'tryckimpregnerat' || intoProf.category === 'tryckimpregnerat'
       const { screw, short } = chooseScrew(t, depth, endGrain, sheet, outdoor)
       const u = Math.max(...AXES.filter((x) => x !== n).map((x) => size(c.box, x)))
-      const count = screwCount(u, sheet)
+      const key = jointKey(through, into)
+      const suggested = screwCount(u, sheet)
+      const count = counts[key] ?? suggested
       // Pre-drilling: near an end, into MDF, or for thick screws
       const centre = AXES.map((x) => (c.box.min[x] + c.box.max[x]) / 2)
       const nearEnd = [through, into].some((p) => getProfile(p.profileId).kind === 'board' && !alongLength(p) && distToEnd(p, boxes.get(p.id)!, centre) < 10 * screw.d)
@@ -182,11 +194,14 @@ export function screwJoints(parts: Part[]): Joint[] {
       const dir = [0, 0, 0] as Vec3
       dir[n] = throughBelow ? 1 : -1
       const [ua, va] = AXES.filter((x) => x !== n).sort((x, y) => size(c.box, y) - size(c.box, x))
-      const points = spread(c.box.min[ua], c.box.max[ua], count).map((pos) => {
+      // Short rows zigzag across the contact (two screws = a diagonal) when it's wide enough
+      const across = size(c.box, va)
+      const zigzag = count >= 2 && across >= 30 && size(c.box, ua) <= 250
+      const points = spread(c.box.min[ua], c.box.max[ua], count).map((pos, k) => {
         const p = [0, 0, 0] as Vec3
         p[n] = face
         p[ua] = pos
-        p[va] = (c.box.min[va] + c.box.max[va]) / 2
+        p[va] = zigzag ? c.box.min[va] + across * (k % 2 === 0 ? 0.25 : 0.75) : (c.box.min[va] + c.box.max[va]) / 2
         return p
       })
       // Is the side the screws go in from covered by another part?
@@ -206,6 +221,8 @@ export function screwJoints(parts: Part[]): Joint[] {
         blockedBy: covering ? covering.name : null,
         screw,
         count,
+        suggested,
+        key,
         endGrain,
         predrill: reason ? { bit: pilotBit(screw.d, mdf), reason } : null,
         short,

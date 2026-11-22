@@ -44,7 +44,7 @@ import type {
 const HISTORY_LIMIT = 100
 
 /** What undo/redo restores */
-type Snapshot = Pick<Project, 'parts' | 'groups'>
+type Snapshot = Pick<Project, 'parts' | 'groups' | 'screwCounts'>
 
 interface State {
   project: Project
@@ -85,6 +85,8 @@ interface State {
   screwView: boolean
   setScrewView: (on: boolean) => void
   setPurpose: (purpose: Purpose) => void
+  /** Screws in one joint set by hand; null = back to the suggestion (undoable) */
+  setScrewCount: (key: string, count: number | null) => void
   /** Moving the selection: arrows in the view, taps put it next to a board */
   moveMode: boolean
   /** Placing boards of this profile: taps on the model place one each */
@@ -234,6 +236,8 @@ export function normalizeProject(p: Partial<Project> | undefined): Project {
     parts: p?.parts ?? [],
     groups: p?.groups ?? [],
     measurements: p?.measurements ?? [],
+    ...(p?.purpose ? { purpose: p.purpose } : {}),
+    ...(p?.screwCounts ? { screwCounts: p.screwCounts } : {}),
   }
 }
 
@@ -243,6 +247,7 @@ function pruneGroups(snap: Snapshot): Snapshot {
   snap.parts.forEach((p) => p.groupId && counts.set(p.groupId, (counts.get(p.groupId) ?? 0) + 1))
   const keep = new Set([...counts].filter(([, n]) => n >= 2).map(([g]) => g))
   return {
+    ...snap,
     groups: snap.groups.filter((g) => keep.has(g.id)),
     parts: snap.parts.map((p) => (p.groupId && !keep.has(p.groupId) ? { ...p, groupId: undefined } : p)),
   }
@@ -254,7 +259,7 @@ export const useStore = create<State>()(
       /** Apply a change to parts/groups and record it for undo. */
       const edit = (fn: (snap: Snapshot) => Snapshot, selection?: string[]) =>
         set((s) => {
-          const before: Snapshot = { parts: s.project.parts, groups: s.project.groups }
+          const before: Snapshot = { parts: s.project.parts, groups: s.project.groups, screwCounts: s.project.screwCounts }
           const after = pruneGroups(fn(before))
           return {
             project: { ...s.project, ...after },
@@ -343,6 +348,13 @@ export const useStore = create<State>()(
         screwView: false,
         setScrewView: (screwView) => set({ screwView }),
         setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),
+        setScrewCount: (key, count) =>
+          edit((snap) => {
+            const next = { ...snap.screwCounts }
+            if (count === null) delete next[key]
+            else next[key] = Math.max(1, Math.min(20, Math.round(count)))
+            return { ...snap, screwCounts: Object.keys(next).length ? next : undefined }
+          }),
         moveMode: false,
         placeProfile: null,
         placeNote: null,
@@ -816,7 +828,7 @@ export const useStore = create<State>()(
             return {
               ...restore(s, prev),
               past: s.past.slice(0, -1),
-              future: [{ parts: s.project.parts, groups: s.project.groups }, ...s.future],
+              future: [{ parts: s.project.parts, groups: s.project.groups, screwCounts: s.project.screwCounts }, ...s.future],
             }
           }),
 
@@ -826,7 +838,7 @@ export const useStore = create<State>()(
             if (!next) return s
             return {
               ...restore(s, next),
-              past: [...s.past, { parts: s.project.parts, groups: s.project.groups }],
+              past: [...s.past, { parts: s.project.parts, groups: s.project.groups, screwCounts: s.project.screwCounts }],
               future: s.future.slice(1),
             }
           }),

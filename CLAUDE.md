@@ -419,8 +419,18 @@ comments in English).
   flagged "kortare än tumregeln … vinkeljärn"); diameter by t (4.0 ≤18,
   4.5 ≤25, 5.0 ≤40, then 5.0/6.0, 8.0 konstruktionsskruv >160 mm); common
   sizes in `SIZES`; sheets → skivskruv; pressure-treated → rostfri A4/C4.
-  Count: 2 up to 100 mm contact, +1 per ~50 mm; sheets c/c 200; long
-  overlaps c/c 300. **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
+  Count: 2 up to 100 mm contact, +1 per ~50 mm; sheets and long overlaps
+  c/c 300 (sheets were c/c 200 until owner 2026-11-22: "too many on the
+  plywood"). **Layout** (owner 2026-11-22): in short rows (≤ 250 mm) on a
+  contact ≥ 30 mm wide the screws zigzag a quarter in from each side, so
+  two screws sit diagonally ("you can screw in groups as long as you know
+  which diagonal is where"). **Hand-set count** per joint:
+  `project.screwCounts` ("through|into" part ids → 1–20, `jointKey`),
+  `setScrewCount` (undoable — screwCounts is part of the undo snapshot;
+  null = back to the suggestion); Steg & skruv shows − N + on each joint
+  and "↺ N" (the suggestion) when changed; `screwJoints(parts, counts)`
+  everywhere (list, 3D dots, totals, Kontroll). `normalizeProject` now
+  keeps `purpose` and `screwCounts` (purpose used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
   0.75 × d MDF, rounded to 0.5 mm) near an end (< 10 × d), into/through
   MDF, or 8 mm screws. Totals per size (`screwTotals`) with ~10 % spare,
   rounded to tens, plus the bits; "Fog för fog" list. All rules of thumb

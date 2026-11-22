@@ -1439,7 +1439,8 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
 
 /** The suggested screws as dots where their heads go, coloured by size (legend in Listor → Skruv). */
 function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
-  const all = useMemo(() => screwJoints(parts), [parts])
+  const counts = useStore((s) => s.project.screwCounts)
+  const all = useMemo(() => screwJoints(parts, counts), [parts, counts])
   // Only screws between parts that are shown, and with something selected
   // (a group, a part) only its screws
   const selection = useStore((s) => s.selection)
