@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Catalog, PartList } from './components/Catalog'
-import { ScrewList } from './components/ScrewList'
+import { StepList } from './components/StepList'
 import { ScrewEditor } from './components/ScrewEditor'
 import { Checklist } from './components/Checklist'
 import { CutList } from './components/CutList'
@@ -198,7 +198,7 @@ export function App() {
     <>
       {activeTab === 'lagg' && <Catalog parts={false} />}
       {activeTab === 'delar' && <PartList />}
-      {activeTab === 'steg' && <ScrewList />}
+      {activeTab === 'steg' && <StepList />}
       {activeTab === 'skruv' && <ScrewEditor />}
       {activeTab === 'koll' && <Checklist />}
       {activeTab === 'del' && <Inspector />}

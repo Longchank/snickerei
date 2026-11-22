@@ -184,6 +184,8 @@ interface State {
   groupSelection: (name: string) => void
   ungroup: (groupId: string) => void
   renameGroup: (groupId: string, name: string) => void
+  /** Build order: these groups first, in this order (the rest keep theirs, after) */
+  setGroupOrder: (ids: string[]) => void
 
   /** Joints between a part and one it overlaps */
   trimTo: (partId: string, otherId: string) => void
@@ -504,8 +506,6 @@ export const useStore = create<State>()(
             moveMode: false,
             rotateMode: false, mirrorMode: false,
             frameSheet: null,
-            // Montering is about the screws: show them in 3D
-            screwView: mode === 'montering',
             // Detaljer works on one part at a time
             selection: mode === 'detaljer' ? s.selection.slice(0, 1) : s.selection,
           })),
@@ -802,6 +802,12 @@ export const useStore = create<State>()(
 
         renameGroup: (groupId, name) =>
           edit((snap) => ({ ...snap, groups: snap.groups.map((g) => (g.id === groupId ? { ...g, name } : g)) })),
+        setGroupOrder: (ids) =>
+          edit((snap) => {
+            const byId = new Map(snap.groups.map((g) => [g.id, g]))
+            const first = ids.map((id) => byId.get(id)).filter((g): g is NonNullable<typeof g> => !!g)
+            return { ...snap, groups: [...first, ...snap.groups.filter((g) => !ids.includes(g.id))] }
+          }),
 
         trimTo: (partId, otherId) =>
           joint(partId, otherId, (a, b) => {
@@ -943,10 +949,6 @@ export const useStore = create<State>()(
     },
     {
       name: 'snickerei',
-      // Opening the app in Montering shows the screws, as switching to it does
-      onRehydrateStorage: () => (state) => {
-        if (state?.settings.mode === 'montering') state.setScrewView(true)
-      },
       version: 1,
       // Settings and project fields added in later versions get their defaults
       merge: (persisted, current) => {

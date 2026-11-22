@@ -124,12 +124,25 @@ comments in English).
   on `.app`, so every accent follows it, plus a coloured band on the
   toolbar and the phone panel and the 3D selection colour. Panels per step
   (`PHASE_TABS` in App.tsx): Bygg = Lägg till · Delar; Detaljer = Del ·
-  Analys; Montering = Steg (`ScrewList`, read-only) · Skruv (`ScrewEditor`) · Delar; Inköp =
+  Analys; Montering = Steg (`StepList`) · Skruv (`ScrewEditor`) · Delar; Inköp =
   Kontroll · Listor (cut/shopping list, screws `buyOnly`) · Priser. Desktop: catalog
   left in every step, the step's other panels right. Taps (`pickPart`):
   Bygg toggles whole groups (action bar); Montering picks one group (its
-  screws); Detaljer/Inköp pick one part. Entering Montering turns
-  `screwView` on. Switching step: Bygg closes the phone panel, Detaljer
+  screws); Detaljer/Inköp pick one part. **Montering** (owner
+  2026-11-22): no size labels or free-space numbers in 3D; screws always
+  drawn (`screwView || mode === 'montering'` — `screwView` itself is the
+  global choice, "Skruv i 3D" in the view tool menu, kept across steps,
+  shown lit and disabled in Montering and not kept out in the folded
+  menu there (`quiet`)); each screw is drawn as a line like "Ny fog"
+  (grey through the first part, green into the part behind, amber if
+  short, red past its far side; four `Line segments` in `ScrewDots`) with
+  the size-coloured head. **Steg tab = `StepList`**: only the build
+  steps (each group, then Montering "Sätt ihop A + B · lösa delar: …"),
+  each with what it's built from ("2 × 45x95"); ↑ ↓ reorder =
+  `setGroupOrder` (undoable, the groups' order, so Steg för steg and
+  the screw lists follow); tapping a step toggles `activeStep` and
+  closes the panel. No screw info or totals there (still in Skruv,
+  Listor and the printout, which use `ScrewList`). Switching step: Bygg closes the phone panel, Detaljer
   opens Del if something's selected, Montering/Inköp open their lists.
   Saved `mode: 'redigera'` loads as 'detaljer' (`toPhase`). To add a step:
   an entry in `PHASES`, its tabs in `PHASE_TABS` (phone fits ~5). Phone
@@ -479,9 +492,7 @@ comments in English).
   `ScrewEdit.points`, offsets from the through part's box min (so they
   follow it when moved), clamped onto the contact (`Joint.area`, `axes`,
   `origin`); they set the count; − / + in the Skruv list drops them
-  (re-spreads). Opening the app in Montering now switches `screwView` on
-  (`onRehydrateStorage`), as switching to it does.
-  The Steg tab (was "Steg & skruv") is read-only again. `screwJoints(parts,
+  (re-spreads).  `screwJoints(parts,
   edits)` everywhere (list, 3D dots, totals, Kontroll). `normalizeProject`
   also keeps `purpose` (it used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
   0.75 × d MDF, rounded to 0.5 mm) near an end (< 10 × d), into/through

@@ -113,3 +113,12 @@ export const IconTrash = () => (
     <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" />
   </Svg>
 )
+/** A screw: head, threaded shank, point */
+export const IconScrew = () => (
+  <Svg>
+    <path d="M7 4h10" />
+    <path d="M9 4v2h6V4" />
+    <path d="M10 6v11l2 4 2-4V6" />
+    <path d="M10 9l4 1.5M10 12l4 1.5M10 15l4 1.5" />
+  </Svg>
+)

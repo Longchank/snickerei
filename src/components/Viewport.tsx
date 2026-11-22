@@ -29,7 +29,7 @@ import { reorientOptions, worldAxisOf } from '../lib/place'
 import { buildSteps, isShown, type Step } from '../lib/steps'
 import { similarChoices } from '../lib/select'
 import { phaseInfo } from '../lib/phases'
-import { IconCopy, IconGroup, IconMirror, IconMove, IconRotate, IconTrash, IconUngroup, IconClose, IconHide, IconIsolate, IconLock, IconRuler, IconShow, IconSteps, IconTools, IconUnlock, IconXray } from './Icons'
+import { IconCopy, IconGroup, IconMirror, IconMove, IconRotate, IconTrash, IconUngroup, IconClose, IconHide, IconIsolate, IconLock, IconRuler, IconShow, IconSteps, IconTools, IconUnlock, IconXray, IconScrew } from './Icons'
 import { useChecks } from './Checklist'
 import { Fold } from './Fold'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
@@ -961,13 +961,13 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
 
       {moveMode && selBox && !capturing && <MoveArrows box={selBox} />}
       {rotateMode && selBox && !capturing && <RotateRings box={selBox} />}
-      {showDimensions && !capturing && dimBox && (
+      {showDimensions && mode !== 'montering' && !capturing && dimBox && (
         <Dimensions box={dimBox} offset={selBox ? 60 : 120} axes={dimAxes} label={dimLabel} />
       )}
-      {showDimensions && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
+      {showDimensions && mode !== 'montering' && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && mode === 'detaljer' && selection.length === 1 && <EndLabels partId={selection[0]} />}
       {!capturing && mode === 'inkop' && <CheckMarkers shown={shownIds} />}
-      {!capturing && screwView && <ScrewDots parts={parts} shown={shownParts} />}
+      {!capturing && (screwView || mode === 'montering') && <ScrewDots parts={parts} shown={shownParts} />}
       {!capturing && mode === 'montering' && <JointPreview />}
       {shownParts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
@@ -1213,10 +1213,25 @@ function ViewTools() {
   const lockParts = useStore((s) => s.lockParts)
   const unlockParts = useStore((s) => s.unlockParts)
   const showAllParts = useStore((s) => s.showAllParts)
+  const screwView = useStore((s) => s.screwView)
+  const setScrewView = useStore((s) => s.setScrewView)
+  const montering = useStore((s) => s.settings.mode === 'montering')
   const hidden = parts.filter((p) => p.hidden).length
   const locked = parts.filter((p) => p.locked).length
   const none = selection.length === 0
-  type Tool = { key: string; icon: ReactNode; label: string; on?: boolean; show: boolean; disabled?: boolean; badge?: number; tone?: string; run: () => void }
+  type Tool = {
+    key: string
+    icon: ReactNode
+    label: string
+    on?: boolean
+    show: boolean
+    disabled?: boolean
+    badge?: number
+    tone?: string
+    /** Always on here: don't keep it out in the folded menu */
+    quiet?: boolean
+    run: () => void
+  }
   const tools: Tool[] = [
     // On while measuring, and also while measurements are shown in the model (with their count)
     {
@@ -1230,6 +1245,17 @@ function ViewTools() {
       run: () => setMeasureMode(!measureMode),
     },
     { key: 'steg', icon: <IconSteps />, label: 'Steg för steg', on: !!activeStep, show: true, run: () => setActiveStep(activeStep ? null : buildSteps(parts, groups)[0]?.id ?? null) },
+    // Screws in 3D: a choice in every step, always on in Montering
+    {
+      key: 'skruv',
+      icon: <IconScrew />,
+      label: montering ? 'Skruv i 3D (alltid i Montering)' : 'Skruv i 3D',
+      on: screwView || montering,
+      quiet: montering,
+      disabled: montering,
+      show: true,
+      run: () => setScrewView(!screwView),
+    },
     { key: 'xray', icon: <IconXray />, label: 'Röntgen', on: xray, show: true, run: () => setXray(!xray) },
     { key: 'dolj', icon: <IconHide />, label: none ? 'Dölj (markera något)' : 'Dölj markerat', show: true, disabled: none, run: () => hideParts(selection) },
     { key: 'bara', icon: <IconIsolate />, label: none ? 'Visa bara (markera något)' : 'Visa bara markerat', show: true, disabled: none, run: () => isolateParts(selection) },
@@ -1238,7 +1264,7 @@ function ViewTools() {
     { key: 'upp', icon: <IconUnlock />, label: `Lås upp ${locked}`, badge: locked, show: locked > 0, run: () => unlockParts() },
   ]
   // Folded in: only what's switched on or needs attention
-  const shown = tools.filter((t) => t.show && (open || t.on || t.badge))
+  const shown = tools.filter((t) => t.show && (open || (t.on && !t.quiet) || t.badge))
   return (
     <>
       <button
@@ -1721,8 +1747,33 @@ function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
   const editable = useStore((s) => s.settings.mode === 'montering' && !s.jointMode)
   const focus = useStore((s) => s.screwFocus)
   const focusScrew = useStore((s) => s.focusScrew)
+  // Each screw as a line, like "Ny fog": grey through the first part, green
+  // into the part behind (amber if short), red where it would come out
+  const lines = useMemo(() => {
+    const out = { through: [] as Vec3[], bite: [] as Vec3[], short: [] as Vec3[], poke: [] as Vec3[] }
+    for (const j of joints) {
+      const n = j.dir.findIndex((v) => v !== 0)
+      if (n < 0) continue
+      const tb = toAxisBox(partBox(j.through))
+      const ib = toAxisBox(partBox(j.into))
+      const t = tb.max[n] - tb.min[n]
+      const depth = Math.max(0, j.dir[n] < 0 ? tb.min[n] - ib.min[n] : ib.max[n] - tb.max[n])
+      const reach = Math.min(j.screw.length, t + depth)
+      for (const p of j.points) {
+        const at = (d: number) => [0, 1, 2].map((i) => p[i] + j.dir[i] * d) as Vec3
+        out.through.push(at(-2), at(t))
+        ;(j.short ? out.short : out.bite).push(at(t), at(reach))
+        if (j.screw.length > t + depth) out.poke.push(at(t + depth), at(j.screw.length))
+      }
+    }
+    return out
+  }, [joints])
   return (
     <>
+      {lines.through.length > 0 && <Line segments points={lines.through} color="#6b7280" lineWidth={3} depthTest={false} renderOrder={5} />}
+      {lines.bite.length > 0 && <Line segments points={lines.bite} color="#16a34a" lineWidth={4} depthTest={false} renderOrder={5} />}
+      {lines.short.length > 0 && <Line segments points={lines.short} color="#d97706" lineWidth={4} depthTest={false} renderOrder={5} />}
+      {lines.poke.length > 0 && <Line segments points={lines.poke} color="#dc2626" lineWidth={4} depthTest={false} renderOrder={5} />}
       {joints.flatMap((j) =>
         j.points.map((p, k) => (
           // Lifted just off the surface, against the screwing direction, so the dot isn't hidden in the wood
