@@ -11,6 +11,7 @@ import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
 import { copyPlane, mirrorParts } from './mirror'
 import { toPhase } from './phases'
+import type { ScrewEdit } from './screws'
 import {
   halfLap,
   moveParts,
@@ -44,7 +45,7 @@ import type {
 const HISTORY_LIMIT = 100
 
 /** What undo/redo restores */
-type Snapshot = Pick<Project, 'parts' | 'groups' | 'screwCounts'>
+type Snapshot = Pick<Project, 'parts' | 'groups' | 'screwEdits'>
 
 interface State {
   project: Project
@@ -87,6 +88,8 @@ interface State {
   setPurpose: (purpose: Purpose) => void
   /** Screws in one joint set by hand; null = back to the suggestion (undoable) */
   setScrewCount: (key: string, count: number | null) => void
+  /** Hand edits to one joint, merged in (undefined/false fields go back to the suggestion); null removes them all */
+  setScrewEdit: (key: string, patch: Partial<ScrewEdit> | null) => void
   /** Moving the selection: arrows in the view, taps put it next to a board */
   moveMode: boolean
   /** Placing boards of this profile: taps on the model place one each */
@@ -230,6 +233,13 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 const emptyProject = (): Project => ({ name: 'Nytt projekt', parts: [], groups: [], measurements: [] })
 
 /** Older saves and imported files may lack newer fields. */
+/** Hand screw edits; projects saved before 2026-11-22 had only counts (`screwCounts`) */
+function screwEditsOf(p: Partial<Project> | undefined): Record<string, ScrewEdit> | undefined {
+  if (p?.screwEdits) return p.screwEdits
+  const old = (p as { screwCounts?: Record<string, number> } | undefined)?.screwCounts
+  return old ? Object.fromEntries(Object.entries(old).map(([k, count]) => [k, { count }])) : undefined
+}
+
 export function normalizeProject(p: Partial<Project> | undefined): Project {
   return {
     name: p?.name ?? 'Nytt projekt',
@@ -237,7 +247,7 @@ export function normalizeProject(p: Partial<Project> | undefined): Project {
     groups: p?.groups ?? [],
     measurements: p?.measurements ?? [],
     ...(p?.purpose ? { purpose: p.purpose } : {}),
-    ...(p?.screwCounts ? { screwCounts: p.screwCounts } : {}),
+    ...(screwEditsOf(p) ? { screwEdits: screwEditsOf(p) } : {}),
   }
 }
 
@@ -259,7 +269,7 @@ export const useStore = create<State>()(
       /** Apply a change to parts/groups and record it for undo. */
       const edit = (fn: (snap: Snapshot) => Snapshot, selection?: string[]) =>
         set((s) => {
-          const before: Snapshot = { parts: s.project.parts, groups: s.project.groups, screwCounts: s.project.screwCounts }
+          const before: Snapshot = { parts: s.project.parts, groups: s.project.groups, screwEdits: s.project.screwEdits }
           const after = pruneGroups(fn(before))
           return {
             project: { ...s.project, ...after },
@@ -348,13 +358,21 @@ export const useStore = create<State>()(
         screwView: false,
         setScrewView: (screwView) => set({ screwView }),
         setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),
-        setScrewCount: (key, count) =>
+        setScrewEdit: (key, patch) =>
           edit((snap) => {
-            const next = { ...snap.screwCounts }
-            if (count === null) delete next[key]
-            else next[key] = Math.max(1, Math.min(20, Math.round(count)))
-            return { ...snap, screwCounts: Object.keys(next).length ? next : undefined }
+            const next = { ...snap.screwEdits }
+            if (patch === null) delete next[key]
+            else {
+              const merged: ScrewEdit = { ...next[key], ...patch }
+              if (merged.count !== undefined) merged.count = Math.max(1, Math.min(20, Math.round(merged.count)))
+              // Drop fields set back to "follow the suggestion"
+              for (const k of Object.keys(merged) as (keyof ScrewEdit)[]) if (merged[k] === undefined || merged[k] === false) delete merged[k]
+              if (Object.keys(merged).length) next[key] = merged
+              else delete next[key]
+            }
+            return { ...snap, screwEdits: Object.keys(next).length ? next : undefined }
           }),
+        setScrewCount: (key, count) => get().setScrewEdit(key, { count: count ?? undefined }),
         moveMode: false,
         placeProfile: null,
         placeNote: null,
@@ -828,7 +846,7 @@ export const useStore = create<State>()(
             return {
               ...restore(s, prev),
               past: s.past.slice(0, -1),
-              future: [{ parts: s.project.parts, groups: s.project.groups, screwCounts: s.project.screwCounts }, ...s.future],
+              future: [{ parts: s.project.parts, groups: s.project.groups, screwEdits: s.project.screwEdits }, ...s.future],
             }
           }),
 
@@ -838,7 +856,7 @@ export const useStore = create<State>()(
             if (!next) return s
             return {
               ...restore(s, next),
-              past: [...s.past, { parts: s.project.parts, groups: s.project.groups, screwCounts: s.project.screwCounts }],
+              past: [...s.past, { parts: s.project.parts, groups: s.project.groups, screwEdits: s.project.screwEdits }],
               future: s.future.slice(1),
             }
           }),

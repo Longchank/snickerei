@@ -125,6 +125,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
 
   // Screws
   for (const j of joints) {
+    if (!j.count) continue // switched off by hand
     const key = `${j.through.id}|${j.into.id}`
     const at = j.points[0] ?? centre(boxOf(j.into))
     if (j.blockedBy)

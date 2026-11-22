@@ -166,7 +166,7 @@ describe('screw layout and hand-set counts', () => {
   const post = at('post', 'konstruktion-45x95', 1000, UP, [1155, 45, 0])
 
   it('a short row zigzags across the contact', () => {
-    const [j] = screwJoints([sill, post], { 'sill|post': 4 })
+    const [j] = screwJoints([sill, post], { 'sill|post': { count: 4 } })
     const across = j.points.map((p) => p[0])
     expect(new Set(across).size).toBe(2) // alternating sides
     expect(across[0]).not.toBe(across[1])
@@ -175,7 +175,7 @@ describe('screw layout and hand-set counts', () => {
 
   it('a hand-set count replaces the suggestion and keeps it for "back to suggestion"', () => {
     const [auto] = screwJoints([sill, post])
-    const [hand] = screwJoints([sill, post], { [auto.key]: 3 })
+    const [hand] = screwJoints([sill, post], { [auto.key]: { count: 3 } })
     expect(auto.key).toBe('sill|post')
     expect(hand.count).toBe(3)
     expect(hand.points).toHaveLength(3)
@@ -190,13 +190,13 @@ describe('hand-set screw count in the store', () => {
     const s = () => useStore.getState()
     s().newProject()
     s().setScrewCount('a|b', 3)
-    expect(s().project.screwCounts).toEqual({ 'a|b': 3 })
+    expect(s().project.screwEdits).toEqual({ 'a|b': { count: 3 } })
     s().setScrewCount('a|b', 99)
-    expect(s().project.screwCounts).toEqual({ 'a|b': 20 }) // capped
+    expect(s().project.screwEdits).toEqual({ 'a|b': { count: 20 } }) // capped
     s().undo()
-    expect(s().project.screwCounts).toEqual({ 'a|b': 3 })
+    expect(s().project.screwEdits).toEqual({ 'a|b': { count: 3 } })
     s().setScrewCount('a|b', null)
-    expect(s().project.screwCounts).toBeUndefined()
+    expect(s().project.screwEdits).toBeUndefined()
   })
 })
 
@@ -216,5 +216,42 @@ describe('blocked access follows the build order', () => {
   })
   it('without groups everything is there, as before', () => {
     expect(railLeg([sill(), rail(), leg()]).blockedBy).toBe('Syll')
+  })
+})
+
+describe('editing screws by hand (CRUD)', () => {
+  const sill = at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+  const post = at('post', 'konstruktion-45x95', 1000, UP, [1155, 45, 0])
+  const far = at('far', 'konstruktion-45x95', 600, [0, 0, 0], [0, 0, 300])
+
+  it('a joint switched off has no screws, no dots and no place in the totals', () => {
+    const [j] = screwJoints([sill, post], { 'sill|post': { off: true } })
+    expect(j.off).toBe(true)
+    expect(j.count).toBe(0)
+    expect(j.points).toEqual([])
+    expect(screwTotals([j])).toEqual([])
+  })
+
+  it('a chosen size replaces the suggestion', () => {
+    const [j] = screwJoints([sill, post], { 'sill|post': { d: 5, length: 100 } })
+    expect(j.screw.d).toBe(5)
+    expect(j.screw.length).toBe(100)
+    expect(j.custom).toBe(true)
+  })
+
+  it('a joint added by hand between parts that do not touch gets screws', () => {
+    const joints = screwJoints([sill, far], { 'sill|far': { manual: true, count: 2 } })
+    expect(joints).toHaveLength(1)
+    expect(joints[0].manual).toBe(true)
+    expect(joints[0].count).toBe(2)
+    expect(joints[0].points).toHaveLength(2)
+    // A hand-added joint whose part was removed just disappears
+    expect(screwJoints([sill], { 'sill|far': { manual: true } })).toEqual([])
+  })
+
+  it('old saved counts are read as edits', async () => {
+    const { normalizeProject } = await import('./store')
+    const p = normalizeProject({ parts: [], screwCounts: { 'a|b': 4 } } as never)
+    expect(p.screwEdits).toEqual({ 'a|b': { count: 4 } })
   })
 })

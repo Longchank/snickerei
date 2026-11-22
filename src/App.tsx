@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Catalog, PartList } from './components/Catalog'
 import { ScrewList } from './components/ScrewList'
+import { ScrewEditor } from './components/ScrewEditor'
 import { Checklist } from './components/Checklist'
 import { CutList } from './components/CutList'
 import { Inspector } from './components/Inspector'
@@ -13,14 +14,15 @@ import { phaseInfo } from './lib/phases'
 import { useStore } from './lib/store'
 import type { Phase } from './lib/types'
 
-type Tab = 'lagg' | 'delar' | 'del' | 'analys' | 'steg' | 'koll' | 'lista' | 'priser'
+type Tab = 'lagg' | 'delar' | 'del' | 'analys' | 'steg' | 'skruv' | 'koll' | 'lista' | 'priser'
 
 const TAB_INFO: Record<Tab, { label: string; icon: string; desktop: string }> = {
   lagg: { label: 'Lägg till', icon: '＋', desktop: 'Lägg till' },
   delar: { label: 'Delar', icon: '▤', desktop: 'Delar och grupper' },
   del: { label: 'Del', icon: '✎', desktop: 'Egenskaper' },
   analys: { label: 'Analys', icon: '◎', desktop: 'Analys' },
-  steg: { label: 'Steg & skruv', icon: '🪜', desktop: 'Steg och skruv' },
+  steg: { label: 'Steg', icon: '🪜', desktop: 'Steg för steg' },
+  skruv: { label: 'Skruv', icon: '🔩', desktop: 'Ändra skruv' },
   koll: { label: 'Kontroll', icon: '✓', desktop: 'Kontroll' },
   lista: { label: 'Listor', icon: '☰', desktop: 'Såg- och inköpslista' },
   priser: { label: 'Priser', icon: 'kr', desktop: 'Priser' },
@@ -30,7 +32,7 @@ const TAB_INFO: Record<Tab, { label: string; icon: string; desktop: string }> = 
 const PHASE_TABS: Record<Phase, Tab[]> = {
   bygg: ['lagg', 'delar'],
   detaljer: ['del', 'analys'],
-  montering: ['steg', 'delar'],
+  montering: ['steg', 'skruv', 'delar'],
   inkop: ['koll', 'lista', 'priser'],
 }
 
@@ -180,6 +182,7 @@ export function App() {
       {activeTab === 'lagg' && <Catalog parts={false} />}
       {activeTab === 'delar' && <PartList />}
       {activeTab === 'steg' && <ScrewList />}
+      {activeTab === 'skruv' && <ScrewEditor />}
       {activeTab === 'koll' && <Checklist />}
       {activeTab === 'del' && <Inspector />}
       {activeTab === 'analys' && <Analysis />}

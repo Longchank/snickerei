@@ -7,7 +7,7 @@ import { useStore } from '../lib/store'
 
 const mm = (v: number) => String(v).replace('.', ',')
 
-function Dot({ color }: { color?: string }) {
+export function Dot({ color }: { color?: string }) {
   return <span className="screw-dot" style={{ background: color }} aria-hidden />
 }
 
@@ -40,8 +40,7 @@ function TotalsTable({ totals, colorOf }: { totals: ScrewTotal[]; colorOf: Map<s
   )
 }
 
-function JointList({ joints, colorOf, editable = false }: { joints: Joint[]; colorOf: Map<string, string>; editable?: boolean }) {
-  const setScrewCount = useStore((s) => s.setScrewCount)
+export function JointList({ joints, colorOf }: { joints: Joint[]; colorOf: Map<string, string> }) {
   return (
     <ul className="joint-list">
       {joints.map((j) => (
@@ -51,26 +50,8 @@ function JointList({ joints, colorOf, editable = false }: { joints: Joint[]; col
           </strong>
           <span className="joint-screws">
             <Dot color={colorOf.get(screwName(j.screw))} />
-            {editable ? (
-              <span className="screw-stepper" role="group" aria-label={`Antal skruv, ${j.through.name} → ${j.into.name}`}>
-                <button aria-label="Färre skruv" disabled={j.count <= 1} onClick={() => setScrewCount(j.key, j.count - 1)}>
-                  −
-                </button>
-                <strong>{j.count}</strong>
-                <button aria-label="Fler skruv" disabled={j.count >= 20} onClick={() => setScrewCount(j.key, j.count + 1)}>
-                  +
-                </button>
-              </span>
-            ) : (
-              <>{j.count} st </>
-            )}
-            {screwName(j.screw)}
+            {j.count} st {screwName(j.screw)}
             {j.endGrain ? ' · i ändträ' : ''}
-            {editable && j.count !== j.suggested && (
-              <button className="link reset-count" title={`Tillbaka till förslaget (${j.suggested} st)`} onClick={() => setScrewCount(j.key, null)}>
-                ↺ {j.suggested}
-              </button>
-            )}
           </span>
           {j.predrill && (
             <span className="predrill">
@@ -98,8 +79,9 @@ function JointList({ joints, colorOf, editable = false }: { joints: Joint[]; col
 export function ScrewList({ print = false, buyOnly = false }: { print?: boolean; buyOnly?: boolean }) {
   const parts = useStore((s) => s.project.parts)
   const groups = useStore((s) => s.project.groups)
-  const counts = useStore((s) => s.project.screwCounts)
-  const joints = useMemo(() => screwJoints(parts, counts), [parts, counts])
+  const counts = useStore((s) => s.project.screwEdits)
+  // Switched-off joints aren't part of the build (they're edited under Skruv)
+  const joints = useMemo(() => screwJoints(parts, counts).filter((j) => j.count > 0), [parts, counts])
   const totals = useMemo(() => screwTotals(joints), [joints])
   const sections = useMemo(() => screwSections(joints, groups), [joints, groups])
   const screwView = useStore((s) => s.screwView)
@@ -176,7 +158,7 @@ export function ScrewList({ print = false, buyOnly = false }: { print?: boolean;
               </span>
             </summary>
             <TotalsTable totals={secTotals} colorOf={colorOf} />
-            <JointList joints={sec.joints} colorOf={colorOf} editable={!print} />
+            <JointList joints={sec.joints} colorOf={colorOf} />
           </details>
         )
       })}

@@ -36,7 +36,7 @@ export function CutList({ onPrint }: { onPrint: () => void }) {
   const kerf = useStore((s) => s.settings.kerf)
   const setSettings = useStore((s) => s.setSettings)
   const parts = useStore((s) => s.project.parts)
-  const counts = useStore((s) => s.project.screwCounts)
+  const counts = useStore((s) => s.project.screwEdits)
   const screwCount = useMemo(() => screwTotals(screwJoints(parts, counts)).reduce((n, t) => n + t.toBuy, 0), [parts, counts])
 
   if (rows.length === 0) return <p className="hint">Lägg till delar så räknas såglistan ut här.</p>

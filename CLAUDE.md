@@ -124,7 +124,7 @@ comments in English).
   on `.app`, so every accent follows it, plus a coloured band on the
   toolbar and the phone panel and the 3D selection colour. Panels per step
   (`PHASE_TABS` in App.tsx): Bygg = Lägg till · Delar; Detaljer = Del ·
-  Analys; Montering = Steg & skruv (full `ScrewList`) · Delar; Inköp =
+  Analys; Montering = Steg (`ScrewList`, read-only) · Skruv (`ScrewEditor`) · Delar; Inköp =
   Kontroll · Listor (cut/shopping list, screws `buyOnly`) · Priser. Desktop: catalog
   left in every step, the step's other panels right. Taps (`pickPart`):
   Bygg toggles whole groups (action bar); Montering picks one group (its
@@ -427,10 +427,24 @@ comments in English).
   which diagonal is where"). **Hand-set count** per joint:
   `project.screwCounts` ("through|into" part ids → 1–20, `jointKey`),
   `setScrewCount` (undoable — screwCounts is part of the undo snapshot;
-  null = back to the suggestion); Steg & skruv shows − N + on each joint
-  and "↺ N" (the suggestion) when changed; `screwJoints(parts, counts)`
-  everywhere (list, 3D dots, totals, Kontroll). `normalizeProject` now
-  keeps `purpose` and `screwCounts` (purpose used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
+  null = back to the suggestion). **Since 2026-11-22 this is
+  `project.screwEdits`** (`ScrewEdit`: count, d+length, off, manual;
+  saved `screwCounts` migrate in `normalizeProject`), edited with
+  `setScrewEdit(key, patch | null)` (undoable; undefined/false fields drop
+  back to the suggestion). **Montering → Skruv** (`ScrewEditor.tsx`, owner:
+  "a menu item for screws which only holds the editing … crud style"):
+  read = joints by build step (`Fold`s), only the selection's when
+  something is selected ("Visa alla"); update = size `<select>`
+  (`sizeOptions`, "✦" = suggestion) and − N + per joint; delete = 🗑
+  switches a joint off (`off`: count 0, no dots, not in totals or
+  Kontroll, hidden in Steg; "↺ Skruva igen") or removes a hand-added one;
+  ↺ resets a changed joint; create = "+ Ny fog" (Genom / In i selects,
+  selection first, count) adds `manual` screws between parts the app
+  didn't pair — `manualContact` puts them across the axis the parts are
+  furthest apart on. Tapping a joint's name selects both parts in 3D.
+  The Steg tab (was "Steg & skruv") is read-only again. `screwJoints(parts,
+  edits)` everywhere (list, 3D dots, totals, Kontroll). `normalizeProject`
+  also keeps `purpose` (it used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
   0.75 × d MDF, rounded to 0.5 mm) near an end (< 10 × d), into/through
   MDF, or 8 mm screws. Totals per size (`screwTotals`) with ~10 % spare,
   rounded to tens, plus the bits; "Fog för fog" list. All rules of thumb

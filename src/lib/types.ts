@@ -42,6 +42,8 @@ export type Vec3 = [number, number, number]
  * width along Z, with the origin at one corner (spans 0..L, 0..T, 0..W).
  */
 /** The four steps of a build: build, details, assembly, purchase */
+import type { ScrewEdit } from './screws'
+
 export type Phase = 'bygg' | 'detaljer' | 'montering' | 'inkop'
 
 export interface Part {
@@ -155,8 +157,8 @@ export interface Project {
   groups: Group[]
   /** Measurements the user has made with the measuring tool */
   measurements: Measurement[]
-  /** Screws per joint set by hand ("through|into" part ids); absent = the suggestion */
-  screwCounts?: Record<string, number>
+  /** Hand edits to screw joints ("through|into" part ids): count, size, off, added by hand */
+  screwEdits?: Record<string, ScrewEdit>
   /** What it's for (Analys); unset = Förvaring */
   purpose?: Purpose
 }

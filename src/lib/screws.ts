@@ -57,10 +57,16 @@ export interface Joint {
   short: boolean
   /** Where the screw heads go: on the outer face of the part screwed through */
   points: Vec3[]
-  /** The rule-of-thumb count; `count` differs when set by hand */
+  /** The rule-of-thumb count; `count` differs when set by hand (0 when switched off) */
   suggested: number
-  /** Id of the joint for hand-set counts: "through|into" */
+  /** Id of the joint for hand edits: "through|into" */
   key: string
+  /** Switched off by hand: no screws (count 0) */
+  off: boolean
+  /** Added by hand */
+  manual: boolean
+  /** Count, size or on/off changed by hand */
+  custom: boolean
   /** Which way the screws go in (unit vector along one axis) */
   dir: Vec3
   /** Another part covers the side the screws go in from (no room for the screwdriver): its name */
@@ -151,8 +157,142 @@ function distToEnd(p: Part, b: AxisBox, at: number[]): number {
   return Math.min(at[L] - b.min[L], b.max[L] - at[L])
 }
 
-/** All screwed joints in the build, one per pair of touching parts */
-export function screwJoints(parts: Part[], counts: Record<string, number> = {}): Joint[] {
+/** Hand edits to one joint (key "throughId|intoId"): count, size, switched off, or added by hand */
+export interface ScrewEdit {
+  count?: number
+  /** A chosen size instead of the suggested one */
+  d?: number
+  length?: number
+  /** No screws in this joint (glued, or not wanted) */
+  off?: boolean
+  /** Added by hand between two parts the app didn't pair up */
+  manual?: boolean
+}
+
+/** Screw sizes on offer, for a size picker: of the same type as `s` (wood/sheet screws share sizes) */
+export function sizeOptions(s: Screw): { d: number; length: number }[] {
+  return SIZES.filter(([type]) => (s.type === 'konstruktionsskruv' ? type === 'konstruktionsskruv' : type !== 'konstruktionsskruv') || s.type === 'skivskruv')
+    .flatMap(([, d, ls]) => ls.map((length) => ({ d, length })))
+}
+
+/**
+ * One joint: `through` is screwed into `into` across the contact rectangle
+ * `c` (its normal axis and box), with the hand edits applied.
+ */
+function buildJoint(
+  parts: Part[],
+  boxes: Map<string, AxisBox>,
+  through: Part,
+  into: Part,
+  c: { axis: Axis; box: AxisBox },
+  edit: ScrewEdit | undefined,
+): Joint {
+  const n = c.axis
+  const alongLength = (p: Part) => getProfile(p.profileId).kind === 'board' && worldAxisOf(p.rotation, 0) === n
+  const tb = boxes.get(through.id)!
+  const ib = boxes.get(into.id)!
+  const t = size(tb, n)
+  const depth = size(ib, n)
+  const endGrain = alongLength(into)
+  const throughProf = getProfile(through.profileId)
+  const intoProf = getProfile(into.profileId)
+  const sheet = throughProf.kind === 'sheet'
+  const outdoor = throughProf.category === 'tryckimpregnerat' || intoProf.category === 'tryckimpregnerat'
+  const auto = chooseScrew(t, depth, endGrain, sheet, outdoor)
+  // A size chosen by hand replaces the suggestion (type follows the diameter)
+  const chosen = edit?.d && edit.length
+  const screw: Screw = chosen
+    ? { ...auto.screw, d: edit!.d!, length: edit!.length!, type: sheet ? 'skivskruv' : edit!.d! >= 8 ? 'konstruktionsskruv' : 'träskruv' }
+    : auto.screw
+  const short = chosen ? screw.length - t < (endGrain ? 40 : 30) : auto.short
+  const u = Math.max(...AXES.filter((x) => x !== n).map((x) => size(c.box, x)))
+  const key = jointKey(through, into)
+  const suggested = screwCount(u, sheet)
+  const off = !!edit?.off
+  const count = off ? 0 : edit?.count ?? suggested
+  // Pre-drilling: near an end, into MDF, or for thick screws
+  const centre = AXES.map((x) => (c.box.min[x] + c.box.max[x]) / 2)
+  const nearEnd = [through, into].some((p) => getProfile(p.profileId).kind === 'board' && !alongLength(p) && distToEnd(p, boxes.get(p.id)!, centre) < 10 * screw.d)
+  const mdf = intoProf.category === 'mdf' || throughProf.category === 'mdf'
+  const reason = mdf ? 'MDF spricker lätt' : screw.d >= 8 ? 'grov skruv' : nearEnd ? 'nära änden — annars spricker det' : null
+  // Screw heads on the through part's outer face, spread over the contact
+  const throughBelow = (tb.min[n] + tb.max[n]) / 2 < (ib.min[n] + ib.max[n]) / 2
+  const face = throughBelow ? tb.min[n] : tb.max[n]
+  const dir = [0, 0, 0] as Vec3
+  dir[n] = throughBelow ? 1 : -1
+  const [ua, va] = AXES.filter((x) => x !== n).sort((x, y) => size(c.box, y) - size(c.box, x))
+  // Short rows zigzag across the contact (two screws = a diagonal) when it's wide enough
+  const across = size(c.box, va)
+  const zigzag = count >= 2 && across >= 30 && size(c.box, ua) <= 250
+  const points = spread(c.box.min[ua], c.box.max[ua], count).map((pos, k) => {
+    const p = [0, 0, 0] as Vec3
+    p[n] = face
+    p[ua] = pos
+    p[va] = zigzag ? c.box.min[va] + across * (k % 2 === 0 ? 0.25 : 0.75) : (c.box.min[va] + c.box.max[va]) / 2
+    return p
+  })
+  // Is the side the screws go in from covered by another part — one that's
+  // already there when this joint is screwed? Build order (screwSections):
+  // each group on its own, then the groups joined together, then loose
+  // parts. So inside a group only that group's parts count; joining
+  // groups, every grouped part; a joint with a loose part, everything.
+  const g1 = through.groupId
+  const g2 = into.groupId
+  const present = (q: Part) => (g1 && g2 ? (g1 === g2 ? q.groupId === g1 : !!q.groupId) : true)
+  const covering = parts.find((q) => {
+    if (q.id === through.id || q.id === into.id || !present(q)) return false
+    const qb = boxes.get(q.id)!
+    return points.some((p) => AXES.every((x) => {
+      const v = x === n ? p[x] - dir[x] * 2 : p[x]
+      return v > qb.min[x] + 0.1 && v < qb.max[x] - 0.1
+    }))
+  })
+  return {
+    through,
+    into,
+    points: count ? points : [],
+    dir,
+    blockedBy: count && covering ? covering.name : null,
+    screw,
+    count,
+    suggested,
+    key,
+    off,
+    manual: !!edit?.manual,
+    custom: !!edit && !edit.manual && (edit.count !== undefined || !!chosen || off),
+    endGrain,
+    predrill: reason ? { bit: pilotBit(screw.d, mdf), reason } : null,
+    short,
+  }
+}
+
+/**
+ * Where to screw two parts the app didn't pair up: across the axis they're
+ * furthest apart on (or the through part's thinnest, if they overlap), over
+ * the area they share — or the through part's own face if they share none.
+ */
+function manualContact(tb: AxisBox, ib: AxisBox): { axis: Axis; box: AxisBox } {
+  const gap = (i: Axis) => Math.max(tb.min[i], ib.min[i]) - Math.min(tb.max[i], ib.max[i])
+  const separated = AXES.filter((i) => gap(i) >= -TOL)
+  const axis = separated.length
+    ? separated.sort((x, y) => gap(y) - gap(x))[0]
+    : AXES.slice().sort((x, y) => size(tb, x) - size(tb, y))[0]
+  const min = [...tb.min] as AxisBox['min']
+  const max = [...tb.max] as AxisBox['max']
+  for (const i of AXES) {
+    if (i === axis) continue
+    const lo = Math.max(tb.min[i], ib.min[i])
+    const hi = Math.min(tb.max[i], ib.max[i])
+    if (hi - lo > MIN_CONTACT) {
+      min[i] = lo
+      max[i] = hi
+    }
+  }
+  return { axis, box: { min, max } }
+}
+
+/** All screwed joints in the build: one per pair of touching parts, plus any added by hand */
+export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}): Joint[] {
   const boxes = new Map(parts.map((p) => [p.id, boxOf(p)]))
   const out: Joint[] = []
   for (let i = 0; i < parts.length; i++)
@@ -169,77 +309,23 @@ export function screwJoints(parts: Part[], counts: Record<string, number> = {}):
       if (!cand.length) continue // two boards end to end: not a screwed joint
       const through = cand.sort((x, y) => size(boxes.get(x.id)!, n) - size(boxes.get(y.id)!, n))[0]
       const into = through === a ? b : a
-      const tb = boxes.get(through.id)!
-      const ib = boxes.get(into.id)!
-      const t = size(tb, n)
-      const depth = size(ib, n)
-      const endGrain = alongLength(into)
-      const throughProf = getProfile(through.profileId)
-      const intoProf = getProfile(into.profileId)
-      const sheet = throughProf.kind === 'sheet'
-      const outdoor = throughProf.category === 'tryckimpregnerat' || intoProf.category === 'tryckimpregnerat'
-      const { screw, short } = chooseScrew(t, depth, endGrain, sheet, outdoor)
-      const u = Math.max(...AXES.filter((x) => x !== n).map((x) => size(c.box, x)))
-      const key = jointKey(through, into)
-      const suggested = screwCount(u, sheet)
-      const count = counts[key] ?? suggested
-      // Pre-drilling: near an end, into MDF, or for thick screws
-      const centre = AXES.map((x) => (c.box.min[x] + c.box.max[x]) / 2)
-      const nearEnd = [through, into].some((p) => getProfile(p.profileId).kind === 'board' && !alongLength(p) && distToEnd(p, boxes.get(p.id)!, centre) < 10 * screw.d)
-      const mdf = intoProf.category === 'mdf' || throughProf.category === 'mdf'
-      const reason = mdf ? 'MDF spricker lätt' : screw.d >= 8 ? 'grov skruv' : nearEnd ? 'nära änden — annars spricker det' : null
-      // Screw heads on the through part's outer face, spread over the contact
-      const throughBelow = Math.abs(tb.max[n] - c.box.min[n]) <= TOL
-      const face = throughBelow ? tb.min[n] : tb.max[n]
-      const dir = [0, 0, 0] as Vec3
-      dir[n] = throughBelow ? 1 : -1
-      const [ua, va] = AXES.filter((x) => x !== n).sort((x, y) => size(c.box, y) - size(c.box, x))
-      // Short rows zigzag across the contact (two screws = a diagonal) when it's wide enough
-      const across = size(c.box, va)
-      const zigzag = count >= 2 && across >= 30 && size(c.box, ua) <= 250
-      const points = spread(c.box.min[ua], c.box.max[ua], count).map((pos, k) => {
-        const p = [0, 0, 0] as Vec3
-        p[n] = face
-        p[ua] = pos
-        p[va] = zigzag ? c.box.min[va] + across * (k % 2 === 0 ? 0.25 : 0.75) : (c.box.min[va] + c.box.max[va]) / 2
-        return p
-      })
-      // Is the side the screws go in from covered by another part — one that's
-      // already there when this joint is screwed? Build order (screwSections):
-      // each group on its own, then the groups joined together, then loose
-      // parts. So inside a group only that group's parts count; joining
-      // groups, every grouped part; a joint with a loose part, everything.
-      const g1 = through.groupId
-      const g2 = into.groupId
-      const present = (q: Part) =>
-        g1 && g2 ? (g1 === g2 ? q.groupId === g1 : !!q.groupId) : true
-      const covering = parts.find((q) => {
-        if (q.id === through.id || q.id === into.id || !present(q)) return false
-        const qb = boxes.get(q.id)!
-        return points.some((p) => AXES.every((x) => {
-          const v = x === n ? p[x] - dir[x] * 2 : p[x]
-          return v > qb.min[x] + 0.1 && v < qb.max[x] - 0.1
-        }))
-      })
-      out.push({
-        through,
-        into,
-        points,
-        dir,
-        blockedBy: covering ? covering.name : null,
-        screw,
-        count,
-        suggested,
-        key,
-        endGrain,
-        predrill: reason ? { bit: pilotBit(screw.d, mdf), reason } : null,
-        short,
-      })
+      out.push(buildJoint(parts, boxes, through, into, c, edits[jointKey(through, into)]))
     }
+  // Joints added by hand (ones the app already found are just edits of those)
+  const found = new Set(out.map((j) => j.key))
+  const byId = new Map(parts.map((p) => [p.id, p]))
+  for (const [key, edit] of Object.entries(edits)) {
+    if (!edit.manual || found.has(key)) continue
+    const [tid, iid] = key.split('|')
+    const through = byId.get(tid)
+    const into = byId.get(iid)
+    if (!through || !into) continue // a part was removed
+    const c = contact(boxes.get(tid)!, boxes.get(iid)!) ?? manualContact(boxes.get(tid)!, boxes.get(iid)!)
+    out.push(buildJoint(parts, boxes, through, into, c, edit))
+  }
   return out
 }
 
-/** "5,0 × 90 träskruv (rostfri/C4)" */
 export function screwName(s: Screw): string {
   const d = s.d.toFixed(1).replace('.', ',')
   return `${d} × ${s.length} ${s.type}${s.outdoor ? ' (rostfri A4/C4)' : ''}`
@@ -258,6 +344,7 @@ export interface ScrewTotal {
 export function screwTotals(joints: Joint[]): ScrewTotal[] {
   const map = new Map<string, ScrewTotal>()
   for (const j of joints) {
+    if (!j.count) continue
     const key = screwName(j.screw)
     const t = map.get(key) ?? { screw: j.screw, count: 0, toBuy: 0, bits: [] }
     t.count += j.count
