@@ -140,8 +140,20 @@ comments in English).
   steps (each group, then Montering "Sätt ihop A + B · lösa delar: …"),
   each with what it's built from ("2 × 45x95"); ↑ ↓ reorder =
   `setGroupOrder` (undoable, the groups' order, so Steg för steg and
-  the screw lists follow); tapping a step toggles `activeStep` and
-  closes the panel. No screw info or totals there (still in Skruv,
+  the screw lists follow); tapping a step shows only it, selects its
+  parts and zooms in on it (`fitView` after the panel closes — the fit
+  effect depends on `shownParts`, it used to frame the whole model),
+  again = everything; **✎ per group** selects it and opens the **Delar
+  tab, which in Montering is `GroupParts`** (owner 2026-11-22): the
+  selection as a group — group name as an editable header
+  (`renameGroup`), then its parts in build order, each with a name field
+  (`updatePart`, Enter/blur saves, Esc cancels) and ↑ ↓
+  (`reorderParts(ids)`: those parts in that order in the slots they
+  already take in `project.parts`; undoable). One part selected: its
+  name as the header, nothing else; several from different groups: "N
+  delar" + the list; nothing: a hint. The panel stays open on picks in
+  Montering's Delar (the "one window" close is skipped there). Other
+  steps keep `PartList`. `requestPanel(open, tab?)` can switch tab. No screw info or totals there (still in Skruv,
   Listor and the printout, which use `ScrewList`). Switching step: Bygg closes the phone panel, Detaljer
   opens Del if something's selected, Montering/Inköp open their lists.
   Saved `mode: 'redigera'` loads as 'detaljer' (`toPhase`). To add a step:

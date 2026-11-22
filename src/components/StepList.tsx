@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { getProfile, shortName } from '../lib/catalog'
 import { ASSEMBLY, buildSteps } from '../lib/steps'
 import { useStore } from '../lib/store'
+import { fitView } from './Viewport'
 import type { Part } from '../lib/types'
 import { Info } from './Info'
 
@@ -29,6 +30,8 @@ export function StepList() {
   const setActiveStep = useStore((s) => s.setActiveStep)
   const setGroupOrder = useStore((s) => s.setGroupOrder)
   const requestPanel = useStore((s) => s.requestPanel)
+  const select = useStore((s) => s.select)
+  const clearSelection = useStore((s) => s.clearSelection)
   const steps = useMemo(() => buildSteps(parts, groups), [parts, groups])
 
   if (!parts.length) return <p className="hint">Bygg något först — sedan visas monteringsstegen här.</p>
@@ -41,9 +44,27 @@ export function StepList() {
     ;[ids[index], ids[j]] = [ids[j], ids[index]]
     setGroupOrder(ids)
   }
+  const idsOf = (id: string) => [...(steps.find((s) => s.id === id)?.partIds ?? [])]
+  // A step: only it in 3D, selected and zoomed in on; tapped again: everything
   const show = (id: string) => {
-    setActiveStep(activeStep === id ? null : id)
+    if (activeStep === id) {
+      setActiveStep(null)
+      clearSelection()
+    } else {
+      setActiveStep(id)
+      if (id === ASSEMBLY) clearSelection()
+      else select(idsOf(id))
+    }
     requestPanel(false)
+    // After the panel has closed, so the fit uses the free view
+    setTimeout(fitView, 350)
+  }
+  // ✎: the group in the Delar tab (rename, order the parts)
+  const editGroup = (id: string) => {
+    setActiveStep(id)
+    select(idsOf(id))
+    requestPanel(true, 'delar')
+    setTimeout(fitView, 350)
   }
   const loose = parts.filter((p) => !p.groupId || !groupSteps.some((s) => s.id === p.groupId))
 
@@ -70,6 +91,9 @@ export function StepList() {
               </button>
               {isGroup && (
                 <span className="step-move">
+                  <button aria-label={`Redigera ${s.title}`} title="Byt namn och ordning på delarna" onClick={() => editGroup(s.id)}>
+                    ✎
+                  </button>
                   <button aria-label={`Flytta ${s.title} tidigare`} disabled={i === 0} onClick={() => move(i, -1)}>
                     ↑
                   </button>
@@ -85,7 +109,8 @@ export function StepList() {
       <Info label="Hur funkar stegen?">
         <p>
           Varje grupp är ett steg som byggs för sig, sist sätts allt ihop. Ändra ordningen med ↑ ↓ — Steg för steg och skruvlistorna följer
-          den. Tryck på ett steg för att bara se det i 3D, tryck igen för att se allt. Skruvarna ändrar du under Skruv.
+          den. Tryck på ett steg för att zooma in på bara det i 3D, tryck igen för att se allt. ✎ öppnar gruppen under
+          Delar, där du byter namn och ordning på delarna. Skruvarna ändrar du under Skruv.
         </p>
       </Info>
     </div>

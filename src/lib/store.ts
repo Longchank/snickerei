@@ -82,8 +82,9 @@ interface State {
   setJointMode: (on: boolean) => void
   setJointDraft: (d: JointDraft | null) => void
   /** Ask the phone panel to open or close (n changes on every request) */
-  panelRequest: { open: boolean; n: number } | null
-  requestPanel: (open: boolean) => void
+  panelRequest: { open: boolean; tab?: string; n: number } | null
+  /** Open/close the phone panel, optionally on a given tab */
+  requestPanel: (open: boolean, tab?: string) => void
   /** The view's tool menu is folded out (the phone panel closes meanwhile) */
   toolsOpen: boolean
   setToolsOpen: (on: boolean) => void
@@ -186,6 +187,8 @@ interface State {
   renameGroup: (groupId: string, name: string) => void
   /** Build order: these groups first, in this order (the rest keep theirs, after) */
   setGroupOrder: (ids: string[]) => void
+  /** These parts, in this order, in the places they already take in the parts list */
+  reorderParts: (ids: string[]) => void
 
   /** Joints between a part and one it overlaps */
   trimTo: (partId: string, otherId: string) => void
@@ -384,7 +387,7 @@ export const useStore = create<State>()(
           }),
         setJointDraft: (jointDraft) => set({ jointDraft }),
         panelRequest: null,
-        requestPanel: (open) => set((s) => ({ panelRequest: { open, n: (s.panelRequest?.n ?? 0) + 1 } })),
+        requestPanel: (open, tab) => set((s) => ({ panelRequest: { open, tab, n: (s.panelRequest?.n ?? 0) + 1 } })),
         toolsOpen: false,
         setToolsOpen: (toolsOpen) => set({ toolsOpen }),
         xray: false,
@@ -802,6 +805,13 @@ export const useStore = create<State>()(
 
         renameGroup: (groupId, name) =>
           edit((snap) => ({ ...snap, groups: snap.groups.map((g) => (g.id === groupId ? { ...g, name } : g)) })),
+        reorderParts: (ids) =>
+          editParts((ps) => {
+            const set = new Set(ids)
+            const byId = new Map(ps.map((p) => [p.id, p]))
+            const queue = ids.filter((id) => byId.has(id))
+            return ps.map((p) => (set.has(p.id) ? byId.get(queue.shift()!)! : p))
+          }),
         setGroupOrder: (ids) =>
           edit((snap) => {
             const byId = new Map(snap.groups.map((g) => [g.id, g]))

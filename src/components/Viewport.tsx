@@ -865,7 +865,8 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     }
     window.addEventListener(FIT_EVENT, fit)
     return () => window.removeEventListener(FIT_EVENT, fit)
-  }, [parts, camera, controls, gl])
+    // shownParts too: a fit right after picking a step frames just that step
+  }, [parts, shownParts, camera, controls, gl])
   // Only a project that was already there when the app opened gets auto-fitted
   const fitOnStart = useRef(parts.length > 0)
   useEffect(() => {

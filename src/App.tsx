@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Catalog, PartList } from './components/Catalog'
 import { StepList } from './components/StepList'
+import { GroupParts } from './components/GroupParts'
 import { ScrewEditor } from './components/ScrewEditor'
 import { Checklist } from './components/Checklist'
 import { CutList } from './components/CutList'
@@ -115,7 +116,9 @@ export function App() {
   // Something asked for the panel to open or close (e.g. "Visa i 3D")
   const panelRequest = useStore((s) => s.panelRequest)
   useEffect(() => {
-    if (panelRequest && mobile) setSheetOpen(panelRequest.open)
+    if (!panelRequest) return
+    if (panelRequest.tab) setTab(panelRequest.tab as Tab)
+    if (mobile) setSheetOpen(panelRequest.open)
   }, [panelRequest, mobile])
   // A board was added from Lägg till: close the menu so it shows in the view
   const partCount = useStore((s) => s.project.parts.length)
@@ -162,7 +165,7 @@ export function App() {
     if (hasSelection && st.settings.mode === 'detaljer' && !st.placeProfile && !st.moveMode && !st.rotateMode) {
       setTab('del')
       setSheetOpen(true)
-    } else if (mobile && hasSelection && (st.settings.mode === 'bygg' || tabRef.current === 'delar')) {
+    } else if (mobile && hasSelection && (st.settings.mode === 'bygg' || (tabRef.current === 'delar' && st.settings.mode !== 'montering'))) {
       // One window at a time: picked from a list (or in Bygg, where the
       // action bar takes over) — the list closes so what was picked is in view
       setSheetOpen(false)
@@ -197,7 +200,7 @@ export function App() {
   const content = (
     <>
       {activeTab === 'lagg' && <Catalog parts={false} />}
-      {activeTab === 'delar' && <PartList />}
+      {activeTab === 'delar' && (mode === 'montering' ? <GroupParts /> : <PartList />)}
       {activeTab === 'steg' && <StepList />}
       {activeTab === 'skruv' && <ScrewEditor />}
       {activeTab === 'koll' && <Checklist />}
