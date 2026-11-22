@@ -438,10 +438,24 @@ comments in English).
   (`sizeOptions`, "✦" = suggestion) and − N + per joint; delete = 🗑
   switches a joint off (`off`: count 0, no dots, not in totals or
   Kontroll, hidden in Steg; "↺ Skruva igen") or removes a hand-added one;
-  ↺ resets a changed joint; create = "+ Ny fog" (Genom / In i selects,
-  selection first, count) adds `manual` screws between parts the app
-  didn't pair — `manualContact` puts them across the axis the parts are
-  furthest apart on. Tapping a joint's name selects both parts in 3D.
+  ↺ resets a changed joint; create = **"+ Ny fog" = joint mode** (owner 2026-11-22,
+  replaced the Genom/In i form): store `jointMode` + `jointDraft`
+  (not persisted; closes the phone panel, ends on panel open or leaving
+  Montering; screw dots aren't tappable meanwhile). A tap on a face =
+  the part screwed *through*; `planJoint` (screws.ts) finds the part
+  right behind (probe 1 mm past the far side), guesses Början/Mitten/
+  Änden from the tap (outer thirds of the shared face), clusters `count`
+  screws there (40 mm from the edge, ≤ 60 mm apart, zigzag at ¼/¾,
+  `flip` = other diagonal) and works out bite = length − t vs the rule
+  of thumb, poke = longer than the part behind. `JointBar`: "Skiva →
+  Regel · 4,0×50 · biter 32 mm" (green/amber "bör vara"/red "sticker ut
+  N mm"), Början·Mitten·Änden, − N +, ⟋/⟍, size select, "✓ Lägg till N
+  skruv" (stays armed for the next face). `JointPreview` in 3D: a head
+  per screw and a line grey through the first part, green (amber if
+  short) into the part behind, red beyond it (no depth test). Confirm =
+  `setScrewEdit(key, {points: offsets, manual if new})`, appended to an
+  existing joint's points (and switches an off joint back on). Old
+  `manual` joints without points still use `manualContact`. Tapping a joint's name selects both parts in 3D.
   **Single screws in 3D** (owner 2026-11-22, "redigera enskilda skruvar
   i 3D"): in Montering a screw dot is tappable (`ScrewDot` `onTap`, bigger
   invisible target) → `screwFocus {key, index}` (store, not persisted;

@@ -36,7 +36,7 @@ import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from 
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
-import { SCREW_COLORS, screwJoints, screwName, screwTotals } from '../lib/screws'
+import { planJoint, SCREW_COLORS, screwJoints, screwName, screwTotals, sizeOptions, type JointAnchor, type JointPlan } from '../lib/screws'
 import { selectionOverlaps, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -159,6 +159,7 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
   const moveTap = useStore((s) => s.moveTap)
   const measureMode = useStore((s) => s.measureMode)
   const measureTap = useStore((s) => s.measureTap)
+  const joining = useStore((s) => s.jointMode && s.settings.mode === 'montering')
   const placing = useStore((s) => s.placeProfile !== null)
   const placeTap = useStore((s) => s.placeTap)
   const snapTypes = useStore((s) => s.settings.snapTypes)
@@ -232,6 +233,25 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
             const options = snapOptions(e)
             if (options.length) measureTap(options[0], options)
             setHover(null)
+            return
+          }
+          if (joining) {
+            // "Ny fog": the tapped face is where the screws go in
+            e.stopPropagation()
+            if (!e.face) return
+            const n = e.face.normal.clone().transformDirection(e.object.matrixWorld)
+            const st = useStore.getState()
+            const prev = st.jointDraft
+            const same = prev?.throughId === part.id
+            st.setJointDraft({
+              throughId: part.id,
+              hit: e.point.toArray() as Vec3,
+              normal: n.toArray() as Vec3,
+              count: prev?.count ?? 2,
+              flip: prev?.flip ?? false,
+              d: same ? prev.d : undefined,
+              length: same ? prev.length : undefined,
+            })
             return
           }
           if (moving) {
@@ -948,6 +968,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
       {!capturing && mode === 'detaljer' && selection.length === 1 && <EndLabels partId={selection[0]} />}
       {!capturing && mode === 'inkop' && <CheckMarkers shown={shownIds} />}
       {!capturing && screwView && <ScrewDots parts={parts} shown={shownParts} />}
+      {!capturing && mode === 'montering' && <JointPreview />}
       {shownParts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
       ))}
@@ -1450,6 +1471,158 @@ function ScrewBar() {
   )
 }
 
+/** The joint being placed ("Ny fog"), from the draft in the store */
+function useJointPlan(): JointPlan | null | undefined {
+  const draft = useStore((s) => (s.jointMode ? s.jointDraft : null))
+  const parts = useStore((s) => s.project.parts)
+  return useMemo(
+    () => (draft ? planJoint(parts, draft.throughId, draft.hit, draft.normal, draft) : undefined),
+    [draft, parts],
+  )
+}
+
+const JOINT_ANCHORS: { id: JointAnchor; label: string }[] = [
+  { id: 'start', label: 'Början' },
+  { id: 'center', label: 'Mitten' },
+  { id: 'end', label: 'Änden' },
+]
+
+/** How well the screw bites: green = by the rule of thumb, amber = short, red = comes out the far side */
+function biteStatus(plan: JointPlan): 'ok' | 'short' | 'poke' {
+  return plan.poke ? 'poke' : plan.bite < plan.wantBite * 0.8 ? 'short' : 'ok'
+}
+
+/**
+ * "Ny fog" (Montering → Skruv): tap the face where the screws go in; the part
+ * behind is found by itself, and the tap guesses start / centre / end. The bar
+ * then sets where on the face, how many, which diagonal and the screw size,
+ * and shows how far the screws reach into the part behind.
+ */
+function JointBar() {
+  const on = useStore((s) => s.jointMode)
+  const draft = useStore((s) => s.jointDraft)
+  const setJointMode = useStore((s) => s.setJointMode)
+  const setJointDraft = useStore((s) => s.setJointDraft)
+  const parts = useStore((s) => s.project.parts)
+  const edits = useStore((s) => s.project.screwEdits)
+  const setScrewEdit = useStore((s) => s.setScrewEdit)
+  const plan = useJointPlan()
+  if (!on) return null
+  const change = (patch: Partial<NonNullable<typeof draft>>) => draft && setJointDraft({ ...draft, ...patch })
+  const confirm = () => {
+    if (!plan || !draft) return
+    const origin = toAxisBox(partBox(plan.through)).min
+    const offset = (p: Vec3) => p.map((v, i) => Math.round((v - origin[i]) * 10) / 10) as Vec3
+    // Screws already in this joint stay; the new ones are added to them
+    const existing = screwJoints(parts, edits).find((j) => j.key === plan.key)
+    const keep = existing && existing.count ? existing.points.map(offset) : []
+    setScrewEdit(plan.key, {
+      ...(existing ? {} : { manual: true }),
+      off: undefined,
+      count: undefined,
+      points: [...keep, ...plan.points.map(offset)],
+      ...(draft.d && draft.length ? { d: draft.d, length: draft.length } : {}),
+    })
+    setJointDraft(null)
+  }
+  const status = plan ? biteStatus(plan) : null
+  return (
+    <div className="measure-top place-top">
+      <div className="place-banner move-bar joint-bar" role="toolbar" aria-label="Ny fog">
+        <BarHead icon={<span aria-hidden>🔩</span>} title="Ny fog" hint="Tryck på ytan där skruvarna ska in" onDone={() => setJointMode(false)} />
+        {!draft && <p className="bar-hint small">Tryck på ytan där skruvarna ska in.</p>}
+        {draft && !plan && <p className="bar-hint small warn">Ingen del bakom ytan — tryck på en yta som ligger mot en annan del.</p>}
+        {plan && draft && (
+          <>
+            <p className={`joint-reach small ${status}`}>
+              <span className="joint-parts">
+                {plan.through.name} → {plan.into.name}
+              </span>
+              <span>
+                {plan.screw.d.toFixed(1).replace('.', ',')}×{plan.screw.length} ·{' '}
+                {status === 'poke'
+                  ? `sticker ut ${Math.round(plan.bite - plan.depth)} mm`
+                  : `biter ${Math.round(plan.bite)} mm${status === 'short' ? ` (bör vara ${Math.round(plan.wantBite)})` : ''}`}
+              </span>
+            </p>
+            <div className="seg" role="group" aria-label="Var på ytan">
+              {JOINT_ANCHORS.map((a) => (
+                <button key={a.id} className={plan.anchor === a.id ? 'on' : ''} aria-pressed={plan.anchor === a.id} onClick={() => change({ anchor: a.id })}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+            <div className="joint-row">
+              <span className="screw-stepper" role="group" aria-label="Antal skruv">
+                <button aria-label="Färre skruv" disabled={draft.count <= 1} onClick={() => change({ count: draft.count - 1 })}>
+                  −
+                </button>
+                <strong>{draft.count}</strong>
+                <button aria-label="Fler skruv" disabled={draft.count >= 10} onClick={() => change({ count: draft.count + 1 })}>
+                  +
+                </button>
+              </span>
+              <button
+                className="diag"
+                aria-label="Byt diagonal"
+                title="Byt diagonal"
+                disabled={draft.count < 2}
+                onClick={() => change({ flip: !draft.flip })}
+              >
+                {draft.flip ? '⟍' : '⟋'}
+              </button>
+              <select
+                aria-label="Skruv"
+                value={draft.d && draft.length ? `${draft.d}x${draft.length}` : ''}
+                onChange={(e) => {
+                  const [d, length] = e.target.value ? e.target.value.split('x').map(Number) : [undefined, undefined]
+                  change({ d, length })
+                }}
+              >
+                <option value="">{draft.d ? 'Förslag' : `${plan.screw.d.toFixed(1).replace('.', ',')}×${plan.screw.length} ✦`}</option>
+                {sizeOptions(plan.screw).map((o) => (
+                  <option key={`${o.d}x${o.length}`} value={`${o.d}x${o.length}`}>
+                    {o.d.toFixed(1).replace('.', ',')}×{o.length}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button className="primary wide" onClick={confirm}>
+              ✓ Lägg till {draft.count} skruv
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The joint being placed, in 3D: a screw head per screw and a line along the
+ * screw — grey through the first part, green into the part behind (amber if
+ * shorter than the rule of thumb) and red where it would come out the far side.
+ */
+function JointPreview() {
+  const plan = useJointPlan()
+  if (!plan) return null
+  const status = biteStatus(plan)
+  const at = (p: Vec3, d: number) => [0, 1, 2].map((i) => p[i] + plan.dir[i] * d) as Vec3
+  const reach = Math.min(plan.screw.length, plan.t + plan.depth)
+  const biteColor = status === 'short' ? '#d97706' : '#16a34a'
+  return (
+    <>
+      {plan.points.map((p, k) => (
+        <group key={k}>
+          <ScrewDot at={at(p, -2)} color="#111827" />
+          <Line points={[at(p, -2), at(p, plan.t)]} color="#6b7280" lineWidth={4} depthTest={false} renderOrder={7} />
+          <Line points={[at(p, plan.t), at(p, reach)]} color={biteColor} lineWidth={5} depthTest={false} renderOrder={7} />
+          {plan.poke && <Line points={[at(p, plan.t + plan.depth), at(p, plan.screw.length)]} color="#dc2626" lineWidth={5} depthTest={false} renderOrder={7} />}
+        </group>
+      ))}
+    </>
+  )
+}
+
 const FRAME_PROFILES = PROFILES.filter(
   (p) => p.kind === 'board' && (p.category === 'konstruktion' || (p.category === 'hyvlat' && p.thickness >= 28)),
 )
@@ -1545,7 +1718,7 @@ function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
     [all],
   )
   // Montering: tap a screw to edit it on its own (ScrewBar)
-  const editable = useStore((s) => s.settings.mode === 'montering')
+  const editable = useStore((s) => s.settings.mode === 'montering' && !s.jointMode)
   const focus = useStore((s) => s.screwFocus)
   const focusScrew = useStore((s) => s.focusScrew)
   return (
@@ -1929,6 +2102,7 @@ export function Viewport({
     {rotateMode && count > 0 && <RotateBar />}
     {mirrorMode && count > 0 && <MirrorBar />}
     {mode === 'montering' && <ScrewBar />}
+    {mode === 'montering' && <JointBar />}
     {framing && <FrameBar />}
     {showActions && <ActionBar />}
     {measureMode && (

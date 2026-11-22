@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { chooseScrew, pilotBit, screwJoints, screwName, screwSections, screwTotals } from './screws'
+import { chooseScrew, pilotBit, planJoint, screwJoints, screwName, screwSections, screwTotals } from './screws'
 import type { Part, Vec3 } from './types'
 
 function at(id: string, profileId: string, length: number, rotation: Part['rotation'], min: Vec3, width?: number): Part {
@@ -274,5 +274,47 @@ describe('screws placed one by one in 3D', () => {
     const shift = (p: Part): Part => ({ ...p, position: [p.position[0], p.position[1], p.position[2] + 100] })
     const [moved] = screwJoints([shift(sill), shift(post)], edits)
     expect(moved.points[0]).toEqual([1170, 0, 130])
+  })
+})
+
+describe('planJoint ("Ny fog": tap a face)', () => {
+  // A 22 mm sheet strip lying on a rail, both along x
+  const rail = at('rail', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+  const top = at('top', 'plywood-18', 1200, [0, 0, 0], [0, 45, 0], 95)
+  const up: Vec3 = [0, 1, 0]
+
+  it('finds the part behind the tapped face and guesses the end from the tap', () => {
+    const plan = planJoint([rail, top], 'top', [1100, 63, 50], up)!
+    expect(plan.into.id).toBe('rail')
+    expect(plan.anchor).toBe('end')
+    expect(plan.dir).toEqual([0, -1, 0])
+    expect(plan.points).toHaveLength(2)
+    expect(plan.points.every((p) => p[1] === 63)).toBe(true)
+    expect(Math.max(...plan.points.map((p) => p[0]))).toBeLessThanOrEqual(1200 - 39)
+    expect(plan.t).toBe(18)
+    expect(plan.depth).toBe(45)
+  })
+
+  it('start / centre / end, count and the other diagonal can be chosen', () => {
+    const start = planJoint([rail, top], 'top', [1100, 63, 50], up, { anchor: 'start', count: 3 })!
+    expect(start.points).toHaveLength(3)
+    expect(Math.min(...start.points.map((p) => p[0]))).toBeLessThan(100)
+    const a = planJoint([rail, top], 'top', [600, 63, 50], up)!
+    const b = planJoint([rail, top], 'top', [600, 63, 50], up, { flip: true })!
+    expect(a.anchor).toBe('center')
+    expect(a.points[0][2]).toBe(b.points[1][2]) // mirrored across
+    expect(a.points[0][2]).not.toBe(b.points[0][2])
+  })
+
+  it('says how far the screw bites, and when it would poke out', () => {
+    const ok = planJoint([rail, top], 'top', [600, 63, 50], up)!
+    expect(ok.bite).toBe(ok.screw.length - 18)
+    expect(ok.poke).toBe(false)
+    const long = planJoint([rail, top], 'top', [600, 63, 50], up, { d: 6, length: 100 })!
+    expect(long.poke).toBe(true) // 100 − 18 = 82 > 45
+  })
+
+  it('nothing behind the face: no joint', () => {
+    expect(planJoint([rail, top], 'top', [600, 45, 50], [0, -1, 0])).toBeNull()
   })
 })

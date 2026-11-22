@@ -96,7 +96,17 @@ export function App() {
     if (st.mirrorMode) st.setMirrorMode(false)
     if (st.frameSheet) st.closeFrame()
     if (st.screwFocus) st.focusScrew(null)
+    if (st.jointMode) st.setJointMode(false)
   }, [sheetOpen, mobile])
+  // "Ny fog": taps go to the model, so the panel closes; leaving Montering ends it
+  const jointMode = useStore((s) => s.jointMode)
+  useEffect(() => {
+    if (jointMode && mobile) setSheetOpen(false)
+  }, [jointMode, mobile])
+  const phaseNow = useStore((s) => s.settings.mode)
+  useEffect(() => {
+    if (phaseNow !== 'montering' && useStore.getState().jointMode) useStore.getState().setJointMode(false)
+  }, [phaseNow])
   // A screw tapped in 3D: its bar is the window now
   const screwFocus = useStore((s) => s.screwFocus)
   useEffect(() => {

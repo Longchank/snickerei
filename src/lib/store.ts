@@ -11,7 +11,7 @@ import { miterCorner, ripPart } from './cuts'
 import { moveNextTo, moveToFloor } from './move'
 import { copyPlane, mirrorParts } from './mirror'
 import { toPhase } from './phases'
-import type { ScrewEdit } from './screws'
+import type { JointAnchor, ScrewEdit } from './screws'
 import {
   halfLap,
   moveParts,
@@ -76,6 +76,11 @@ interface State {
   /** The screw being edited in 3D (Montering): its joint and which screw */
   screwFocus: { key: string; index: number } | null
   focusScrew: (f: { key: string; index: number } | null) => void
+  /** "Ny fog" (Montering): taps on the model start a joint there */
+  jointMode: boolean
+  jointDraft: JointDraft | null
+  setJointMode: (on: boolean) => void
+  setJointDraft: (d: JointDraft | null) => void
   /** Ask the phone panel to open or close (n changes on every request) */
   panelRequest: { open: boolean; n: number } | null
   requestPanel: (open: boolean) => void
@@ -211,6 +216,19 @@ interface State {
   setOwnStockLengths: (category: ProfileCategory, lengths: number[] | null) => void
   addSupplierFile: (file: SupplierPriceFile) => void
   setSupplierEnabled: (supplier: string, enabled: boolean) => void
+}
+
+/** A joint being placed by hand: the tapped face and the choices in the bar */
+export interface JointDraft {
+  throughId: string
+  hit: Vec3
+  normal: Vec3
+  /** Unset = guessed from where the face was tapped */
+  anchor?: JointAnchor
+  count: number
+  flip: boolean
+  d?: number
+  length?: number
 }
 
 export interface SnapChoice {
@@ -353,7 +371,16 @@ export const useStore = create<State>()(
         checkFocus: null,
         focusCheck: (id) => set((s) => ({ checkFocus: { id, n: (s.checkFocus?.n ?? 0) + 1 } })),
         screwFocus: null,
-        focusScrew: (screwFocus) => set({ screwFocus }),
+        focusScrew: (screwFocus) => set({ screwFocus, ...(screwFocus ? { jointMode: false, jointDraft: null } : {}) }),
+        jointMode: false,
+        jointDraft: null,
+        setJointMode: (on) =>
+          set({
+            jointMode: on,
+            jointDraft: null,
+            ...(on ? { screwFocus: null, measureMode: false, pendingPoint: null, moveMode: false, rotateMode: false, mirrorMode: false, placeProfile: null } : {}),
+          }),
+        setJointDraft: (jointDraft) => set({ jointDraft }),
         panelRequest: null,
         requestPanel: (open) => set((s) => ({ panelRequest: { open, n: (s.panelRequest?.n ?? 0) + 1 } })),
         toolsOpen: false,
@@ -609,6 +636,7 @@ export const useStore = create<State>()(
         },
         setMeasureMode: (on) =>
           set({
+            ...(on ? { jointMode: false, jointDraft: null } : {}),
             moveMode: false,
             rotateMode: false, mirrorMode: false,
             placeProfile: null,

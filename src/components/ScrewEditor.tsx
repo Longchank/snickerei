@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
 import { useStore } from '../lib/store'
 import { Dot } from './ScrewList'
@@ -11,7 +11,7 @@ const mm = (v: number) => v.toFixed(1).replace('.', ',')
  * Montering → Skruv: editing the screws, joint by joint (owner 2026-11-22,
  * "crud style"). Read: every joint by build step, or only the selection's.
  * Update: count and size. Delete: switch a joint's screws off (or remove one
- * added by hand). Create: screws between two parts the app didn't pair up.
+ * added by hand). Create: "Ny fog" — tap a face in 3D (JointBar).
  */
 export function ScrewEditor() {
   const parts = useStore((s) => s.project.parts)
@@ -22,7 +22,8 @@ export function ScrewEditor() {
   const joints = useMemo(() => screwJoints(parts, edits), [parts, edits])
   const totals = useMemo(() => screwTotals(joints), [joints])
   const colorOf = new Map(totals.map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]]))
-  const [adding, setAdding] = useState(false)
+  const setJointMode = useStore((s) => s.setJointMode)
+  const requestPanel = useStore((s) => s.requestPanel)
 
   if (parts.length < 2) return <p className="hint">Bygg något först — sedan kan du ändra skruvarna här.</p>
 
@@ -40,11 +41,16 @@ export function ScrewEditor() {
           {count} skruv · {joints.filter((j) => j.count).length} fogar
         </strong>
         {changed > 0 && <span className="muted small">{changed} ändrade</span>}
-        <button className={adding ? 'on' : ''} aria-expanded={adding} onClick={() => setAdding(!adding)}>
+        <button
+          title="Tryck sedan på ytan där skruvarna ska in"
+          onClick={() => {
+            setJointMode(true)
+            requestPanel(false)
+          }}
+        >
           + Ny fog
         </button>
       </div>
-      {adding && <NewJoint onDone={() => setAdding(false)} existing={new Set(joints.map((j) => j.key))} />}
       {selection.length > 0 && (
         <p className="filter-line small">
           Visar fogar för det markerade ({shown.length}).{' '}
@@ -75,7 +81,10 @@ export function ScrewEditor() {
           limmas). ↺ går tillbaka till förslaget. Markera en del i 3D för att bara se dess fogar. Tryck på en skruv i 3D för
           att flytta, lägga till eller ta bort just den — ändrar du antalet här placeras fogens skruvar om automatiskt.
         </p>
-        <p>"+ Ny fog" lägger till skruv mellan två delar som appen inte har parat ihop. Allt går att ångra.</p>
+        <p>
+          "+ Ny fog": tryck på ytan där skruvarna ska in — delen bakom hittas själv. Välj början, mitten eller änden, antal, diagonal och
+          skruv; linjen i 3D visar hur långt skruven når (grön = bra, gul = kort, röd = sticker ut). Allt går att ångra.
+        </p>
       </Info>
     </div>
   )
@@ -154,64 +163,5 @@ function JointRow({ j, color }: { j: Joint; color?: string }) {
         </div>
       )}
     </li>
-  )
-}
-
-/** "+ Ny fog": screws from one part into another, chosen from lists (the selection first) */
-function NewJoint({ onDone, existing }: { onDone: () => void; existing: Set<string> }) {
-  const parts = useStore((s) => s.project.parts)
-  const selection = useStore((s) => s.selection)
-  const setScrewEdit = useStore((s) => s.setScrewEdit)
-  const sel = new Set(selection)
-  const ordered = [...parts.filter((p) => sel.has(p.id)), ...parts.filter((p) => !sel.has(p.id))]
-  const [through, setThrough] = useState(ordered[0]?.id ?? '')
-  const [into, setInto] = useState(ordered[1]?.id ?? '')
-  const [count, setCount] = useState(2)
-  const key = `${through}|${into}`
-  const reverse = `${into}|${through}`
-  const dup = existing.has(key) || existing.has(reverse)
-  const options = ordered.map((p) => (
-    <option key={p.id} value={p.id}>
-      {p.name}
-    </option>
-  ))
-  return (
-    <div className="new-joint">
-      <label>
-        <span>Genom</span>
-        <select value={through} onChange={(e) => setThrough(e.target.value)}>
-          {options}
-        </select>
-      </label>
-      <label>
-        <span>In i</span>
-        <select value={into} onChange={(e) => setInto(e.target.value)}>
-          {options}
-        </select>
-      </label>
-      <div className="new-joint-row">
-        <span className="screw-stepper" role="group" aria-label="Antal skruv">
-          <button aria-label="Färre skruv" disabled={count <= 1} onClick={() => setCount(count - 1)}>
-            −
-          </button>
-          <strong>{count}</strong>
-          <button aria-label="Fler skruv" disabled={count >= 20} onClick={() => setCount(count + 1)}>
-            +
-          </button>
-        </span>
-        <button
-          className="primary"
-          disabled={!through || !into || through === into || dup}
-          onClick={() => {
-            setScrewEdit(key, { manual: true, count })
-            onDone()
-          }}
-        >
-          Lägg till
-        </button>
-      </div>
-      {through === into && <p className="hint small">Välj två olika delar.</p>}
-      {dup && <p className="hint small">De här delarna har redan en fog — ändra den i listan.</p>}
-    </div>
   )
 }

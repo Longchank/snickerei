@@ -412,3 +412,105 @@ export function screwSections(joints: Joint[], groups: { id: string; name: strin
   const order = { group: 0, assembly: 1, loose: 2 }
   return [...byKey.values()].sort((x, y) => order[x.kind] - order[y.kind])
 }
+
+export type JointAnchor = 'start' | 'center' | 'end'
+
+/** A joint being placed by hand ("Ny fog"): where the screws go and how far they reach */
+export interface JointPlan {
+  through: Part
+  into: Part
+  key: string
+  anchor: JointAnchor
+  points: Vec3[]
+  /** Screwing direction (into the part) */
+  dir: Vec3
+  screw: Screw
+  /** Thickness screwed through, and how much of the part behind is there */
+  t: number
+  depth: number
+  /** How far the screw reaches into the part behind (length − t) */
+  bite: number
+  /** The rule of thumb for that bite */
+  wantBite: number
+  /** It would come out the far side */
+  poke: boolean
+}
+
+/**
+ * "Ny fog": a tap on a face of `through` at `hit` (outward `normal`) — the
+ * screws go in there, through that part and into the part right behind it.
+ * The tap's position along the face guesses start / centre / end (outer
+ * thirds); `count` screws cluster there, zigzagging across (flip = the
+ * other diagonal). Null when nothing is behind the tapped face.
+ */
+export function planJoint(
+  parts: Part[],
+  throughId: string,
+  hit: Vec3,
+  normal: Vec3,
+  opts: { anchor?: JointAnchor; count?: number; flip?: boolean; d?: number; length?: number } = {},
+): JointPlan | null {
+  const through = parts.find((p) => p.id === throughId)
+  if (!through) return null
+  const n = AXES.reduce((m, i) => (Math.abs(normal[i]) > Math.abs(normal[m]) ? i : m), 0 as Axis)
+  const s = normal[n] >= 0 ? 1 : -1
+  const tb = boxOf(through)
+  const t = size(tb, n)
+  const face = s > 0 ? tb.max[n] : tb.min[n]
+  // The part right behind: just past the far side of the one screwed through
+  const probe = [...hit] as Vec3
+  probe[n] = face - s * (t + 1)
+  const into = parts.find((q) => {
+    if (q.id === through.id) return false
+    const b = boxOf(q)
+    return AXES.every((i) => probe[i] >= b.min[i] - 0.5 && probe[i] <= b.max[i] + 0.5)
+  })
+  if (!into) return null
+  const ib = boxOf(into)
+  const depth = s > 0 ? Math.max(0, face - t - ib.min[n]) : Math.max(0, ib.max[n] - (face + t))
+  // The area both parts share on the face (else the through part's face)
+  const [p1, p2] = AXES.filter((i) => i !== n)
+  const span = (i: Axis): [number, number] => {
+    const lo = Math.max(tb.min[i], ib.min[i])
+    const hi = Math.min(tb.max[i], ib.max[i])
+    return hi - lo > 1 ? [lo, hi] : [tb.min[i], tb.max[i]]
+  }
+  const [ua, va] = span(p1)[1] - span(p1)[0] >= span(p2)[1] - span(p2)[0] ? [p1, p2] : [p2, p1]
+  const [ulo, uhi] = span(ua)
+  const [vlo, vhi] = span(va)
+  const len = uhi - ulo
+  const frac = len > 0 ? (hit[ua] - ulo) / len : 0.5
+  const anchor: JointAnchor = opts.anchor ?? (frac < 1 / 3 ? 'start' : frac > 2 / 3 ? 'end' : 'center')
+  const count = Math.max(1, Math.min(10, opts.count ?? 2))
+  const margin = Math.min(40, len * 0.2)
+  const step = count > 1 ? Math.min(60, (len - 2 * margin) / (count - 1)) : 0
+  const along = Array.from({ length: count }, (_, k) =>
+    anchor === 'start' ? ulo + margin + k * step : anchor === 'end' ? uhi - margin - k * step : (ulo + uhi) / 2 + (k - (count - 1) / 2) * step,
+  )
+  const across = vhi - vlo
+  const zigzag = count >= 2 && across >= 30
+  const points = along.map((u, k) => {
+    const p = [0, 0, 0] as Vec3
+    p[n] = face
+    p[ua] = Math.round(u * 10) / 10
+    const side = (k % 2 === 0) !== !!opts.flip ? 0.25 : 0.75
+    p[va] = Math.round((zigzag ? vlo + across * side : (vlo + vhi) / 2) * 10) / 10
+    return p
+  })
+  const dir = [0, 0, 0] as Vec3
+  dir[n] = -s
+  const throughProf = getProfile(through.profileId)
+  const intoProf = getProfile(into.profileId)
+  const endGrain = intoProf.kind === 'board' && worldAxisOf(into.rotation, 0) === n
+  const sheet = throughProf.kind === 'sheet'
+  const outdoor = throughProf.category === 'tryckimpregnerat' || intoProf.category === 'tryckimpregnerat'
+  const auto = chooseScrew(t, depth, endGrain, sheet, outdoor).screw
+  const screw: Screw =
+    opts.d && opts.length
+      ? { ...auto, d: opts.d, length: opts.length, type: sheet ? 'skivskruv' : opts.d >= 8 ? 'konstruktionsskruv' : 'träskruv' }
+      : auto
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+  const wantBite = endGrain ? clamp(2 * t, 40, 120) : clamp(1.5 * t, 30, 90)
+  const bite = screw.length - t
+  return { through, into, key: jointKey(through, into), anchor, points, dir, screw, t, depth, bite, wantBite, poke: bite > depth }
+}
