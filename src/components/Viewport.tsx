@@ -36,7 +36,7 @@ import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from 
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
-import { planJoint, SCREW_COLORS, screwJoints, screwName, screwTotals, sizeOptions, type JointAnchor, type JointPlan } from '../lib/screws'
+import { planJoint, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointAnchor, type JointPlan } from '../lib/screws'
 import { selectionOverlaps, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -1489,7 +1489,7 @@ const JOINT_ANCHORS: { id: JointAnchor; label: string }[] = [
 
 /** How well the screw bites: green = by the rule of thumb, amber = short, red = comes out the far side */
 function biteStatus(plan: JointPlan): 'ok' | 'short' | 'poke' {
-  return plan.poke ? 'poke' : plan.bite < plan.wantBite * 0.8 ? 'short' : 'ok'
+  return plan.poke ? 'poke' : plan.bite < plan.wantBite * SHORT_FRACTION ? 'short' : 'ok'
 }
 
 /**

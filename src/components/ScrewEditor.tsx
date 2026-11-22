@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
 import { useStore } from '../lib/store'
-import { Dot } from './ScrewList'
+import { Dot, MoreAboutScrews } from './ScrewList'
 import { Fold } from './Fold'
 import { Info } from './Info'
 
@@ -86,6 +86,7 @@ export function ScrewEditor() {
           skruv; linjen i 3D visar hur långt skruven når (grön = bra, gul = kort, röd = sticker ut). Allt går att ångra.
         </p>
       </Info>
+      <MoreAboutScrews />
     </div>
   )
 }

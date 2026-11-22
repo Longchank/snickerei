@@ -20,7 +20,7 @@ function TotalsTable({ totals, colorOf }: { totals: ScrewTotal[]; colorOf: Map<s
           <th>Skruv</th>
           <th className="num">Behövs</th>
           <th className="num">Köp</th>
-          <th>Förborra</th>
+          <th>Förborra (råd)</th>
         </tr>
       </thead>
       <tbody>
@@ -55,7 +55,7 @@ export function JointList({ joints, colorOf }: { joints: Joint[]; colorOf: Map<s
           </span>
           {j.predrill && (
             <span className="predrill">
-              Förborra Ø {mm(j.predrill.bit)} mm ({j.predrill.reason})
+              Råd: förborra Ø {mm(j.predrill.bit)} mm ({j.predrill.reason})
             </span>
           )}
           {j.short && <span className="warn small">Kortare än tumregeln — delen bakom är tunn. Överväg vinkeljärn.</span>}
@@ -126,12 +126,14 @@ export function ScrewList({ print = false, buyOnly = false }: { print?: boolean;
         const text = (
           <>
             Färgen visar var skruven sitter i 3D{print ? '' : ' (markera en grupp för att bara se dess skruvar)'}. "Köp" har ca
-            10 % extra; skruv säljs ofta i askar om 100–250 st. Förslag efter tumregler: skruven ska gå ca 1,5 gånger delens
-            tjocklek in i delen bakom (mer i ändträ), minst 2 per fog. Förborra i den mottagande delen med borren i tabellen.
+            10 % extra; skruv säljs ofta i askar om 100–250 st. Förslag efter tumregler: skruven ca dubbelt så lång som det
+            man skruvar fast, minst 30 mm (Svenskt Trä), längre i ändträ, minst 2 per fog. Förborrning är ett råd — borren
+            står i tabellen.
           </>
         )
         return print ? <p className="hint small">{text}</p> : <Info label="Om förslagen">{text}</Info>
       })()}
+      <MoreAboutScrews print={print} />
       <h4 className="screw-heading">Steg för steg</h4>
       {!print && (
         <div className="step-chips" role="group" aria-label="Visa steg">
@@ -163,5 +165,20 @@ export function ScrewList({ print = false, buyOnly = false }: { print?: boolean;
         )
       })}
     </div>
+  )
+}
+
+export const SCREW_GUIDE_URL = 'https://www.byggbeskrivningar.se/allmant/skruv-och-spikguide/'
+
+/** "Vill du veta mer om skruvar?" — Svenskt Trä's screw and nail guide */
+export function MoreAboutScrews({ print = false }: { print?: boolean }) {
+  return (
+    <p className="small more-link">
+      Vill du veta mer om skruvar?{' '}
+      <a href={SCREW_GUIDE_URL} target="_blank" rel="noopener noreferrer">
+        Svenskt Träs skruv- och spikguide
+      </a>
+      {print && <> ({SCREW_GUIDE_URL})</>}
+    </p>
   )
 }

@@ -414,9 +414,19 @@ comments in English).
   to end are skipped, cleat halves too). Screw goes *through* the part
   that's thinner along the screw (never along a board's length) *into*
   the other; into its end grain if the screw runs along that board.
-  `chooseScrew`: bite into the part behind ≈ 1.5 × t (30–90 mm; end grain
-  2 × t, 40–120), never through the far side (else the longest that fits,
-  flagged "kortare än tumregeln … vinkeljärn"); diameter by t (4.0 ≤18,
+  `chooseScrew`: **length ≈ 2 × t, at least 30 mm** (owner 2026-11-22,
+  from Svenskt Trä's skruv- och spikguide on byggbeskrivningar.se:
+  "dubbla längden av det man ska skruva fast"; its table: 12 → 28,
+  19 → 40, 34 → 70, 45 → 80 — was bite 1.5 × t, a size or two too
+  long), i.e. `wantBite` ≈ t (max 90); end grain 2 × t, 40–120 (our own
+  assumption, not from the guide). Never through the far side (else the
+  longest that fits); "kortare än tumregeln … vinkeljärn" only when the
+  bite is < 3/4 of the wanted one (`SHORT_FRACTION`, so 45 into 45 with
+  80 mm is fine). 4.5 mm sizes 40–80. **Pre-drilling is shown as advice**
+  ("Råd: förborra …", "Förborra (råd)"). A "Vill du veta mer om skruvar?"
+  link to the guide (`MoreAboutScrews`, ScrewList.tsx) sits under Steg,
+  Skruv and Listor's screws. The guide's host is allowed in the
+  Snickerei cloud environment. Diameter by t (4.0 ≤18,
   4.5 ≤25, 5.0 ≤40, then 5.0/6.0, 8.0 konstruktionsskruv >160 mm); common
   sizes in `SIZES`; sheets → skivskruv; pressure-treated → rostfri A4/C4.
   Count: 2 up to 100 mm contact, +1 per ~50 mm; sheets and long overlaps
@@ -476,9 +486,9 @@ comments in English).
   also keeps `purpose` (it used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
   0.75 × d MDF, rounded to 0.5 mm) near an end (< 10 × d), into/through
   MDF, or 8 mm screws. Totals per size (`screwTotals`) with ~10 % spare,
-  rounded to tens, plus the bits; "Fog för fog" list. All rules of thumb
-  from general knowledge, not sourced — the UI says "förslag efter
-  tumregler". **Screws in 3D** (owner 2026-11-20): each joint has
+  rounded to tens, plus the bits; "Fog för fog" list. Apart from the
+  length rule, the rules of thumb are from general knowledge, not sourced
+  — the UI says "förslag efter tumregler". **Screws in 3D** (owner 2026-11-20): each joint has
   `points` (screw heads on the through part's outer face, spread over the
   contact: evenly in short rows, 40 mm in from the ends in long ones) and
   `dir`. "● Visa skruv i 3D" in Listor → Skruv toggles `screwView`

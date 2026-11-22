@@ -11,18 +11,26 @@ function at(id: string, profileId: string, length: number, rotation: Part['rotat
 const UP: Part['rotation'] = [0, 0, 1]
 
 describe('chooseScrew', () => {
-  it('follows the 2.5 × rule and steps up the diameter with the thickness', () => {
-    expect(screwName(chooseScrew(22, 45, false, false, false).screw)).toBe('4,5 × 60 träskruv')
+  it('is about twice as long as what is fastened, at least 30 mm (Svenskt Trä)', () => {
+    // Svenskt Trä's table: 12 → min 28, 19 → 40, 34 → 70, 45 → 80
+    expect(chooseScrew(12, 45, false, false, false).screw.length).toBe(30)
+    expect(chooseScrew(19, 45, false, false, false).screw.length).toBe(40)
+    expect(screwName(chooseScrew(22, 45, false, false, false).screw)).toBe('4,5 × 45 träskruv')
+    expect(chooseScrew(34, 95, false, false, false).screw.length).toBe(70)
     const s45 = chooseScrew(45, 95, false, false, false).screw
-    expect(s45.length).toBeGreaterThanOrEqual(112)
-    expect(s45.d).toBe(6)
+    expect(s45.length).toBe(90)
+    expect(s45.d).toBe(5)
   })
 
   it('goes longer into end grain, never through the far side, and flags a short screw', () => {
     const end = chooseScrew(45, 1000, true, false, false).screw
     expect(end.length).toBeGreaterThanOrEqual(135)
-    const thin = chooseScrew(45, 45, false, false, false)
-    expect(thin.screw.length).toBeLessThanOrEqual(85)
+    // 45 into 45: 80 mm stays inside and is Svenskt Trä's minimum — not short
+    const same = chooseScrew(45, 45, false, false, false)
+    expect(same.screw.length).toBe(80)
+    expect(same.short).toBe(false)
+    const thin = chooseScrew(45, 22, false, false, false)
+    expect(thin.screw.length).toBeLessThanOrEqual(62)
     expect(thin.short).toBe(true)
   })
 

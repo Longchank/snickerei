@@ -3,11 +3,15 @@
  * part the screw goes through and which it bites into, a screw size, how
  * many, and whether (and with which bit) to pre-drill. Plus the totals.
  *
- * Rules of thumb from general carpentry practice (not sourced, not a
- * Eurocode calculation) — the UI presents them as suggestions:
- * - it should bite ≈ 1.5 × the piece's thickness into the part behind
- *   (30–90 mm; into end grain 2 ×, 40–120 mm), so ≈ 2.5 × for ordinary
- *   boards — never poking out of the far side
+ * Rules of thumb, not a Eurocode calculation — the UI presents them as
+ * suggestions. Length from Svenskt Trä's skruv- och spikguide
+ * (byggbeskrivningar.se, "dubbla längden av det man ska skruva fast",
+ * checked 2026-11-22 against its table of minimum lengths); the rest is
+ * general carpentry practice, not sourced:
+ * - length ≈ 2 × the piece's thickness, at least 30 mm, so it bites ≈ 1 ×
+ *   the thickness into the part behind (at most 90 mm); into end grain
+ *   more (2 × t, 40–120 mm — our own assumption) — never poking out of the
+ *   far side
  * - diameter grows with the piece screwed through (4.0 for thin boards …
  *   6.0 for 45 mm and long screws, 8.0 konstruktionsskruv above 160 mm)
  * - at least 2 per joint, more for wide contacts; sheets and long overlaps
@@ -15,7 +19,8 @@
  * - two screws sit diagonally, short rows zigzag across the contact, so a
  *   joint isn't split along one line of grain and you know which diagonal
  *   to use when screwing groups together
- * - pre-drill near ends (closer than 10 × d), into MDF, and for 8 mm screws
+ * - pre-drilling is advice ("Råd"): near ends (closer than 10 × d), into
+ *   MDF, and for 8 mm screws
  * - pilot bit ≈ the screw's core: about 0.6 × d in softwood, 0.75 × d in MDF
  * - pressure-treated wood → stainless A4 or C4-coated screws
  */
@@ -81,7 +86,7 @@ export interface Joint {
 /** Common screw sizes: diameter → lengths */
 const SIZES: [ScrewType, number, number[]][] = [
   ['träskruv', 4.0, [30, 35, 40, 45, 50]],
-  ['träskruv', 4.5, [50, 60, 70]],
+  ['träskruv', 4.5, [40, 45, 50, 60, 70, 80]],
   ['träskruv', 5.0, [50, 60, 70, 80, 90, 100]],
   ['träskruv', 6.0, [100, 120, 140, 160]],
   ['konstruktionsskruv', 8.0, [160, 200, 240, 280]],
@@ -114,11 +119,22 @@ export function pilotBit(d: number, mdf: boolean): number {
 }
 
 /** The screw for a piece `t` mm thick, `depth` mm available behind it */
-export function chooseScrew(t: number, depth: number, endGrain: boolean, sheet: boolean, outdoor: boolean): { screw: Screw; short: boolean } {
-  // What matters is how far it bites into the part behind: ≈ 1.5 × t (30–90 mm),
-  // more into end grain (2 × t, 40–120 mm). So ≈ 2.5 × t for ordinary boards.
+/**
+ * How far a screw should reach into the part behind (mm). Svenskt Trä: the
+ * screw twice as long as what's fastened, so the bite ≈ its thickness —
+ * with the screw at least 30 mm and the bite at most 90. End grain holds
+ * worse, so more there (2 × t, 40–120; our own assumption).
+ */
+/** A bite under this share of the wanted one counts as a short screw */
+export const SHORT_FRACTION = 0.75
+
+export function wantBite(t: number, endGrain: boolean): number {
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
-  const bite = endGrain ? clamp(2 * t, 40, 120) : clamp(1.5 * t, 30, 90)
+  return endGrain ? clamp(2 * t, 40, 120) : clamp(Math.max(t, 30 - t), 0, 90)
+}
+
+export function chooseScrew(t: number, depth: number, endGrain: boolean, sheet: boolean, outdoor: boolean): { screw: Screw; short: boolean } {
+  const bite = wantBite(t, endGrain)
   const want = t + bite
   const max = t + depth - 5 // don't come out the other side
   const d = sheet ? (t <= 18 ? 4.0 : 4.5) : t <= 18 ? 4.0 : t <= 25 ? 4.5 : t <= 40 ? 5.0 : want <= 100 ? 5.0 : want <= 160 ? 6.0 : 8.0
@@ -130,7 +146,9 @@ export function chooseScrew(t: number, depth: number, endGrain: boolean, sheet: 
   const fallback = all.filter((o) => o.length <= max).sort((x, y) => y.length - x.length || y.d - x.d)[0]
   const pick = good ?? fallback ?? all.sort((x, y) => x.length - y.length)[0]
   const type: ScrewType = sheet ? 'skivskruv' : pick.type
-  return { screw: { type, d: pick.d, length: pick.length, outdoor }, short: !good }
+  // Svenskt Trä's minimum lengths are ≈ 1.8 × t (45 → 80), so a screw is only
+  // "short" when it bites less than about 3/4 of the wanted depth
+  return { screw: { type, d: pick.d, length: pick.length, outdoor }, short: !good && pick.length - t < SHORT_FRACTION * bite }
 }
 
 /** How many screws for a contact rectangle whose longer side is u */
@@ -509,8 +527,6 @@ export function planJoint(
     opts.d && opts.length
       ? { ...auto, d: opts.d, length: opts.length, type: sheet ? 'skivskruv' : opts.d >= 8 ? 'konstruktionsskruv' : 'träskruv' }
       : auto
-  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
-  const wantBite = endGrain ? clamp(2 * t, 40, 120) : clamp(1.5 * t, 30, 90)
   const bite = screw.length - t
-  return { through, into, key: jointKey(through, into), anchor, points, dir, screw, t, depth, bite, wantBite, poke: bite > depth }
+  return { through, into, key: jointKey(through, into), anchor, points, dir, screw, t, depth, bite, wantBite: wantBite(t, endGrain), poke: bite > depth }
 }
