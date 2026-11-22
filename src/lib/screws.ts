@@ -65,8 +65,13 @@ export interface Joint {
   off: boolean
   /** Added by hand */
   manual: boolean
-  /** Count, size or on/off changed by hand */
+  /** Count, size, positions or on/off changed by hand */
   custom: boolean
+  /** The contact the screws sit on: where they may be moved (normal axis, then the two in-plane axes) */
+  area: AxisBox
+  axes: [Axis, Axis]
+  /** The through part's box corner: hand-placed points are stored relative to it */
+  origin: Vec3
   /** Which way the screws go in (unit vector along one axis) */
   dir: Vec3
   /** Another part covers the side the screws go in from (no room for the screwdriver): its name */
@@ -167,6 +172,8 @@ export interface ScrewEdit {
   off?: boolean
   /** Added by hand between two parts the app didn't pair up */
   manual?: boolean
+  /** Screws placed one by one in 3D: offsets from the through part's box corner (min x, y, z) */
+  points?: Vec3[]
 }
 
 /** Screw sizes on offer, for a size picker: of the same type as `s` (wood/sheet screws share sizes) */
@@ -209,7 +216,8 @@ function buildJoint(
   const key = jointKey(through, into)
   const suggested = screwCount(u, sheet)
   const off = !!edit?.off
-  const count = off ? 0 : edit?.count ?? suggested
+  const placed = !off && edit?.points?.length ? edit.points : null
+  const count = off ? 0 : placed ? placed.length : edit?.count ?? suggested
   // Pre-drilling: near an end, into MDF, or for thick screws
   const centre = AXES.map((x) => (c.box.min[x] + c.box.max[x]) / 2)
   const nearEnd = [through, into].some((p) => getProfile(p.profileId).kind === 'board' && !alongLength(p) && distToEnd(p, boxes.get(p.id)!, centre) < 10 * screw.d)
@@ -224,13 +232,23 @@ function buildJoint(
   // Short rows zigzag across the contact (two screws = a diagonal) when it's wide enough
   const across = size(c.box, va)
   const zigzag = count >= 2 && across >= 30 && size(c.box, ua) <= 250
-  const points = spread(c.box.min[ua], c.box.max[ua], count).map((pos, k) => {
-    const p = [0, 0, 0] as Vec3
-    p[n] = face
-    p[ua] = pos
-    p[va] = zigzag ? c.box.min[va] + across * (k % 2 === 0 ? 0.25 : 0.75) : (c.box.min[va] + c.box.max[va]) / 2
-    return p
-  })
+  const clampTo = (v: number, i: number) => Math.min(c.box.max[i], Math.max(c.box.min[i], v))
+  const points = placed
+    ? // Placed by hand: follow the through part, stay on the contact
+      placed.map((o) => {
+        const p = AXES.map((i) => tb.min[i] + o[i]) as Vec3
+        p[n] = face
+        p[ua] = clampTo(p[ua], ua)
+        p[va] = clampTo(p[va], va)
+        return p
+      })
+    : spread(c.box.min[ua], c.box.max[ua], count).map((pos, k) => {
+        const p = [0, 0, 0] as Vec3
+        p[n] = face
+        p[ua] = pos
+        p[va] = zigzag ? c.box.min[va] + across * (k % 2 === 0 ? 0.25 : 0.75) : (c.box.min[va] + c.box.max[va]) / 2
+        return p
+      })
   // Is the side the screws go in from covered by another part — one that's
   // already there when this joint is screwed? Build order (screwSections):
   // each group on its own, then the groups joined together, then loose
@@ -259,7 +277,10 @@ function buildJoint(
     key,
     off,
     manual: !!edit?.manual,
-    custom: !!edit && !edit.manual && (edit.count !== undefined || !!chosen || off),
+    custom: !!edit && !edit.manual && (edit.count !== undefined || !!chosen || off || !!placed),
+    area: c.box,
+    axes: [ua, va],
+    origin: [...tb.min] as Vec3,
     endGrain,
     predrill: reason ? { bit: pilotBit(screw.d, mdf), reason } : null,
     short,

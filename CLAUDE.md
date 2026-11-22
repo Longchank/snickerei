@@ -442,6 +442,21 @@ comments in English).
   selection first, count) adds `manual` screws between parts the app
   didn't pair — `manualContact` puts them across the axis the parts are
   furthest apart on. Tapping a joint's name selects both parts in 3D.
+  **Single screws in 3D** (owner 2026-11-22, "redigera enskilda skruvar
+  i 3D"): in Montering a screw dot is tappable (`ScrewDot` `onTap`, bigger
+  invisible target) → `screwFocus {key, index}` (store, not persisted;
+  cleared by opening the panel or switching step, and closes the phone
+  panel) → `ScrewBar` (BarHead "🔩 Skruv 2/5" · ↶ · Klar; ‹ › through
+  the joint's screws; move 10 mm along the contact's two in-plane axes,
+  "◀ Vänster / Höger ▶", "▼ Ner / Upp ▲", "◀ Bak / Fram ▶" with axis
+  colours; "+ Lägg till" 30 mm along; "🗑 Ta bort", the last one switches
+  the joint off). The focused dot is bigger with a white ring (both
+  transparent so the dot draws on top). Hand-placed spots are
+  `ScrewEdit.points`, offsets from the through part's box min (so they
+  follow it when moved), clamped onto the contact (`Joint.area`, `axes`,
+  `origin`); they set the count; − / + in the Skruv list drops them
+  (re-spreads). Opening the app in Montering now switches `screwView` on
+  (`onRehydrateStorage`), as switching to it does.
   The Steg tab (was "Steg & skruv") is read-only again. `screwJoints(parts,
   edits)` everywhere (list, 3D dots, totals, Kontroll). `normalizeProject`
   also keeps `purpose` (it used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,

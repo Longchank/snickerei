@@ -73,6 +73,9 @@ interface State {
   /** The checklist item to show (a "!" in 3D was tapped); n changes on every tap */
   checkFocus: { id: string; n: number } | null
   focusCheck: (id: string) => void
+  /** The screw being edited in 3D (Montering): its joint and which screw */
+  screwFocus: { key: string; index: number } | null
+  focusScrew: (f: { key: string; index: number } | null) => void
   /** Ask the phone panel to open or close (n changes on every request) */
   panelRequest: { open: boolean; n: number } | null
   requestPanel: (open: boolean) => void
@@ -349,6 +352,8 @@ export const useStore = create<State>()(
         },
         checkFocus: null,
         focusCheck: (id) => set((s) => ({ checkFocus: { id, n: (s.checkFocus?.n ?? 0) + 1 } })),
+        screwFocus: null,
+        focusScrew: (screwFocus) => set({ screwFocus }),
         panelRequest: null,
         requestPanel: (open) => set((s) => ({ panelRequest: { open, n: (s.panelRequest?.n ?? 0) + 1 } })),
         toolsOpen: false,
@@ -910,6 +915,10 @@ export const useStore = create<State>()(
     },
     {
       name: 'snickerei',
+      // Opening the app in Montering shows the screws, as switching to it does
+      onRehydrateStorage: () => (state) => {
+        if (state?.settings.mode === 'montering') state.setScrewView(true)
+      },
       version: 1,
       // Settings and project fields added in later versions get their defaults
       merge: (persisted, current) => {

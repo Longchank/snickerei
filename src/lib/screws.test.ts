@@ -255,3 +255,24 @@ describe('editing screws by hand (CRUD)', () => {
     expect(p.screwEdits).toEqual({ 'a|b': { count: 4 } })
   })
 })
+
+describe('screws placed one by one in 3D', () => {
+  const sill = at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+  const post = at('post', 'konstruktion-45x95', 1000, UP, [1155, 45, 0])
+
+  it('hand-placed spots set the count, follow the part screwed through and stay on the contact', () => {
+    const [auto] = screwJoints([sill, post])
+    // Offsets from the sill's box corner (0,0,0): one inside, one far outside the contact
+    const edits = { [auto.key]: { points: [[1170, 0, 30], [5000, 0, 500]] as Vec3[] } }
+    const [j] = screwJoints([sill, post], edits)
+    expect(j.count).toBe(2)
+    expect(j.custom).toBe(true)
+    expect(j.points[0]).toEqual([1170, 0, 30])
+    // Clamped onto the contact (x 1155..1200, z 0..95)
+    expect(j.points[1]).toEqual([1200, 0, 95])
+    // Move both parts 100 mm along z: the screws come along
+    const shift = (p: Part): Part => ({ ...p, position: [p.position[0], p.position[1], p.position[2] + 100] })
+    const [moved] = screwJoints([shift(sill), shift(post)], edits)
+    expect(moved.points[0]).toEqual([1170, 0, 130])
+  })
+})

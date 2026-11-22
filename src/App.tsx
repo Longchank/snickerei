@@ -95,7 +95,13 @@ export function App() {
     if (st.rotateMode) st.setRotateMode(false)
     if (st.mirrorMode) st.setMirrorMode(false)
     if (st.frameSheet) st.closeFrame()
+    if (st.screwFocus) st.focusScrew(null)
   }, [sheetOpen, mobile])
+  // A screw tapped in 3D: its bar is the window now
+  const screwFocus = useStore((s) => s.screwFocus)
+  useEffect(() => {
+    if (screwFocus && mobile) setSheetOpen(false)
+  }, [screwFocus, mobile])
   // Something asked for the panel to open or close (e.g. "Visa i 3D")
   const panelRequest = useStore((s) => s.panelRequest)
   useEffect(() => {
@@ -119,6 +125,7 @@ export function App() {
       return
     }
     setTab(PHASE_TABS[mode][0])
+    useStore.getState().focusScrew(null)
     if (mode === 'bygg') {
       if (mobile) setSheetOpen(false)
     } else if (mode === 'detaljer') {

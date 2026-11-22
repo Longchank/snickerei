@@ -72,7 +72,8 @@ export function ScrewEditor() {
       <Info label="Hur ändrar jag?">
         <p>
           ✦ = appens förslag. Ändra antal med − / +, välj en annan skruv i listan, eller tryck 🗑 för att ta bort skruvarna i en fog (t.ex. om den
-          limmas). ↺ går tillbaka till förslaget. Markera en del i 3D för att bara se dess fogar.
+          limmas). ↺ går tillbaka till förslaget. Markera en del i 3D för att bara se dess fogar. Tryck på en skruv i 3D för
+          att flytta, lägga till eller ta bort just den — ändrar du antalet här placeras fogens skruvar om automatiskt.
         </p>
         <p>"+ Ny fog" lägger till skruv mellan två delar som appen inte har parat ihop. Allt går att ångra.</p>
       </Info>
@@ -129,11 +130,11 @@ function JointRow({ j, color }: { j: Joint; color?: string }) {
             ))}
           </select>
           <span className="screw-stepper" role="group" aria-label={`Antal, ${j.through.name} → ${j.into.name}`}>
-            <button aria-label="Färre skruv" disabled={j.count <= 1} onClick={() => setScrewEdit(j.key, { count: j.count - 1 })}>
+            <button aria-label="Färre skruv" disabled={j.count <= 1} onClick={() => setScrewEdit(j.key, { count: j.count - 1, points: undefined })}>
               −
             </button>
             <strong>{j.count}</strong>
-            <button aria-label="Fler skruv" disabled={j.count >= 20} onClick={() => setScrewEdit(j.key, { count: j.count + 1 })}>
+            <button aria-label="Fler skruv" disabled={j.count >= 20} onClick={() => setScrewEdit(j.key, { count: j.count + 1, points: undefined })}>
               +
             </button>
           </span>

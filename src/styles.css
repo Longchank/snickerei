@@ -2690,3 +2690,45 @@ details.info > summary::-webkit-details-marker {
 .edit-joint-row .screw-stepper button {
   min-width: 36px;
 }
+
+/* One screw edited in 3D (Montering: tap a screw) */
+.screw-bar-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.screw-bar-sub span {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.screw-bar-sub button {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  font-size: 18px;
+}
+.screw-moves {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.screw-move-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.screw-move-pair button {
+  min-height: 40px;
+  padding: 0 4px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}

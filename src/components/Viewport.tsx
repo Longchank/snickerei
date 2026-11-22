@@ -1362,6 +1362,94 @@ function MirrorBar() {
   )
 }
 
+const AXIS_DIR: [string, string][] = [
+  ['◀ Vänster', 'Höger ▶'],
+  ['▼ Ner', 'Upp ▲'],
+  ['◀ Bak', 'Fram ▶'],
+]
+const SCREW_STEP = 10
+
+/**
+ * One screw, edited in 3D (Montering: tap a screw dot): move it along the
+ * surface it sits on, step to the next screw in the joint, add one next to
+ * it or remove it. The joint's screws then keep these hand-placed spots
+ * (relative to the part screwed through) until its count is changed.
+ */
+function ScrewBar() {
+  const focus = useStore((s) => s.screwFocus)
+  const focusScrew = useStore((s) => s.focusScrew)
+  const parts = useStore((s) => s.project.parts)
+  const edits = useStore((s) => s.project.screwEdits)
+  const setScrewEdit = useStore((s) => s.setScrewEdit)
+  const joint = useMemo(() => (focus ? screwJoints(parts, edits).find((j) => j.key === focus.key) : undefined), [focus, parts, edits])
+  if (!focus || !joint || !joint.points.length) return null
+  const index = Math.min(focus.index, joint.points.length - 1)
+  const pts = joint.points
+  const save = (next: Vec3[]) =>
+    setScrewEdit(joint.key, { points: next.map((p) => p.map((v, i) => Math.round((v - joint.origin[i]) * 10) / 10) as Vec3), count: undefined })
+  const clampTo = (v: number, i: number) => Math.min(joint.area.max[i], Math.max(joint.area.min[i], v))
+  const move = (axis: number, d: number) => save(pts.map((p, k) => (k === index ? (p.map((v, i) => (i === axis ? clampTo(v + d, i) : v)) as Vec3) : p)))
+  const remove = () => {
+    if (pts.length === 1) {
+      setScrewEdit(joint.key, { off: true, points: undefined })
+      focusScrew(null)
+      return
+    }
+    save(pts.filter((_, k) => k !== index))
+    focusScrew({ key: joint.key, index: Math.max(0, index - 1) })
+  }
+  const add = () => {
+    const [ua] = joint.axes
+    const p = [...pts[index]] as Vec3
+    const room = joint.area.max[ua] - p[ua]
+    p[ua] = clampTo(p[ua] + (room > 30 ? 30 : -30), ua)
+    save([...pts, p])
+    focusScrew({ key: joint.key, index: pts.length })
+  }
+  return (
+    <div className="measure-top place-top">
+      <div className="place-banner move-bar screw-bar" role="toolbar" aria-label="Skruv">
+        <BarHead
+          icon={<span aria-hidden>🔩</span>}
+          title={`Skruv ${index + 1}/${pts.length}`}
+          hint="Flytta skruven längs ytan, lägg till eller ta bort"
+          onDone={() => focusScrew(null)}
+        />
+        <div className="screw-bar-sub">
+          <button aria-label="Föregående skruv" disabled={pts.length < 2} onClick={() => focusScrew({ key: joint.key, index: (index - 1 + pts.length) % pts.length })}>
+            ‹
+          </button>
+          <span className="small">
+            {joint.through.name} → {joint.into.name} · {screwName(joint.screw)}
+          </span>
+          <button aria-label="Nästa skruv" disabled={pts.length < 2} onClick={() => focusScrew({ key: joint.key, index: (index + 1) % pts.length })}>
+            ›
+          </button>
+        </div>
+        <div className="screw-moves">
+          {joint.axes.map((a) => (
+            <div key={a} className="screw-move-pair">
+              <button onClick={() => move(a, -SCREW_STEP)} title={`${SCREW_STEP} mm`}>
+                <span className="ring-dot" style={{ background: AXIS_COLOR[a] }} />
+                {AXIS_DIR[a][0]}
+              </button>
+              <button onClick={() => move(a, SCREW_STEP)} title={`${SCREW_STEP} mm`}>
+                {AXIS_DIR[a][1]}
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="rotate-buttons two">
+          <button onClick={add}>+ Lägg till</button>
+          <button className="danger" onClick={remove}>
+            🗑 Ta bort
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const FRAME_PROFILES = PROFILES.filter(
   (p) => p.kind === 'board' && (p.category === 'konstruktion' || (p.category === 'hyvlat' && p.thickness >= 28)),
 )
@@ -1456,12 +1544,22 @@ function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
     () => new Map(screwTotals(all).map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]])),
     [all],
   )
+  // Montering: tap a screw to edit it on its own (ScrewBar)
+  const editable = useStore((s) => s.settings.mode === 'montering')
+  const focus = useStore((s) => s.screwFocus)
+  const focusScrew = useStore((s) => s.focusScrew)
   return (
     <>
-      {joints.flatMap((j, ji) =>
+      {joints.flatMap((j) =>
         j.points.map((p, k) => (
           // Lifted just off the surface, against the screwing direction, so the dot isn't hidden in the wood
-          <ScrewDot key={`${ji}-${k}`} at={[p[0] - j.dir[0] * 2, p[1] - j.dir[1] * 2, p[2] - j.dir[2] * 2]} color={colorOf.get(screwName(j.screw))!} />
+          <ScrewDot
+            key={`${j.key}-${k}`}
+            at={[p[0] - j.dir[0] * 2, p[1] - j.dir[1] * 2, p[2] - j.dir[2] * 2]}
+            color={colorOf.get(screwName(j.screw))!}
+            focused={focus?.key === j.key && focus.index === k}
+            onTap={editable ? () => focusScrew({ key: j.key, index: k }) : undefined}
+          />
         )),
       )}
     </>
@@ -1469,19 +1567,51 @@ function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
 }
 
 /** One screw head: about the same size on screen however far you zoom out (never smaller than ~7 mm) */
-function ScrewDot({ at, color }: { at: Vec3; color: string }) {
-  const ref = useRef<Mesh>(null)
+function ScrewDot({ at, color, focused = false, onTap }: { at: Vec3; color: string; focused?: boolean; onTap?: () => void }) {
+  const ref = useRef<Group>(null)
   const camera = useThree((s) => s.camera)
   useFrame(() => {
     if (!ref.current) return
     const d = camera.position.distanceTo(ref.current.position)
-    ref.current.scale.setScalar(Math.max(1, d * (isTouch ? 0.0011 : 0.0008)))
+    ref.current.scale.setScalar(Math.max(1, d * (isTouch ? 0.0011 : 0.0008)) * (focused ? 1.6 : 1))
   })
   return (
-    <mesh ref={ref} position={at} renderOrder={5}>
-      <sphereGeometry args={[4, 12, 8]} />
-      <meshBasicMaterial color={color} />
-    </mesh>
+    <group ref={ref} position={at}>
+      <mesh
+        renderOrder={6}
+        onClick={
+          onTap &&
+          ((e) => {
+            e.stopPropagation()
+            onTap()
+          })
+        }
+      >
+        <sphereGeometry args={[4, 12, 8]} />
+        {/* Transparent when focused, so it's drawn after (on top of) the white ring, which is transparent too */}
+        <meshBasicMaterial color={color} depthTest={!focused} transparent={focused} />
+      </mesh>
+      {focused && (
+        // A white ring around the screw being edited
+        <mesh renderOrder={4}>
+          <sphereGeometry args={[6, 16, 12]} />
+          <meshBasicMaterial color="#ffffff" depthTest={false} transparent opacity={0.9} />
+        </mesh>
+      )}
+      {onTap && (
+        // A bigger invisible target, so a screw is easy to hit with a thumb
+        <mesh
+          visible={false}
+          onClick={(e) => {
+            e.stopPropagation()
+            onTap()
+          }}
+        >
+          <sphereGeometry args={[9, 8, 6]} />
+          <meshBasicMaterial />
+        </mesh>
+      )}
+    </group>
   )
 }
 
@@ -1798,6 +1928,7 @@ export function Viewport({
     {moveMode && count > 0 && <MoveBar />}
     {rotateMode && count > 0 && <RotateBar />}
     {mirrorMode && count > 0 && <MirrorBar />}
+    {mode === 'montering' && <ScrewBar />}
     {framing && <FrameBar />}
     {showActions && <ActionBar />}
     {measureMode && (
