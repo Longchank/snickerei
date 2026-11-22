@@ -1179,6 +1179,7 @@ function ViewTools() {
   const setOpen = useStore((s) => s.setToolsOpen)
   const measureMode = useStore((s) => s.measureMode)
   const setMeasureMode = useStore((s) => s.setMeasureMode)
+  const measureCount = useStore((s) => s.project.measurements.length)
   const activeStep = useStore((s) => s.activeStep)
   const setActiveStep = useStore((s) => s.setActiveStep)
   const xray = useStore((s) => s.xray)
@@ -1196,7 +1197,17 @@ function ViewTools() {
   const none = selection.length === 0
   type Tool = { key: string; icon: ReactNode; label: string; on?: boolean; show: boolean; disabled?: boolean; badge?: number; tone?: string; run: () => void }
   const tools: Tool[] = [
-    { key: 'mat', icon: <IconRuler />, label: 'Mät', on: measureMode, tone: 'measure', show: true, run: () => setMeasureMode(!measureMode) },
+    // On while measuring, and also while measurements are shown in the model (with their count)
+    {
+      key: 'mat',
+      icon: <IconRuler />,
+      label: measureCount ? `Mät · ${measureCount} mått` : 'Mät',
+      on: measureMode || measureCount > 0,
+      badge: measureCount,
+      tone: 'measure',
+      show: true,
+      run: () => setMeasureMode(!measureMode),
+    },
     { key: 'steg', icon: <IconSteps />, label: 'Steg för steg', on: !!activeStep, show: true, run: () => setActiveStep(activeStep ? null : buildSteps(parts, groups)[0]?.id ?? null) },
     { key: 'xray', icon: <IconXray />, label: 'Röntgen', on: xray, show: true, run: () => setXray(!xray) },
     { key: 'dolj', icon: <IconHide />, label: none ? 'Dölj (markera något)' : 'Dölj markerat', show: true, disabled: none, run: () => hideParts(selection) },

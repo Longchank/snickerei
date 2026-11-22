@@ -313,7 +313,10 @@ comments in English).
   how-to paragraph and the "riktvärden" note are behind ⓘ "Hur mäts det?";
   the in-view hint says what to tap next. Kind labels: "Höjd från
   golvet", "Fritt mellan, lodrätt", "Avstånd, vågrätt"; a plain face tap
-  reads "ytan" (was "på ytan").
+  reads "ytan" (was "på ytan"). The **Mät** tool button is lit (orange) and stays
+  in the folded tool menu whenever measurements are shown in the model,
+  not only while measuring, with a count badge ("Mät · 2 mått"); tapping
+  it opens the panel (Rensa removes them and the button goes back).
 - **Phone layout = floating panels** (owner, 2026-11-17, modelled on their
   projector-mount viewer): the 3D canvas always fills the screen; the
   toolbar and bottom panel are see-through cards on top (blur, rounded),
