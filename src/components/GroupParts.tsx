@@ -45,7 +45,8 @@ const sizeOf = (p: Part) => {
  * Montering → Delar (owner 2026-11-22): what's selected, as a group — its
  * name as the header and its parts below, in build order. Rename the group
  * and its parts, change the order of the parts. Nothing selected: nothing
- * here. One part: shown the same way, on its own. The panel stays open.
+ * here. One part: shown the same way, on its own. With Steg för steg on a
+ * group's step, that group. The panel stays open.
  */
 export function GroupParts() {
   const parts = useStore((s) => s.project.parts)
@@ -55,13 +56,16 @@ export function GroupParts() {
   const updatePart = useStore((s) => s.updatePart)
   const reorderParts = useStore((s) => s.reorderParts)
 
-  const sel = new Set(selection)
+  // Steg för steg on a group's step: that group, whatever is selected
+  const activeStep = useStore((s) => s.activeStep)
+  const stepGroup = groups.find((g) => g.id === activeStep && parts.some((p) => p.groupId === g.id))
+  const sel = new Set(stepGroup ? parts.filter((p) => p.groupId === stepGroup.id).map((p) => p.id) : selection)
   const chosen = parts.filter((p) => sel.has(p.id))
   if (!chosen.length) return <p className="hint">Markera en grupp i 3D — eller tryck ✎ under Steg.</p>
 
   // One group (all of the selection in it): that group
   const groupIds = new Set(chosen.map((p) => p.groupId))
-  const group = groupIds.size === 1 && chosen.length > 1 ? groups.find((g) => g.id === chosen[0].groupId) : undefined
+  const group = stepGroup ?? (groupIds.size === 1 && chosen.length > 1 ? groups.find((g) => g.id === chosen[0].groupId) : undefined)
   const single = chosen.length === 1 ? chosen[0] : undefined
   const list = group ? parts.filter((p) => p.groupId === group.id) : chosen
 

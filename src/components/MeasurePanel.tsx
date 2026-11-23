@@ -83,8 +83,8 @@ export function MeasurePanel() {
             Rensa
           </button>
         )}
-        <button className="primary" onClick={() => setMeasureMode(false)}>
-          Klar
+        <button className="icon bar-close" onClick={() => setMeasureMode(false)} aria-label="Stäng" title="Stäng">
+          ✕
         </button>
       </div>
       {measurements.length === 0 && <p className="hint small">Inga mått än — tryck på två ytor i 3D-vyn.</p>}

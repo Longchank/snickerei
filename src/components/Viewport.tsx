@@ -1305,7 +1305,7 @@ function ViewTools() {
 const STEPS = [1, 5, 10, 50, 100]
 
 /** Title row shared by the move / turn / mirror bars: icon + name (hint on hover), undo, done */
-function BarHead({ icon, title, hint, onDone, closeX = false }: { icon: ReactNode; title: string; hint: string; onDone: () => void; closeX?: boolean }) {
+function BarHead({ icon, title, hint, onDone }: { icon: ReactNode; title: string; hint: string; onDone: () => void }) {
   const undo = useStore((s) => s.undo)
   const canUndo = useStore((s) => s.past.length > 0)
   return (
@@ -1315,15 +1315,9 @@ function BarHead({ icon, title, hint, onDone, closeX = false }: { icon: ReactNod
       <button className="icon" onClick={undo} disabled={!canUndo} aria-label="Ångra" title="Ångra">
         ↶
       </button>
-      {closeX ? (
-        <button className="icon bar-close" onClick={onDone} aria-label="Stäng" title="Stäng">
-          ✕
-        </button>
-      ) : (
-        <button className="primary" onClick={onDone}>
-          Klar
-        </button>
-      )}
+      <button className="icon bar-close" onClick={onDone} aria-label="Stäng" title="Stäng">
+        ✕
+      </button>
     </div>
   )
 }
@@ -1439,7 +1433,7 @@ function JointEditBar() {
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar joint-bar joint-edit-bar" role="toolbar" aria-label="Fog">
-        <BarHead icon={<span aria-hidden>🔩</span>} title={joint.manual ? 'Fog (egen)' : 'Fog'} hint="Ändra antal, diagonal och skruv" onDone={close} closeX />
+        <BarHead icon={<span aria-hidden>🔩</span>} title={joint.manual ? 'Fog (egen)' : 'Fog'} hint="Ändra antal, diagonal och skruv" onDone={close} />
         <p className={`joint-reach small ${joint.off ? '' : status}`}>
           <span className="joint-parts">
             {joint.through.name} → {joint.into.name}
@@ -1566,7 +1560,7 @@ function JointBar() {
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar joint-bar" role="toolbar" aria-label="Ny fog">
-        <BarHead icon={<span aria-hidden>🔩</span>} title="Ny fog" hint="Tryck på ytan där skruvarna ska in" onDone={() => setJointMode(false)} closeX />
+        <BarHead icon={<span aria-hidden>🔩</span>} title="Ny fog" hint="Tryck på ytan där skruvarna ska in" onDone={() => setJointMode(false)} />
         {!draft && <p className="bar-hint small">Tryck på ytan där skruvarna ska in.</p>}
         {draft && !plan && <p className="bar-hint small warn">Ingen del bakom ytan — tryck på en yta som ligger mot en annan del.</p>}
         {plan && draft && (
@@ -1933,8 +1927,8 @@ function FrameBar() {
           <button className="icon danger" onClick={removeFrame} title="Ta bort ramen" aria-label="Ta bort ramen">
             <IconTrash />
           </button>
-          <button className="primary" onClick={closeFrame}>
-            Klar
+          <button className="icon bar-close" onClick={closeFrame} aria-label="Stäng" title="Stäng">
+            ✕
           </button>
         </div>
         <div className="frame-row">
@@ -2070,8 +2064,8 @@ function PlaceBanner({ profileId }: { profileId: string }) {
           >
             ↶ Ångra
           </button>
-          <button className="primary" onClick={() => setPlaceProfile(null)}>
-            Klar
+          <button className="icon bar-close" onClick={() => setPlaceProfile(null)} aria-label="Stäng" title="Stäng">
+            ✕
           </button>
         </div>
       </div>

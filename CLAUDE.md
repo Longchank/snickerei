@@ -151,7 +151,8 @@ comments in English).
   (`reorderParts(ids)`: those parts in that order in the slots they
   already take in `project.parts`; undoable). One part selected: its
   name as the header, nothing else; several from different groups: "N
-  delar" + the list; nothing: a hint. The panel stays open on picks in
+  delar" + the list; nothing: a hint. With Steg för steg on a group's
+  step (`activeStep`), Delar shows that group whatever is selected. The panel stays open on picks in
   Montering's Delar (the "one window" close is skipped there). Other
   steps keep `PartList`. `requestPanel(open, tab?)` can switch tab. No screw info or totals there (still in Skruv,
   Listor and the printout, which use `ScrewList`). Switching step: Bygg closes the phone panel, Detaljer
@@ -509,7 +510,7 @@ comments in English).
   (`pointOffsets`), clamped onto the contact. **Ny fog**: no Början/
   Mitten/Änden buttons any more — the screws centre on the tap (kept
   40 mm in from the face's ends, `anchor: 'tap'`); its bar and the joint
-  bar close with ✕ (`BarHead closeX`) instead of Klar.  `screwJoints(parts,
+  bar close with ✕ instead of Klar. **✕ on every bar** (owner 2026-11-23): `BarHead` (Flytta/Vrid/Spegla/Fog/Ny fog), the frame bar, the place banner and the Mät panel all close with a 40 px `button.bar-close` ✕ — no "Klar" buttons left.  `screwJoints(parts,
   edits)` everywhere (list, 3D dots, totals, Kontroll). `normalizeProject`
   also keeps `purpose` (it used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
   0.75 × d MDF, rounded to 0.5 mm) near an end (< 10 × d), into/through

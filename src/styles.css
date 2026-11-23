@@ -2932,3 +2932,15 @@ strong.group-name {
 .group-part-main .muted {
   padding-left: 9px;
 }
+
+/* ✕ closes every floating bar and the Mät panel (owner 2026-11-23) */
+button.bar-close {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 18px;
+}
