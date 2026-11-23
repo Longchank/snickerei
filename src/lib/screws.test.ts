@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { chooseScrew, countJointEdit, flipJointEdit, pilotBit, pointOffsets, planJoint, screwJoints, screwName, screwSections, screwTotals } from './screws'
+import { chooseScrew, countJointEdit, flipJointEdit, jointStep, pilotBit, pointOffsets, planJoint, screwJoints, screwName, screwSections, screwTotals } from './screws'
 import type { Part, Vec3 } from './types'
 
 function at(id: string, profileId: string, length: number, rotation: Part['rotation'], min: Vec3, width?: number): Part {
@@ -356,5 +356,15 @@ describe('editing a joint (count, diagonal)', () => {
     expect(more).toHaveLength(2)
     expect(more[0]).toEqual(pointOffsets(placed)[0])
     expect(countJointEdit(placed, 0).points).toHaveLength(1)
+  })
+})
+
+describe('jointStep', () => {
+  it("a joint inside a group belongs to that group's step, the rest to Montering", () => {
+    const sill = { ...at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0]), groupId: 'ram' }
+    const rail = { ...at('rail', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 45, 0]), groupId: 'ram' }
+    const top = { ...at('top', 'plywood-18', 1200, [0, 0, 0], [0, 90, 0], 95), groupId: 'skiva' }
+    const steps = screwJoints([sill, rail, top]).map((j) => `${j.through.id}-${j.into.id}:${jointStep(j)}`).sort()
+    expect(steps).toEqual(['sill-rail:ram', 'top-rail:montering'])
   })
 })

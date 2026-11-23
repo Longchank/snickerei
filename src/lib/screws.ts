@@ -421,6 +421,12 @@ export interface ScrewSection {
  * of legs), then where groups (and loose parts) are joined together, then
  * joints between loose parts.
  */
+/** The build step a joint is screwed in: its group's, or 'montering' (between groups, or with loose parts) */
+export function jointStep(j: Joint): string {
+  const a = j.through.groupId
+  return a && a === j.into.groupId ? a : 'montering'
+}
+
 export function screwSections(joints: Joint[], groups: { id: string; name: string }[]): ScrewSection[] {
   const nameOf = new Map(groups.map((g) => [g.id, g.name]))
   const label = (p: Part) => (p.groupId ? nameOf.get(p.groupId) ?? 'Grupp' : 'lösa delar')

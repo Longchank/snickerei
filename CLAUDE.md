@@ -152,7 +152,7 @@ comments in English).
   already take in `project.parts`; undoable). One part selected: its
   name as the header, nothing else; several from different groups: "N
   delar" + the list; nothing: a hint. With Steg för steg on a group's
-  step (`activeStep`), Delar shows that group whatever is selected. The panel stays open on picks in
+  step (`activeStep`), Delar shows that group whatever is selected. **Screws follow the step** (owner 2026-11-23): with `activeStep` set, 3D screws and the Skruv list show only that step's joints (`jointStep(j)`: the group's id when both parts are in it, else 'montering' — so the last step shows only joints between groups and with loose parts). The panel stays open on picks in
   Montering's Delar (the "one window" close is skipped there). Other
   steps keep `PartList`. `requestPanel(open, tab?)` can switch tab. No screw info or totals there (still in Skruv,
   Listor and the printout, which use `ScrewList`). Switching step: Bygg closes the phone panel, Detaljer

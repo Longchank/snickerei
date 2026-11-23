@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
+import { jointStep, SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
 import { useStore } from '../lib/store'
 import { Dot, MoreAboutScrews } from './ScrewList'
 import { Fold } from './Fold'
@@ -31,7 +31,9 @@ export function ScrewEditor() {
 
   // Something selected in 3D: only its joints
   const sel = new Set(selection)
-  const shown = selection.length ? joints.filter((j) => sel.has(j.through.id) || sel.has(j.into.id)) : joints
+  const activeStep = useStore((s) => s.activeStep)
+  const inStep = activeStep ? joints.filter((j) => jointStep(j) === activeStep) : joints
+  const shown = selection.length ? inStep.filter((j) => sel.has(j.through.id) || sel.has(j.into.id)) : inStep
   const sections = screwSections(shown, groups)
   const count = joints.reduce((n, j) => n + j.count, 0)
   const changed = joints.filter((j) => j.custom || j.manual).length

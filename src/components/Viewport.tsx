@@ -36,7 +36,7 @@ import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from 
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
-import { planJoint, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointPlan, countJointEdit, flipJointEdit } from '../lib/screws'
+import { jointStep, planJoint, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointPlan, countJointEdit, flipJointEdit } from '../lib/screws'
 import { selectionOverlaps, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -1729,13 +1729,20 @@ function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
   // Only screws between parts that are shown, and with something selected
   // (a group, a part) only its screws
   const selection = useStore((s) => s.selection)
+  // Steg för steg: only the step's own joints (the last step, Montering,
+  // shows just the joints between groups and with loose parts)
+  const activeStep = useStore((s) => s.activeStep)
   const joints = useMemo(() => {
     const visible = new Set(shown.map((p) => p.id))
     const ids = new Set(selection)
     return all.filter(
-      (j) => visible.has(j.through.id) && visible.has(j.into.id) && (!ids.size || ids.has(j.through.id) || ids.has(j.into.id)),
+      (j) =>
+        visible.has(j.through.id) &&
+        visible.has(j.into.id) &&
+        (!activeStep || jointStep(j) === activeStep) &&
+        (!ids.size || ids.has(j.through.id) || ids.has(j.into.id)),
     )
-  }, [all, selection, shown])
+  }, [all, selection, shown, activeStep])
   const colorOf = useMemo(
     // Colours from all screws, so they match the legend whatever is selected
     () => new Map(screwTotals(all).map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]])),
