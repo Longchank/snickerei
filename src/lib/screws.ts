@@ -200,6 +200,13 @@ export interface ScrewEdit {
   points?: Vec3[]
   /** The other diagonal (zigzag starts on the other side) */
   flip?: boolean
+  /** A suggested joint taken into the build ("✦ Fyll i rekommenderade") */
+  on?: boolean
+}
+
+/** A sheet's edge: never screwed into or through (owner 2026-11-23: too brittle) */
+export function isSheetEdge(p: Part, axis: number): boolean {
+  return getProfile(p.profileId).kind === 'sheet' && worldAxisOf(p.rotation, 1) !== axis
 }
 
 /** Screw sizes on offer, for a size picker: of the same type as `s` (wood/sheet screws share sizes) */
@@ -342,8 +349,14 @@ function manualContact(tb: AxisBox, ib: AxisBox): { axis: Axis; box: AxisBox } {
   return { axis, box: { min, max } }
 }
 
-/** All screwed joints in the build: one per pair of touching parts, plus any added by hand */
-export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}): Joint[] {
+/**
+ * The screwed joints in the build. Since 2026-11-23 a project starts with
+ * none (owner: "start with no joints, create them with Ny fog"): a joint the
+ * app finds between two touching parts is only in the build once it has an
+ * edit (taken in with "✦ Fyll i rekommenderade", or changed by hand), plus
+ * those added by hand. `all` = every suggestion too (the old behaviour).
+ */
+export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}, opts: { all?: boolean } = {}): Joint[] {
   const boxes = new Map(parts.map((p) => [p.id, boxOf(p)]))
   const out: Joint[] = []
   for (let i = 0; i < parts.length; i++)
@@ -358,9 +371,13 @@ export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}
       const alongLength = (p: Part) => getProfile(p.profileId).kind === 'board' && worldAxisOf(p.rotation, 0) === n
       const cand = [a, b].filter((p) => !alongLength(p))
       if (!cand.length) continue // two boards end to end: not a screwed joint
+      // Never into or through a sheet's edge
+      if (isSheetEdge(a, n) || isSheetEdge(b, n)) continue
       const through = cand.sort((x, y) => size(boxes.get(x.id)!, n) - size(boxes.get(y.id)!, n))[0]
       const into = through === a ? b : a
-      out.push(buildJoint(parts, boxes, through, into, c, edits[jointKey(through, into)]))
+      const edit = edits[jointKey(through, into)]
+      if (!opts.all && !edit) continue // a suggestion, not taken in
+      out.push(buildJoint(parts, boxes, through, into, c, edit))
     }
   // Joints added by hand (ones the app already found are just edits of those)
   const found = new Set(out.map((j) => j.key))
@@ -471,6 +488,8 @@ export interface JointPlan {
   wantBite: number
   /** It would come out the far side */
   poke: boolean
+  /** Through or into a sheet's edge: not allowed (too brittle) */
+  sheetEdge: boolean
 }
 
 /**
@@ -554,7 +573,21 @@ export function planJoint(
       ? { ...auto, d: opts.d, length: opts.length, type: sheet ? 'skivskruv' : opts.d >= 8 ? 'konstruktionsskruv' : 'träskruv' }
       : auto
   const bite = screw.length - t
-  return { through, into, key: jointKey(through, into), anchor, points, dir, screw, t, depth, bite, wantBite: wantBite(t, endGrain), poke: bite > depth }
+  return {
+    through,
+    into,
+    key: jointKey(through, into),
+    anchor,
+    points,
+    dir,
+    screw,
+    t,
+    depth,
+    bite,
+    wantBite: wantBite(t, endGrain),
+    poke: bite > depth,
+    sheetEdge: isSheetEdge(through, n) || isSheetEdge(into, n),
+  }
 }
 
 /** A joint's screw spots as offsets from the through part's box corner (how ScrewEdit stores them) */
@@ -594,3 +627,11 @@ export function countJointEdit(j: Joint, n: number): Partial<ScrewEdit> {
   }
   return { points: pointOffsets(j, pts), count: undefined }
 }
+
+/** Suggested joints not yet in the build ("✦ Fyll i rekommenderade") */
+export function suggestedJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}): Joint[] {
+  return screwJoints(parts, edits, { all: true }).filter((j) => !edits[j.key])
+}
+
+/** Back to the suggestion, keeping the joint in the build */
+export const RESET: Partial<ScrewEdit> = { count: undefined, d: undefined, length: undefined, points: undefined, flip: undefined, off: undefined }

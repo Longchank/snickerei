@@ -540,6 +540,22 @@ comments in English).
   only that group's parts can block; joining groups, every grouped part;
   a joint with a loose (ungrouped) part, everything — screws covered later
   by another group are fine.
+- **Joints are opt-in** (owner 2026-11-23: "start with no joints, then
+  create them with Ny fog; a button fills in the recommended screws"):
+  `screwJoints(parts, edits)` returns only joints with an edit (`ScrewEdit
+  .on` = taken in, or any change / `manual`); `{ all: true }` = every
+  suggestion (old behaviour, used by tests and `suggestedJoints`).
+  Skruv tab: "✦ Fyll i rekommenderade (N fogar [för det markerade])" =
+  store `fillScrews(ids?)` (one undo step, `{on: true}` per suggestion);
+  empty hint otherwise. 🗑 now removes the joint (`setScrewEdit(key,
+  null)`), "↺ Förslag" = `RESET` patch (keeps `on`). New projects carry
+  `project.screwsByHand: true`; `normalizeProject` migrates older saves
+  once (every suggested joint not switched off gets `on`, manual ones
+  kept). **Never into or through a sheet's edge** (owner 2026-11-23:
+  "too brittle"): `isSheetEdge(p, axis)` = sheet whose thickness axis
+  (`worldAxisOf(rotation, 1)`) isn't the screw axis; such pairs are no
+  suggestion, and Ny fog's `plan.sheetEdge` shows a red "Skivans kant är
+  för spröd" with no Lägg till.
 - **Steg för steg** (owner 2026-11-20: "I build groups first, then the
   whole; the step by step should only show the selected step",
   `src/lib/steps.ts`): each group with parts is a step (group order),

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { partBox, toAxisBox } from './geometry'
-import { chooseScrew, countJointEdit, flipJointEdit, jointStep, pilotBit, pointOffsets, planJoint, screwJoints, screwName, screwSections, screwTotals } from './screws'
+import { chooseScrew, countJointEdit, flipJointEdit, jointStep, pilotBit, pointOffsets, planJoint, RESET, screwJoints as joints, screwName, suggestedJoints, screwSections, screwTotals } from './screws'
+import type { ScrewEdit } from './screws'
+
+/** Every joint, suggestions too (the behaviour before joints became opt-in) */
+const screwJoints = (parts: Part[], edits: Record<string, ScrewEdit> = {}) => joints(parts, edits, { all: true })
 import type { Part, Vec3 } from './types'
 
 function at(id: string, profileId: string, length: number, rotation: Part['rotation'], min: Vec3, width?: number): Part {
@@ -366,5 +370,44 @@ describe('jointStep', () => {
     const top = { ...at('top', 'plywood-18', 1200, [0, 0, 0], [0, 90, 0], 95), groupId: 'skiva' }
     const steps = screwJoints([sill, rail, top]).map((j) => `${j.through.id}-${j.into.id}:${jointStep(j)}`).sort()
     expect(steps).toEqual(['sill-rail:ram', 'top-rail:montering'])
+  })
+})
+
+describe('joints are opt-in (2026-11-23)', () => {
+  const sill = at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+  const rail = at('rail', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 45, 0])
+
+  it('a new build has no joints, only suggestions; an edit takes one in', () => {
+    expect(joints([sill, rail])).toHaveLength(0)
+    const [s] = suggestedJoints([sill, rail])
+    expect(s.key).toBe('sill|rail')
+    expect(joints([sill, rail], { [s.key]: { on: true } })).toHaveLength(1)
+    expect(suggestedJoints([sill, rail], { [s.key]: { on: true } })).toHaveLength(0)
+    // ↺ Förslag clears the changes but keeps it in
+    expect(Object.keys({ on: true, ...RESET }).filter((k) => ({ on: true, ...RESET } as Record<string, unknown>)[k] !== undefined)).toEqual(['on'])
+  })
+
+  it('never screws into or through the edge of a sheet', () => {
+    // A 18 mm sheet standing on edge on a rail: the contact is the sheet's edge
+    const standing = at('side', 'plywood-18', 600, [1, 0, 0], [0, 45, 0], 95)
+    const all = screwJoints([sill, standing])
+    expect(all).toHaveLength(0)
+    // Tapping the rail's underside next to the standing sheet: blocked too
+    const plan = planJoint([sill, standing], 'sill', [300, 0, 9], [0, -1, 0])
+    expect(plan?.sheetEdge ?? true).toBe(true)
+  })
+})
+
+describe('older saves keep their screws', () => {
+  it('takes every suggested joint in, except ones switched off', async () => {
+    const { normalizeProject } = await import('./store')
+    const sill = at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+    const rail = at('rail', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 45, 0])
+    const top = at('top', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 90, 0])
+    const p = normalizeProject({ parts: [sill, rail, top], screwEdits: { 'rail|top': { off: true }, 'sill|rail': { count: 3 } } } as never)
+    expect(p.screwsByHand).toBe(true)
+    expect(p.screwEdits).toEqual({ 'sill|rail': { count: 3, on: true } })
+    // Already migrated: left alone
+    expect(normalizeProject({ ...p, screwEdits: {} }).screwEdits).toEqual({})
   })
 })

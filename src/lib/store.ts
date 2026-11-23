@@ -12,6 +12,7 @@ import { moveNextTo, moveToFloor } from './move'
 import { copyPlane, mirrorParts } from './mirror'
 import { toPhase } from './phases'
 import type { JointAnchor, ScrewEdit } from './screws'
+import { screwJoints, suggestedJoints } from './screws'
 import {
   halfLap,
   moveParts,
@@ -99,6 +100,8 @@ interface State {
   setScrewCount: (key: string, count: number | null) => void
   /** Hand edits to one joint, merged in (undefined/false fields go back to the suggestion); null removes them all */
   setScrewEdit: (key: string, patch: Partial<ScrewEdit> | null) => void
+  /** Take every suggested joint (among these parts, or all) into the build: one undo step */
+  fillScrews: (partIds?: string[]) => void
   /** Moving the selection: arrows in the view, taps put it next to a board */
   moveMode: boolean
   /** Placing boards of this profile: taps on the model place one each */
@@ -256,7 +259,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-const emptyProject = (): Project => ({ name: 'Nytt projekt', parts: [], groups: [], measurements: [] })
+const emptyProject = (): Project => ({ name: 'Nytt projekt', parts: [], groups: [], measurements: [], screwsByHand: true })
 
 /** Older saves and imported files may lack newer fields. */
 /** Hand screw edits; projects saved before 2026-11-22 had only counts (`screwCounts`) */
@@ -267,13 +270,28 @@ function screwEditsOf(p: Partial<Project> | undefined): Record<string, ScrewEdit
 }
 
 export function normalizeProject(p: Partial<Project> | undefined): Project {
+  const parts = p?.parts ?? []
+  let edits = screwEditsOf(p)
+  // Saved before joints became opt-in (2026-11-23): keep the screws it had —
+  // every suggested joint that wasn't switched off is taken in
+  if (!p?.screwsByHand && parts.length) {
+    const next: Record<string, ScrewEdit> = {}
+    for (const j of screwJoints(parts, edits ?? {}, { all: true })) {
+      const e = edits?.[j.key]
+      if (e?.off) continue
+      next[j.key] = { ...e, on: true }
+    }
+    for (const [k, e] of Object.entries(edits ?? {})) if (e.manual && !e.off) next[k] = e
+    edits = Object.keys(next).length ? next : undefined
+  }
   return {
     name: p?.name ?? 'Nytt projekt',
-    parts: p?.parts ?? [],
+    parts,
     groups: p?.groups ?? [],
     measurements: p?.measurements ?? [],
+    screwsByHand: true,
     ...(p?.purpose ? { purpose: p.purpose } : {}),
-    ...(screwEditsOf(p) ? { screwEdits: screwEditsOf(p) } : {}),
+    ...(edits ? { screwEdits: edits } : {}),
   }
 }
 
@@ -395,6 +413,14 @@ export const useStore = create<State>()(
         screwView: false,
         setScrewView: (screwView) => set({ screwView }),
         setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),
+        fillScrews: (partIds) =>
+          edit((snap) => {
+            const ids = partIds && new Set(partIds)
+            const next = { ...snap.screwEdits }
+            for (const j of suggestedJoints(snap.parts, snap.screwEdits ?? {}))
+              if (!ids || ids.has(j.through.id) || ids.has(j.into.id)) next[j.key] = { on: true }
+            return { ...snap, screwEdits: Object.keys(next).length ? next : undefined }
+          }),
         setScrewEdit: (key, patch) =>
           edit((snap) => {
             const next = { ...snap.screwEdits }

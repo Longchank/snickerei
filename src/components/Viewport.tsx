@@ -36,7 +36,7 @@ import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from 
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
-import { jointStep, planJoint, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointPlan, countJointEdit, flipJointEdit } from '../lib/screws'
+import { jointStep, planJoint, RESET, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointPlan, countJointEdit, flipJointEdit } from '../lib/screws'
 import { selectionOverlaps, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -1483,7 +1483,7 @@ function JointEditBar() {
             </div>
             <div className="rotate-buttons two">
               {joint.custom && !joint.manual ? (
-                <button onClick={() => setScrewEdit(joint.key, null)} title={`Tillbaka till förslaget (${joint.suggested} st)`}>
+                <button onClick={() => setScrewEdit(joint.key, RESET)} title={`Tillbaka till förslaget (${joint.suggested} st)`}>
                   ↺ Förslag
                 </button>
               ) : (
@@ -1492,13 +1492,11 @@ function JointEditBar() {
               <button
                 className="danger"
                 onClick={() => {
-                  if (joint.manual) {
-                    setScrewEdit(joint.key, null)
-                    close()
-                  } else setScrewEdit(joint.key, { off: true, points: undefined })
+                  setScrewEdit(joint.key, null)
+                  close()
                 }}
               >
-                🗑 {joint.manual ? 'Ta bort fogen' : 'Ta bort skruvarna'}
+                🗑 Ta bort fogen
               </button>
             </div>
           </>
@@ -1563,7 +1561,12 @@ function JointBar() {
         <BarHead icon={<span aria-hidden>🔩</span>} title="Ny fog" hint="Tryck på ytan där skruvarna ska in" onDone={() => setJointMode(false)} />
         {!draft && <p className="bar-hint small">Tryck på ytan där skruvarna ska in.</p>}
         {draft && !plan && <p className="bar-hint small warn">Ingen del bakom ytan — tryck på en yta som ligger mot en annan del.</p>}
-        {plan && draft && (
+        {plan?.sheetEdge && (
+          <p className="joint-reach small poke">
+            <span className="joint-parts">Skivans kant är för spröd — skruva genom skivans yta i stället.</span>
+          </p>
+        )}
+        {plan && draft && !plan.sheetEdge && (
           <>
             <p className={`joint-reach small ${status}`}>
               <span className="joint-parts">
@@ -1632,7 +1635,7 @@ function JointPreview() {
   const status = biteStatus(plan)
   const at = (p: Vec3, d: number) => [0, 1, 2].map((i) => p[i] + plan.dir[i] * d) as Vec3
   const reach = Math.min(plan.screw.length, plan.t + plan.depth)
-  const biteColor = status === 'short' ? '#d97706' : '#16a34a'
+  const biteColor = plan.sheetEdge ? '#dc2626' : status === 'short' ? '#d97706' : '#16a34a'
   return (
     <>
       {plan.points.map((p, k) => (

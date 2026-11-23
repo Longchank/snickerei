@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { jointStep, SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
+import { jointStep, RESET, SCREW_COLORS, screwJoints, suggestedJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
 import { useStore } from '../lib/store'
 import { Dot, MoreAboutScrews } from './ScrewList'
 import { Fold } from './Fold'
@@ -26,12 +26,14 @@ export function ScrewEditor() {
   const colorOf = new Map(totals.map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]]))
   const setJointMode = useStore((s) => s.setJointMode)
   const requestPanel = useStore((s) => s.requestPanel)
+  const activeStep = useStore((s) => s.activeStep)
+  const fillScrews = useStore((s) => s.fillScrews)
+  const suggestions = useMemo(() => suggestedJoints(parts, edits ?? {}), [parts, edits])
 
   if (parts.length < 2) return <p className="hint">Bygg något först — sedan kan du ändra skruvarna här.</p>
 
   // Something selected in 3D: only its joints
   const sel = new Set(selection)
-  const activeStep = useStore((s) => s.activeStep)
   const inStep = activeStep ? joints.filter((j) => jointStep(j) === activeStep) : joints
   const shown = selection.length ? inStep.filter((j) => sel.has(j.through.id) || sel.has(j.into.id)) : inStep
   const sections = screwSections(shown, groups)
@@ -42,7 +44,7 @@ export function ScrewEditor() {
     <div className="screw-editor">
       <div className="list-summary">
         <strong>
-          {count} skruv · {joints.filter((j) => j.count).length} fogar
+          {count} skruv · {joints.filter((j) => j.count).length} {joints.filter((j) => j.count).length === 1 ? 'fog' : 'fogar'}
         </strong>
         {changed > 0 && <span className="muted small">{changed} ändrade</span>}
         <button
@@ -55,6 +57,23 @@ export function ScrewEditor() {
           + Ny fog
         </button>
       </div>
+      {(() => {
+        // Suggested joints: for the selection if something is selected, else everywhere
+        const mine = selection.length ? suggestions.filter((j) => sel.has(j.through.id) || sel.has(j.into.id)) : suggestions
+        return (
+          <>
+            {joints.length === 0 && (
+              <p className="hint small">Inga fogar än. Tryck "+ Ny fog" och sedan på ytan där skruvarna ska in — eller låt appen fylla i.</p>
+            )}
+            {mine.length > 0 && (
+              <button className="fill-screws" onClick={() => fillScrews(selection.length ? selection : undefined)}>
+                ✦ Fyll i rekommenderade ({mine.length} {mine.length === 1 ? 'fog' : 'fogar'}
+                {selection.length ? ' för det markerade' : ''})
+              </button>
+            )}
+          </>
+        )
+      })()}
       {selection.length > 0 && (
         <p className="filter-line small">
           Visar fogar för det markerade ({shown.length}).{' '}
@@ -84,6 +103,10 @@ export function ScrewEditor() {
           ✦ = appens förslag. Ändra antal med − / +, välj en annan skruv i listan, eller tryck 🗑 för att ta bort skruvarna i en fog (t.ex. om den
           limmas). ↺ går tillbaka till förslaget. Markera en del i 3D för att bara se dess fogar. Tryck på en skruv i 3D,
           eller på fogens namn här, för att välja fogen och ändra den: antal, diagonal och skruv.
+        </p>
+        <p>
+          Ett nytt projekt har inga fogar — du lägger till dem. "✦ Fyll i rekommenderade" lägger in appens förslag på skruv i alla
+          fogar (eller det markerades). Skivor skruvas aldrig i kanten, den är för spröd.
         </p>
         <p>
           "+ Ny fog": tryck på ytan där skruvarna ska in — delen bakom hittas själv. Skruvarna hamnar där du trycker; välj antal, diagonal och
@@ -158,15 +181,15 @@ function JointRow({ j, color }: { j: Joint; color?: string }) {
             </button>
           </span>
           {j.custom && !j.manual && (
-            <button className="icon-btn" title={`Tillbaka till förslaget (${j.suggested} st)`} aria-label="Tillbaka till förslaget" onClick={() => setScrewEdit(j.key, null)}>
+            <button className="icon-btn" title={`Tillbaka till förslaget (${j.suggested} st)`} aria-label="Tillbaka till förslaget" onClick={() => setScrewEdit(j.key, RESET)}>
               ↺
             </button>
           )}
           <button
             className="icon-btn danger"
-            title={j.manual ? 'Ta bort fogen' : 'Ingen skruv i den här fogen'}
-            aria-label={j.manual ? 'Ta bort fogen' : 'Ta bort skruvarna'}
-            onClick={() => setScrewEdit(j.key, j.manual ? null : { off: true })}
+            title="Ta bort fogen"
+            aria-label="Ta bort fogen"
+            onClick={() => setScrewEdit(j.key, null)}
           >
             🗑
           </button>

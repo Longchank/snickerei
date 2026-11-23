@@ -11,7 +11,7 @@ function at(id: string, length: number, rotation: Part['rotation'], min: Vec3, p
   const b = toAxisBox(partBox(p))
   return { ...p, position: [0, 1, 2].map((i) => min[i] - b.min[i]) as Vec3 }
 }
-const check = (parts: Part[]) => runChecks(parts, analyse(parts, 'forvaring'), screwJoints(parts), purchasePlan(parts, [], 3))
+const check = (parts: Part[]) => runChecks(parts, analyse(parts, 'forvaring'), screwJoints(parts, {}, { all: true }), purchasePlan(parts, [], 3))
 
 describe('runChecks', () => {
   it('finds a collision, with a marker inside the overlap and a fix in Bygg', () => {

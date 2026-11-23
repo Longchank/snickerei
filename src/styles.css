@@ -2944,3 +2944,14 @@ button.bar-close {
   place-items: center;
   font-size: 18px;
 }
+
+/* "✦ Fyll i rekommenderade": the app's suggested joints, taken in at once */
+button.fill-screws {
+  width: 100%;
+  min-height: 42px;
+  margin: 6px 0;
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-weight: 600;
+}

@@ -159,6 +159,8 @@ export interface Project {
   measurements: Measurement[]
   /** Hand edits to screw joints ("through|into" part ids): count, size, off, added by hand */
   screwEdits?: Record<string, ScrewEdit>
+  /** Joints are only those taken in or added by hand (since 2026-11-23); older saves are migrated */
+  screwsByHand?: boolean
   /** What it's for (Analys); unset = Förvaring */
   purpose?: Purpose
 }
