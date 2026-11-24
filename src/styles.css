@@ -2995,3 +2995,12 @@ button.fill-screws {
   white-space: nowrap;
   flex: 0 1 auto;
 }
+
+/* Fog: screw from the other side */
+button.reverse-joint {
+  min-height: 40px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

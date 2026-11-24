@@ -12,7 +12,7 @@ import { moveNextTo, moveToFloor } from './move'
 import { copyPlane, mirrorParts } from './mirror'
 import { toPhase } from './phases'
 import type { JointAnchor, ScrewEdit } from './screws'
-import { planScrews, screwJoints } from './screws'
+import { planScrews, reverseEdits, screwJoints } from './screws'
 import {
   halfLap,
   moveParts,
@@ -102,6 +102,8 @@ interface State {
   setScrewEdit: (key: string, patch: Partial<ScrewEdit> | null) => void
   /** Take every suggested joint (among these parts, or all) into the build: one undo step */
   fillScrews: (partIds?: string[]) => void
+  /** The joint's screws go in from the other side (returns the joint's new key) */
+  reverseJoint: (key: string) => string
   /** Moving the selection: arrows in the view, taps put it next to a board */
   moveMode: boolean
   /** Placing boards of this profile: taps on the model place one each */
@@ -413,6 +415,14 @@ export const useStore = create<State>()(
         screwView: false,
         setScrewView: (screwView) => set({ screwView }),
         setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),
+        reverseJoint: (key) => {
+          const [a, b] = key.split('|')
+          edit((snap) => {
+            const next = reverseEdits(snap.screwEdits ?? {}, key)
+            return { ...snap, screwEdits: Object.keys(next).length ? next : undefined }
+          })
+          return `${b}|${a}`
+        },
         fillScrews: (partIds) =>
           edit((snap) => {
             // Planned as a whole: build order, no screws into each other, no needless end-grain joints

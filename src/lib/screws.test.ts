@@ -438,3 +438,45 @@ describe('planScrews (✦ Fyll i rekommenderade)', () => {
     }
   })
 })
+
+describe('screws go in from the outside', () => {
+  it('a new joint is screwed through the part on the outside of the build, else the thinner one', () => {
+    // A 45 mm rail on its side against a 95-wide board standing on edge: the rail is outside (x = 0)
+    const rail = at('rail', 'konstruktion-45x95', 1000, [0, 0, 0], [0, 0, 0])
+    const plank = at('plank', 'konstruktion-45x95', 1000, [0, 0, 0], [0, 45, 0])
+    // Thin top on a thick block in the middle of a tall build: neither outside → the thinner (sheet)
+    const [j] = joints([rail, plank], {}, { all: true })
+    expect(j.through.id).toBe('rail') // both outside → thinner/first; sanity
+    const post = at('post', 'konstruktion-45x95', 1200, [0, 0, 1], [2000, 0, 0])
+    const block = at('block', 'konstruktion-45x95', 300, [0, 0, 0], [0, 400, 0])
+    const top = at('top', 'plywood-18', 300, [0, 0, 0], [0, 445, 0], 95)
+    const shelf = joints([post, block, top], {}, { all: true }).find((x) => [x.through.id, x.into.id].includes('top'))!
+    expect(shelf.through.id).toBe('top')
+    // A board under a sheet that is the build's top: the sheet is outside, screwed down
+    const low = at('low', 'konstruktion-45x95', 300, [0, 0, 0], [0, 0, 0])
+    const lid = at('lid', 'plywood-18', 300, [0, 0, 0], [0, 45, 0], 95)
+    expect(joints([low, lid], {}, { all: true })[0].through.id).toBe('lid')
+    // A thick block on top of a thin shelf, the block being the top of the build: screwed down
+    // through the block (outside), not up through the thinner shelf
+    const short = at('post', 'konstruktion-45x95', 400, [0, 0, 1], [2000, 0, 0])
+    const shelf2 = at('shelf', 'plywood-18', 300, [0, 0, 0], [0, 400, 0], 95)
+    const block2 = at('block', 'konstruktion-45x95', 200, [0, 0, 0], [50, 418, 0])
+    const k = joints([short, shelf2, block2], {}, { all: true }).find((x) => [x.through.id, x.into.id].includes('block'))!
+    expect(k.through.id).toBe('block')
+  })
+
+  it('reverses a joint by moving its edit to the other key; end grain can’t be reversed', async () => {
+    const { reverseEdits } = await import('./screws')
+    const sill = at('sill', 'konstruktion-45x95', 1200, [0, 0, 0], [0, 0, 0])
+    const rail = at('rail', 'konstruktion-45x95', 600, [0, 1, 0], [300, 45, -200])
+    const [j] = joints([sill, rail], {}, { all: true })
+    const edits = { [j.key]: { on: true, count: 3, points: [[1, 2, 3]] as Vec3[] } }
+    const rev = reverseEdits(edits, j.key)
+    const [r] = joints([sill, rail], rev)
+    expect(r.key).toBe(`${j.into.id}|${j.through.id}`)
+    expect(r.through.id).toBe(j.into.id)
+    expect(r.count).toBe(3)
+    expect(r.placed).toBe(false)
+    expect(j.canReverse).toBe(true)
+  })
+})

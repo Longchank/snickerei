@@ -573,6 +573,18 @@ comments in English).
   leg screws. `screwClashes(joints)` also feeds a Kontroll warning
   "Skruvar krockar" (fix in Montering), and Ny fog warns "⚠ Krockar med
   skruvarna i …" before adding.
+  **From the outside in** (owner 2026-11-24: "screws should come from
+  the outside in at assembly, it's easier to screw"): a new joint's
+  through part is the one whose free side lies on the outside of its
+  group's box (joints inside a group) or of the whole build (assembly
+  joints); if both or neither are outside, the thinner one (as before).
+  A joint already in the build keeps its direction: the edit's key
+  ("through|into") decides, checked in both orders, so older saves are
+  unchanged. **"⇅ Skruva genom X i stället"** in the joint editor
+  (`reverseJoint(key)` → `reverseEdits`: the edit moves to the reversed
+  key, hand-placed points dropped; undoable; `screwFocus` follows the
+  new key); disabled when the part behind is end grain
+  (`Joint.canReverse = !endGrain`).
 - **Steg för steg** (owner 2026-11-20: "I build groups first, then the
   whole; the step by step should only show the selected step",
   `src/lib/steps.ts`): each group with parts is a step (group order),

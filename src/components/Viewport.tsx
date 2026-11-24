@@ -1423,6 +1423,7 @@ function JointEditBar() {
   const parts = useStore((s) => s.project.parts)
   const edits = useStore((s) => s.project.screwEdits)
   const setScrewEdit = useStore((s) => s.setScrewEdit)
+  const reverseJoint = useStore((s) => s.reverseJoint)
   const joint = useMemo(() => (focus ? screwJoints(parts, edits).find((j) => j.key === focus.key) : undefined), [focus, parts, edits])
   if (!focus || !joint) return null
   const edit = edits?.[joint.key]
@@ -1479,6 +1480,14 @@ function JointEditBar() {
                 ))}
               </select>
             </div>
+            <button
+              className="reverse-joint"
+              disabled={!joint.canReverse}
+              title={joint.canReverse ? 'Skruva från andra sidan' : 'Går inte: skruven skulle gå in i ändträ'}
+              onClick={() => focusScrew({ key: reverseJoint(joint.key), index: 0 })}
+            >
+              ⇅ Skruva genom {joint.into.name} i stället
+            </button>
             <div className="rotate-buttons two">
               {joint.custom && !joint.manual ? (
                 <button onClick={() => setScrewEdit(joint.key, RESET)} title={`Tillbaka till förslaget (${joint.suggested} st)`}>

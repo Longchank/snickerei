@@ -66,6 +66,8 @@ export interface Joint {
   /** Screws placed by hand (Ny fog, or moved one by one) rather than spread out */
   placed: boolean
   flip: boolean
+  /** The screws can go in from the other side too (not when the part behind is end grain) */
+  canReverse: boolean
   /** Where the screw heads go: on the outer face of the part screwed through */
   points: Vec3[]
   /** The rule-of-thumb count; `count` differs when set by hand (0 when switched off) */
@@ -321,6 +323,7 @@ function buildJoint(
     depth,
     placed: !!placed,
     flip: !!edit?.flip,
+    canReverse: !endGrain,
   }
 }
 
@@ -359,6 +362,17 @@ function manualContact(tb: AxisBox, ib: AxisBox): { axis: Axis; box: AxisBox } {
 export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}, opts: { all?: boolean } = {}): Joint[] {
   const boxes = new Map(parts.map((p) => [p.id, boxOf(p)]))
   const out: Joint[] = []
+  // Outer boxes: of each group (its own joints are screwed before assembly) and of the whole build
+  const unionOf = (ps: Part[]): AxisBox | null =>
+    ps.length
+      ? ps.map((p) => boxes.get(p.id)!).reduce((u, b) => ({
+          min: u.min.map((v, i) => Math.min(v, b.min[i])) as Vec3,
+          max: u.max.map((v, i) => Math.max(v, b.max[i])) as Vec3,
+        }))
+      : null
+  const whole = unionOf(parts)
+  const groupBox = new Map<string, AxisBox>()
+  for (const id of new Set(parts.map((p) => p.groupId).filter(Boolean) as string[])) groupBox.set(id, unionOf(parts.filter((p) => p.groupId === id))!)
   for (let i = 0; i < parts.length; i++)
     for (let j = i + 1; j < parts.length; j++) {
       const a = parts[i]
@@ -373,7 +387,19 @@ export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}
       if (!cand.length) continue // two boards end to end: not a screwed joint
       // Never into or through a sheet's edge
       if (isSheetEdge(a, n) || isSheetEdge(b, n)) continue
-      const through = cand.sort((x, y) => size(boxes.get(x.id)!, n) - size(boxes.get(y.id)!, n))[0]
+      // A joint already in the build keeps the direction it was given (its key); a new one is
+      // screwed from the outside in (owner 2026-11-24: easier to reach) — the part whose free
+      // side is on the outside of its group (own joints) or of the build (assembly);
+      // otherwise (both or neither outside) the thinner part
+      const keyed = cand.find((t) => edits[jointKey(t, t === a ? b : a)])
+      const outer = (a.groupId && a.groupId === b.groupId ? groupBox.get(a.groupId) : whole)!
+      const ab = boxes.get(a.id)!
+      const bb = boxes.get(b.id)!
+      const aBelow = (ab.min[n] + ab.max[n]) / 2 < (bb.min[n] + bb.max[n]) / 2
+      const toOutside = (p: Part) => (p === a) === aBelow ? boxes.get(p.id)!.min[n] - outer.min[n] : outer.max[n] - boxes.get(p.id)!.max[n]
+      const through =
+        keyed ??
+        cand.sort((x, y) => Number(toOutside(x) > 1) - Number(toOutside(y) > 1) || size(boxes.get(x.id)!, n) - size(boxes.get(y.id)!, n))[0]
       const into = through === a ? b : a
       const edit = edits[jointKey(through, into)]
       if (!opts.all && !edit) continue // a suggestion, not taken in
@@ -792,4 +818,16 @@ export function planScrews(
     out[j.key] = moved ? { on: true, points: pointOffsets(j, pts) } : { on: true }
   }
   return out
+}
+
+/** Screws from the other side: the joint's edit moves to the reversed key (hand-placed spots are dropped) */
+export function reverseEdits(edits: Record<string, ScrewEdit>, key: string): Record<string, ScrewEdit> {
+  const e = edits[key]
+  if (!e) return edits
+  const [a, b] = key.split('|')
+  const { points: _drop, ...rest } = e
+  const next = { ...edits }
+  delete next[key]
+  next[`${b}|${a}`] = Object.keys(rest).length ? rest : { on: true }
+  return next
 }
