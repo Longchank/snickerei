@@ -145,3 +145,7 @@ state. Ingen backend än.
 - "Visa på Hornbach"-länk för att själv slå upp och skriva in priset.
 - Fler bygghandlare (Byggmax, Beijer, XL-Bygg, K-Rauta …) — kolla varje
   sajts villkor och robots.txt först.
+
+## Ikoner
+
+Vanliga ikoner kommer från [Lucide](https://lucide.dev) (ISC-licens, © Lucide Contributors).

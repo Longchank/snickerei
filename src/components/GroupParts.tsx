@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Ic, L } from './Icons'
 import { getProfile, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
 import type { Part } from '../lib/types'
@@ -103,10 +104,10 @@ export function GroupParts() {
               </span>
               <span className="step-move">
                 <button aria-label={`Flytta ${p.name} tidigare`} disabled={i === 0} onClick={() => move(i, -1)}>
-                  ↑
+                  <Ic i={L.up} />
                 </button>
                 <button aria-label={`Flytta ${p.name} senare`} disabled={i === list.length - 1} onClick={() => move(i, 1)}>
-                  ↓
+                  <Ic i={L.down} />
                 </button>
               </span>
             </li>

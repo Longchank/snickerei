@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Ic, L } from './Icons'
 import { getProfile, shortName } from '../lib/catalog'
 import { ASSEMBLY, buildSteps } from '../lib/steps'
 import { useStore } from '../lib/store'
@@ -92,13 +93,13 @@ export function StepList() {
               {isGroup && (
                 <span className="step-move">
                   <button aria-label={`Redigera ${s.title}`} title="Byt namn och ordning på delarna" onClick={() => editGroup(s.id)}>
-                    ✎
+                    <Ic i={L.edit} />
                   </button>
                   <button aria-label={`Flytta ${s.title} tidigare`} disabled={i === 0} onClick={() => move(i, -1)}>
-                    ↑
+                    <Ic i={L.up} />
                   </button>
                   <button aria-label={`Flytta ${s.title} senare`} disabled={i === groupSteps.length - 1} onClick={() => move(i, 1)}>
-                    ↓
+                    <Ic i={L.down} />
                   </button>
                 </span>
               )}

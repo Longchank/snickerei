@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Ic, L } from './Icons'
 import { zoomToParts } from './Viewport'
 import { Info } from './Info'
 import { runChecks, type Issue } from '../lib/checks'
@@ -90,7 +91,7 @@ export function Checklist() {
                     zoomToParts(i.partIds)
                   }}
                 >
-                  ◎
+                  <Ic i={L.showIn3d} />
                 </button>
               )}
               {i.fix !== 'inkop' && (
@@ -107,7 +108,7 @@ export function Checklist() {
                     }
                   }}
                 >
-                  → {fix.n}
+                  <Ic i={L.next} /> {fix.n}
                 </button>
               )}
               {open === i.id && <p className="check-detail small">{i.detail}</p>}

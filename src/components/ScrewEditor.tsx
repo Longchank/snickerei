@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Ic, L } from './Icons'
 import { jointStep, planScrews, RESET, SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
 import { useStore } from '../lib/store'
 import { Dot, MoreAboutScrews } from './ScrewList'
@@ -58,7 +59,7 @@ export function ScrewEditor() {
             requestPanel(false)
           }}
         >
-          + Ny fog
+          <Ic i={L.plus} /> Ny fog
         </button>
       </div>
       {(() => {
@@ -155,7 +156,7 @@ function JointRow({ j, color }: { j: Joint; color?: string }) {
         <div className="edit-joint-row">
           <span className="muted small">Ingen skruv</span>
           <button className="link" onClick={() => setScrewEdit(j.key, { off: undefined })}>
-            ↺ Skruva igen
+            <Ic i={L.reset} /> Skruva igen
           </button>
         </div>
       ) : (
@@ -178,16 +179,16 @@ function JointRow({ j, color }: { j: Joint; color?: string }) {
           </select>
           <span className="screw-stepper" role="group" aria-label={`Antal, ${j.through.name} → ${j.into.name}`}>
             <button aria-label="Färre skruv" disabled={j.count <= 1} onClick={() => setScrewEdit(j.key, { count: j.count - 1, points: undefined })}>
-              −
+              <Ic i={L.minus} />
             </button>
             <strong>{j.count}</strong>
             <button aria-label="Fler skruv" disabled={j.count >= 20} onClick={() => setScrewEdit(j.key, { count: j.count + 1, points: undefined })}>
-              +
+              <Ic i={L.plus} />
             </button>
           </span>
           {j.custom && !j.manual && (
             <button className="icon-btn" title={`Tillbaka till förslaget (${j.suggested} st)`} aria-label="Tillbaka till förslaget" onClick={() => setScrewEdit(j.key, RESET)}>
-              ↺
+              <Ic i={L.reset} />
             </button>
           )}
           <button
@@ -196,7 +197,7 @@ function JointRow({ j, color }: { j: Joint; color?: string }) {
             aria-label="Ta bort fogen"
             onClick={() => setScrewEdit(j.key, null)}
           >
-            🗑
+            <Ic i={L.trash} />
           </button>
         </div>
       )}

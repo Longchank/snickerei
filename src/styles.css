@@ -2223,16 +2223,8 @@ details.info > summary::-webkit-details-marker {
   display: none;
 }
 .info-i {
-  display: inline-grid;
-  place-items: center;
   width: 18px;
   height: 18px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  font-size: 11px;
-  font-weight: 700;
-  font-style: italic;
-  font-family: Georgia, serif;
 }
 .info-body {
   padding: 2px 0 4px;
@@ -3037,4 +3029,14 @@ button.step-n {
   min-height: 40px;
   width: 40px;
   height: 40px;
+}
+
+/* Lucide icons (Icons.tsx `Ic`): sized to the text, sit on the baseline next to a label */
+svg.ic {
+  flex: none;
+  vertical-align: -0.18em;
+}
+button svg.ic + *,
+button > svg.ic:not(:only-child) {
+  margin-right: 0.3em;
 }

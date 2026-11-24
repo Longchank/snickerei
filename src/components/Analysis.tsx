@@ -1,4 +1,5 @@
 import { Info } from './Info'
+import { Ic, L } from './Icons'
 import { zoomToParts } from './Viewport'
 import { useEffect, useMemo, useState } from 'react'
 import { PURPOSES, STATUS_COLOR, STATUS_LABEL, analyse, type Status } from '../lib/strength'
@@ -57,7 +58,7 @@ export function Analysis() {
       </div>
       <div className="analysis-tools">
         <button className={`chip view-toggle ${analysisView ? 'on' : ''}`} aria-pressed={analysisView} onClick={() => setAnalysisView(!analysisView)}>
-          {analysisView ? '✓ Färg i 3D' : '🎨 Färg i 3D'}
+          <Ic i={analysisView ? L.ok : L.colour} /> Färg i 3D
         </button>
         <Info label={`${preset.kgPerM2} kg/m²`}>
           Räknar med {preset.kgPerM2} kg/m² på fria ytor ({preset.hint})
@@ -199,7 +200,7 @@ export function Analysis() {
         <p className="hint small">Markera en del för att se fritt utrymme runt den och riktvärden, t.ex. bordshöjd.</p>
       )}
       <button className="analysis-measure" onClick={() => setMeasureMode(true)}>
-        📏 Mät mellan ytor
+        <Ic i={L.measure} /> Mät mellan ytor
       </button>
     </div>
   )

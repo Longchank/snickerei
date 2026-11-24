@@ -1,119 +1,170 @@
 /**
- * Line icons for the 3D view's tools, drawn like the ⤢ / ⛶ glyphs next to
- * them: thin strokes in the current text colour (shapes after Lucide, ISC).
+ * Icons (owner 2026-11-24): common functions use Lucide (lucide-react, ISC
+ * licence) — thin round line icons, the style of the owner's reference
+ * picture. Woodworking-specific functions (boards, screws, joints, ends,
+ * frames …) get icons the owner draws; until then they keep their current
+ * glyphs. The step buttons stay as plain numbers.
+ *
+ * `Ic` is the one way to draw a Lucide icon: same stroke everywhere, sized
+ * to the text (1.15em) unless a size is given, hidden from screen readers
+ * (the button carries the label).
  */
 import type { ReactNode } from 'react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  ClipboardList,
+  Copy,
+  Crosshair,
+  Expand,
+  Eye,
+  EyeOff,
+  FileInput,
+  FileOutput,
+  FilePlus,
+  FlipHorizontal,
+  FlipVertical2,
+  Focus,
+  Footprints,
+  Group,
+  History,
+  Info,
+  ListOrdered,
+  Lock,
+  LockOpen,
+  Magnet,
+  Menu,
+  Minus,
+  Move,
+  MoveDiagonal,
+  MoveHorizontal,
+  MoveVertical,
+  Palette,
+  Pencil,
+  Plus,
+  Printer,
+  Redo2,
+  Repeat2,
+  RotateCw,
+  Ruler,
+  RulerDimensionLine,
+  ScanEye,
+  ScanSearch,
+  SlidersHorizontal,
+  SquareDashedMousePointer,
+  Tag,
+  Trash2,
+  TriangleAlert,
+  Undo2,
+  Ungroup,
+  WandSparkles,
+  Wrench,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 
+export const STROKE = 1.75
+
+/** A Lucide icon in the app's style */
+export function Ic({ i: I, size, className }: { i: LucideIcon; size?: number; className?: string }) {
+  return <I className={`ic ${className ?? ''}`} size={size ?? '1.15em'} strokeWidth={STROKE} absoluteStrokeWidth={false} aria-hidden />
+}
+
+/** The Lucide icons the app uses, by function */
+export const L = {
+  undo: Undo2,
+  redo: Redo2,
+  menu: Menu,
+  newProject: FilePlus,
+  print: Printer,
+  export: FileOutput,
+  import: FileInput,
+  dims: RulerDimensionLine,
+  freeMove: Move,
+  snap: Magnet,
+  add: Plus,
+  steps: ListOrdered,
+  check: ClipboardCheck,
+  lists: ClipboardList,
+  prices: Tag,
+  fit: ScanSearch,
+  fullscreen: Expand,
+  tools: SlidersHorizontal,
+  close: X,
+  measure: Ruler,
+  stepByStep: Footprints,
+  xray: ScanEye,
+  hide: EyeOff,
+  show: Eye,
+  isolate: Focus,
+  lock: Lock,
+  unlock: LockOpen,
+  group: Group,
+  ungroup: Ungroup,
+  move: Move,
+  rotate: RotateCw,
+  mirror: FlipVertical2,
+  flipInPlace: FlipHorizontal,
+  copy: Copy,
+  trash: Trash2,
+  selectSimilar: SquareDashedMousePointer,
+  otherDirection: Repeat2,
+  axisSide: MoveHorizontal,
+  axisDepth: MoveDiagonal,
+  axisHeight: MoveVertical,
+  smartest: WandSparkles,
+  flip: ArrowUpDown,
+  colour: Palette,
+  edit: Pencil,
+  up: ArrowUp,
+  down: ArrowDown,
+  reset: History,
+  minus: Minus,
+  plus: Plus,
+  ok: Check,
+  prev: ChevronLeft,
+  next: ChevronRight,
+  showIn3d: Crosshair,
+  fix: Wrench,
+  info: Info,
+  warning: TriangleAlert,
+} satisfies Record<string, LucideIcon>
+
+const tool = (i: LucideIcon) => () => <Ic i={i} size={22} className="tool-icon" />
+
+// The 3D view's tool menu and the Bygg action bar (names kept from before)
+export const IconTools = tool(L.tools)
+export const IconClose = tool(L.close)
+export const IconRuler = tool(L.measure)
+export const IconSteps = tool(L.stepByStep)
+export const IconXray = tool(L.xray)
+export const IconHide = tool(L.hide)
+export const IconShow = tool(L.show)
+export const IconIsolate = tool(L.isolate)
+export const IconLock = tool(L.lock)
+export const IconUnlock = tool(L.unlock)
+export const IconGroup = tool(L.group)
+export const IconUngroup = tool(L.ungroup)
+export const IconMove = tool(L.move)
+export const IconRotate = tool(L.rotate)
+export const IconMirror = tool(L.mirror)
+export const IconCopy = tool(L.copy)
+export const IconTrash = tool(L.trash)
+
+/** Woodworking-specific: drawn by hand until the owner's own icon arrives */
 function Svg({ children }: { children: ReactNode }) {
   return (
-    <svg className="tool-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg className="tool-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       {children}
     </svg>
   )
 }
 
-export const IconTools = () => (
-  <Svg>
-    <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
-    <circle cx="16" cy="7" r="2" />
-    <circle cx="10" cy="17" r="2" />
-  </Svg>
-)
-export const IconClose = () => (
-  <Svg>
-    <path d="M6 6l12 12M18 6L6 18" />
-  </Svg>
-)
-export const IconRuler = () => (
-  <Svg>
-    <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z" />
-    <path d="m14.5 12.5 2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2" />
-  </Svg>
-)
-export const IconSteps = () => (
-  <Svg>
-    <path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
-  </Svg>
-)
-export const IconXray = () => (
-  <Svg>
-    <path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7Z" />
-    <path d="M3.3 7 12 12l8.7-5M12 22V12" strokeDasharray="2 2.5" />
-  </Svg>
-)
-export const IconHide = () => (
-  <Svg>
-    <path d="M9.9 9.9a3 3 0 1 0 4.2 4.2M10.7 5.1A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13 13 0 0 1-1.7 2.7M6.6 6.6A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6M2 2l20 20" />
-  </Svg>
-)
-export const IconShow = () => (
-  <Svg>
-    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z" />
-    <circle cx="12" cy="12" r="3" />
-  </Svg>
-)
-export const IconIsolate = () => (
-  <Svg>
-    <circle cx="12" cy="12" r="7" />
-    <circle cx="12" cy="12" r="2.5" />
-    <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-  </Svg>
-)
-export const IconLock = () => (
-  <Svg>
-    <rect x="4" y="11" width="16" height="10" rx="2" />
-    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-  </Svg>
-)
-export const IconUnlock = () => (
-  <Svg>
-    <rect x="4" y="11" width="16" height="10" rx="2" />
-    <path d="M8 11V7a4 4 0 0 1 7.8-1.2" />
-  </Svg>
-)
-export const IconGroup = () => (
-  <Svg>
-    <rect x="3" y="3" width="8" height="8" rx="1" />
-    <rect x="13" y="13" width="8" height="8" rx="1" />
-    <path d="M7 15v4a2 2 0 0 0 2 2h2M17 9V5a2 2 0 0 0-2-2h-2" />
-  </Svg>
-)
-export const IconUngroup = () => (
-  <Svg>
-    <rect x="3" y="3" width="8" height="8" rx="1" />
-    <rect x="13" y="13" width="8" height="8" rx="1" />
-    <path d="M14 4l6 6M20 4l-6 6" />
-  </Svg>
-)
-export const IconMove = () => (
-  <Svg>
-    <path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3" />
-  </Svg>
-)
-export const IconRotate = () => (
-  <Svg>
-    <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
-    <path d="M21 3v5h-5" />
-  </Svg>
-)
-export const IconMirror = () => (
-  <Svg>
-    <path d="M12 3v18" strokeDasharray="2 2.5" />
-    <path d="M9 7 3 17h6V7ZM15 7l6 10h-6V7Z" />
-  </Svg>
-)
-export const IconCopy = () => (
-  <Svg>
-    <rect x="9" y="9" width="12" height="12" rx="2" />
-    <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
-  </Svg>
-)
-export const IconTrash = () => (
-  <Svg>
-    <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" />
-  </Svg>
-)
-/** A screw: head, threaded shank, point */
 export const IconScrew = () => (
   <Svg>
     <path d="M7 4h10" />

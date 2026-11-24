@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Ic, L } from './Icons'
 import { zoomToParts } from './Viewport'
 import { getProfile, hasGrain } from '../lib/catalog'
 import { findCornerPartner } from '../lib/corner'
@@ -87,11 +88,11 @@ function SinglePart({ part }: { part: Part }) {
               zoomToParts(ids)
             }}
           >
-            ▣ {group.name}
+            <Ic i={L.group} /> {group.name}
           </button>
         )}
         <button className="icon" onClick={clearSelection} aria-label="Avmarkera">
-          ✕
+          <Ic i={L.close} />
         </button>
       </div>
       {prof.kind === 'sheet' && sheetSizes.length > 0 && (
@@ -197,7 +198,7 @@ function Joints({ part }: { part: Part }) {
         <div key={i} className="notch">
           <span className="small">{describeNotch(part, n)}</span>
           <button className="link" aria-label="Ta bort urtaget" onClick={() => removeNotch(part.id, i)}>
-            ✕
+            <Ic i={L.close} />
           </button>
         </div>
       ))}
@@ -270,7 +271,7 @@ function Ends({ part }: { part: Part }) {
               <div className="end-angle">
                 <NumberField value={angle} min={0} suffix="°" onCommit={(a) => set(cut.plane, Math.min(80, a), sign)} />
                 <button onClick={() => set(cut.plane, angle, -sign)} title="Vänd vinkeln åt andra hållet" aria-label="Vänd vinkeln">
-                  ⇅
+                  <Ic i={L.flip} />
                 </button>
               </div>
             )}
@@ -355,7 +356,7 @@ function MultipleParts({ parts }: { parts: Part[] }) {
           <strong className="selection-count">{parts.length} delar markerade</strong>
         )}
         <button className="icon" onClick={clearSelection} aria-label="Avmarkera">
-          ✕
+          <Ic i={L.close} />
         </button>
       </div>
       <p className="hint small names-line" title={parts.map((p) => p.name).join(', ')}>

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Ic, L } from './components/Icons'
+import type { ReactNode } from 'react'
 import { Catalog, PartList } from './components/Catalog'
 import { StepList } from './components/StepList'
 import { GroupParts } from './components/GroupParts'
@@ -17,16 +19,16 @@ import type { Phase } from './lib/types'
 
 type Tab = 'lagg' | 'delar' | 'del' | 'analys' | 'steg' | 'skruv' | 'koll' | 'lista' | 'priser'
 
-const TAB_INFO: Record<Tab, { label: string; icon: string; desktop: string }> = {
-  lagg: { label: 'Lägg till', icon: '＋', desktop: 'Lägg till' },
+const TAB_INFO: Record<Tab, { label: string; icon: ReactNode; desktop: string }> = {
+  lagg: { label: 'Lägg till', icon: <Ic i={L.add} />, desktop: 'Lägg till' },
   delar: { label: 'Delar', icon: '▤', desktop: 'Delar och grupper' },
   del: { label: 'Del', icon: '✎', desktop: 'Egenskaper' },
   analys: { label: 'Analys', icon: '◎', desktop: 'Analys' },
-  steg: { label: 'Steg', icon: '🪜', desktop: 'Steg för steg' },
+  steg: { label: 'Steg', icon: <Ic i={L.steps} />, desktop: 'Steg för steg' },
   skruv: { label: 'Skruv', icon: '🔩', desktop: 'Ändra skruv' },
-  koll: { label: 'Kontroll', icon: '✓', desktop: 'Kontroll' },
-  lista: { label: 'Listor', icon: '☰', desktop: 'Såg- och inköpslista' },
-  priser: { label: 'Priser', icon: 'kr', desktop: 'Priser' },
+  koll: { label: 'Kontroll', icon: <Ic i={L.check} />, desktop: 'Kontroll' },
+  lista: { label: 'Listor', icon: <Ic i={L.lists} />, desktop: 'Såg- och inköpslista' },
+  priser: { label: 'Priser', icon: <Ic i={L.prices} />, desktop: 'Priser' },
 }
 
 /** The panels of each step of the build (phases.ts) */

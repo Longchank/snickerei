@@ -18,6 +18,7 @@ import {
   Vector3,
 } from 'three'
 import type { Group } from 'three'
+import type { LucideIcon } from 'lucide-react'
 import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { getProfile, hasGrain, PROFILES, shortName } from '../lib/catalog'
@@ -30,7 +31,7 @@ import { scaleFaces, sizeAlong } from '../lib/scale'
 import { buildSteps, isShown, type Step } from '../lib/steps'
 import { similarChoices } from '../lib/select'
 import { phaseInfo } from '../lib/phases'
-import { IconCopy, IconGroup, IconMirror, IconMove, IconRotate, IconTrash, IconUngroup, IconClose, IconHide, IconIsolate, IconLock, IconRuler, IconShow, IconSteps, IconTools, IconUnlock, IconXray, IconScrew } from './Icons'
+import { IconCopy, IconGroup, IconMirror, IconMove, IconRotate, IconTrash, IconUngroup, IconClose, IconHide, IconIsolate, IconLock, IconRuler, IconShow, IconSteps, IconTools, IconUnlock, IconXray, IconScrew, Ic, L } from './Icons'
 import { useChecks } from './Checklist'
 import { Fold } from './Fold'
 import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from '../lib/frame'
@@ -1147,11 +1148,11 @@ function ActionBar() {
           <strong>{label}</strong>
           {similar.map((c) => (
             <button key={c.kind} className="chip similar" onClick={() => select(c.ids)} title="Markera alla likadana delar">
-              ▣ {c.kind === 'size' ? `${profileName}×${sizeName}` : profileName} ({c.ids.length})
+              <Ic i={L.selectSimilar} /> {c.kind === 'size' ? `${profileName}×${sizeName}` : profileName} ({c.ids.length})
             </button>
           ))}
           <button className="link" onClick={clearSelection} aria-label="Avmarkera">
-            ✕
+            <Ic i={L.close} />
           </button>
         </div>
         <div className="action-buttons">
@@ -1210,7 +1211,7 @@ function ActionBar() {
         )}
         {canReorient && (
           <button className="switch-butt" onClick={reorientSelection} title="Prova nästa sätt att sätta brädan där den sitter">
-            ⟳ Annan riktning
+            <Ic i={L.otherDirection} /> Annan riktning
           </button>
         )}
         {collisions > 0 && (
@@ -1346,10 +1347,10 @@ function BarHead({ icon, title, hint, onDone }: { icon: ReactNode; title: string
       <span className="bar-icon">{icon}</span>
       <strong>{title}</strong>
       <button className="icon" onClick={undo} disabled={!canUndo} aria-label="Ångra" title="Ångra">
-        ↶
+        <Ic i={L.undo} />
       </button>
       <button className="icon bar-close" onClick={onDone} aria-label="Stäng" title="Stäng">
-        ✕
+        <Ic i={L.close} />
       </button>
     </div>
   )
@@ -1403,10 +1404,10 @@ function RotateBar() {
   )
 }
 
-const MIRROR_AXES: { axis: 0 | 1 | 2; label: string; title: string }[] = [
-  { axis: 0, label: '↔ Sidled', title: 'Vänster–höger' },
-  { axis: 2, label: '⤢ Djup', title: 'Fram–bak' },
-  { axis: 1, label: '↕ Höjd', title: 'Upp–ner' },
+const MIRROR_AXES: { axis: 0 | 1 | 2; label: string; icon: LucideIcon; title: string }[] = [
+  { axis: 0, label: 'Sidled', icon: L.axisSide, title: 'Vänster–höger' },
+  { axis: 2, label: 'Djup', icon: L.axisDepth, title: 'Fram–bak' },
+  { axis: 1, label: 'Höjd', icon: L.axisHeight, title: 'Upp–ner' },
 ]
 
 /** Mirroring: pick a direction, then a mirrored copy or a flip in place. */
@@ -1427,7 +1428,7 @@ function MirrorBar() {
           {MIRROR_AXES.map((a) => (
             <button key={a.axis} className={axis === a.axis ? 'on' : ''} aria-pressed={axis === a.axis} title={a.title} onClick={() => setAxis(a.axis)}>
               <span className="ring-dot" style={{ background: AXIS_COLOR[a.axis] }} />
-              {a.label}
+              <Ic i={a.icon} /> {a.label}
             </button>
           ))}
         </div>
@@ -1436,7 +1437,7 @@ function MirrorBar() {
             ⧉ Spegelkopia
           </button>
           <button onClick={() => mirror(axis, false)} title="Vänd det markerade på plats">
-            ⇋ Vänd på plats
+            <Ic i={L.flipInPlace} /> Vänd på plats
           </button>
         </div>
       </div>
@@ -1467,7 +1468,7 @@ function JointEditBar() {
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar joint-bar joint-edit-bar" role="toolbar" aria-label="Fog">
-        <BarHead icon={<span aria-hidden>🔩</span>} title={joint.manual ? 'Fog (egen)' : 'Fog'} hint="Ändra antal, diagonal och skruv" onDone={close} />
+        <BarHead icon={<IconScrew />} title={joint.manual ? 'Fog (egen)' : 'Fog'} hint="Ändra antal, diagonal och skruv" onDone={close} />
         <p className={`joint-reach small ${joint.off ? '' : status}`}>
           <JointNames through={joint.through.name} into={joint.into.name} />
           {!joint.off && (
@@ -1487,7 +1488,7 @@ function JointEditBar() {
             <div className="joint-row">
               <span className="screw-stepper" role="group" aria-label="Antal skruv">
                 <button aria-label="Färre skruv" disabled={joint.count <= 1} onClick={() => setScrewEdit(joint.key, countJointEdit(joint, joint.count - 1))}>
-                  −
+                  <Ic i={L.minus} />
                 </button>
                 <strong>{joint.count}</strong>
                 <button aria-label="Fler skruv" disabled={joint.count >= 20} onClick={() => setScrewEdit(joint.key, countJointEdit(joint, joint.count + 1))}>
@@ -1524,7 +1525,7 @@ function JointEditBar() {
             <div className="rotate-buttons two">
               {joint.custom && !joint.manual ? (
                 <button onClick={() => setScrewEdit(joint.key, RESET)} title={`Tillbaka till förslaget (${joint.suggested} st)`}>
-                  ↺ Förslag
+                  <Ic i={L.reset} /> Förslag
                 </button>
               ) : (
                 <span />
@@ -1536,7 +1537,7 @@ function JointEditBar() {
                   close()
                 }}
               >
-                🗑 Ta bort fogen
+                <Ic i={L.trash} /> Ta bort fogen
               </button>
             </div>
           </>
@@ -1619,7 +1620,7 @@ function JointBar() {
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar joint-bar" role="toolbar" aria-label="Ny fog">
-        <BarHead icon={<span aria-hidden>🔩</span>} title="Ny fog" hint="Tryck på ytan där skruvarna ska in" onDone={() => setJointMode(false)} />
+        <BarHead icon={<IconScrew />} title="Ny fog" hint="Tryck på ytan där skruvarna ska in" onDone={() => setJointMode(false)} />
         {!draft && <p className="bar-hint small">Tryck på ytan där skruvarna ska in.</p>}
         {draft && !plan && <p className="bar-hint small warn">Ingen del bakom ytan — tryck på en yta som ligger mot en annan del.</p>}
         {plan?.sheetEdge && (
@@ -1641,7 +1642,7 @@ function JointBar() {
             <div className="joint-row">
               <span className="screw-stepper" role="group" aria-label="Antal skruv">
                 <button aria-label="Färre skruv" disabled={draft.count <= 1} onClick={() => change({ count: draft.count - 1 })}>
-                  −
+                  <Ic i={L.minus} />
                 </button>
                 <strong>{draft.count}</strong>
                 <button aria-label="Fler skruv" disabled={draft.count >= 10} onClick={() => change({ count: draft.count + 1 })}>
@@ -1679,7 +1680,7 @@ function JointBar() {
               </p>
             )}
             <button className="primary wide" onClick={confirm}>
-              ✓ Lägg till {draft.count} skruv
+              <Ic i={L.ok} /> Lägg till {draft.count} skruv
             </button>
           </>
         )}
@@ -1766,7 +1767,7 @@ function ScaleBar() {
             </p>
             <div className="scale-steps">
               <button onClick={() => scaleStep(-step)} aria-label={`Kortare ${step} mm`}>
-                − {step}
+                <Ic i={L.minus} /> {step}
               </button>
               <div className="move-steps" role="group" aria-label="Steg">
                 {STEPS.map((s) => (
@@ -1776,7 +1777,7 @@ function ScaleBar() {
                 ))}
               </div>
               <button onClick={() => scaleStep(step)} aria-label={`Längre ${step} mm`}>
-                + {step}
+                <Ic i={L.plus} /> {step}
               </button>
             </div>
           </>
@@ -1838,7 +1839,7 @@ function SeamPicker({ sheetId }: { sheetId: string }) {
           Hel
         </button>
         <button className="chip smart" onClick={() => setSeams(bestSeams(sheetId, parts, prices, kerf, sizes).seams)}>
-          ✦ Smartast
+          <Ic i={L.smartest} /> Smartast
         </button>
         <span className="muted small">Över regel</span>
         {Array.from({ length: f.joists }, (_, k) => k + 1).map((i) => {
@@ -2014,7 +2015,7 @@ function StepBar({ steps }: { steps: Step[] }) {
   return (
     <div className="step-bar" role="toolbar" aria-label="Steg för steg">
       <button aria-label="Föregående steg" disabled={i === 0} onClick={() => go(-1)}>
-        ‹
+        <Ic i={L.prev} />
       </button>
       <div className="step-title">
         <span className="muted small">
@@ -2023,10 +2024,10 @@ function StepBar({ steps }: { steps: Step[] }) {
         <strong>{step.title}</strong>
       </div>
       <button aria-label="Nästa steg" disabled={i === steps.length - 1} onClick={() => go(1)}>
-        ›
+        <Ic i={L.next} />
       </button>
       <button className="link" aria-label="Avsluta steg för steg" onClick={() => setActiveStep(null)}>
-        ✕
+        <Ic i={L.close} />
       </button>
     </div>
   )
@@ -2074,7 +2075,7 @@ function FrameBar() {
             <IconTrash />
           </button>
           <button className="icon bar-close" onClick={closeFrame} aria-label="Stäng" title="Stäng">
-            ✕
+            <Ic i={L.close} />
           </button>
         </div>
         <div className="frame-row">
@@ -2091,11 +2092,11 @@ function FrameBar() {
         <div className="frame-row frame-joists">
           <span>Tvärreglar</span>
           <button aria-label="Färre tvärreglar" disabled={f.joists <= 0} onClick={() => set({ joists: f.joists - 1 })}>
-            −
+            <Ic i={L.minus} />
           </button>
           <strong>{f.joists}</strong>
           <button aria-label="Fler tvärreglar" disabled={f.joists >= 20} onClick={() => set({ joists: f.joists + 1 })}>
-            +
+            <Ic i={L.plus} />
           </button>
           <span className="muted small">c/c {fmtMm(Math.round(spacing))}</span>
         </div>
@@ -2185,7 +2186,7 @@ function PlaceBanner({ profileId }: { profileId: string }) {
         </span>
         {choice && choice.options.length > 1 && (
           <button className="place-cycle" onClick={cyclePlacement}>
-            ⟳ Annan riktning{' '}
+            <Ic i={L.otherDirection} /> Annan riktning{' '}
             <span className="muted small">
               {choice.index + 1}/{choice.options.length}
             </span>
@@ -2208,10 +2209,10 @@ function PlaceBanner({ profileId }: { profileId: string }) {
             disabled={!canUndo}
             aria-label="Ångra senaste"
           >
-            ↶ Ångra
+            <Ic i={L.undo} /> Ångra
           </button>
           <button className="icon bar-close" onClick={() => setPlaceProfile(null)} aria-label="Stäng" title="Stäng">
-            ✕
+            <Ic i={L.close} />
           </button>
         </div>
       </div>
@@ -2277,16 +2278,16 @@ export function Viewport({
     <>
     {immersive && (
       <button className="show-menus" onClick={() => onImmersive?.(false)}>
-        ☰ Visa menyer
+        <Ic i={L.menu} /> Visa menyer
       </button>
     )}
     <div className="view-buttons">
       <button className="icon" onClick={() => fitView()} title="Visa hela modellen" aria-label="Visa hela modellen">
-        ⤢
+        <Ic i={L.fit} size={22} />
       </button>
       {onImmersive && !immersive && (
         <button className="icon" onClick={() => onImmersive(true)} title="Dölj menyerna" aria-label="Dölj menyerna">
-          ⛶
+          <Ic i={L.fullscreen} size={22} />
         </button>
       )}
       <ViewTools />

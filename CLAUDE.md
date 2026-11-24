@@ -717,6 +717,31 @@ comments in English).
   changing the selection, so the list stays), Kontroll's ◎ and → N,
   Analys rows (beams, floating parts, posts), the Del panel's group
   chip. Steg (a step) and Skruv (a joint's name) already zoomed.
+- **Icons** (owner 2026-11-24, after a reference picture of thin line
+  icons): common functions use **Lucide** (`lucide-react`, pinned 1.71.0,
+  ISC — credited in README), drawn through `Ic` / the `L` map in
+  `components/Icons.tsx` (stroke 1.75, sized 1.15em to the text unless a
+  size is given; tool buttons 22 px via the old `Icon*` names, which now
+  wrap Lucide). Not Font Awesome: its free set is solid only. **The
+  woodworking-specific icons the owner draws themself** (2026-11-24) —
+  until then they keep their glyphs: Delar ▤, Del ✎, Analys ◎, Skruv 🔩
+  (tab) and the screw line icon (`IconScrew`, Skruv i 3D, Fog/Ny fog
+  bars), Skala ⇔, Byt stötfog ⇄, Ram under skivan ▦, Spegelkopia ⧉,
+  Fyll i rekommenderade ✦, Skruva genom … ⇅, Byt diagonal ⟋/⟍, hörn mot ↔,
+  ● Skruv i 3D chip, and the text-only Rak/Gering/Högkant, Kapa mot/
+  Urtag/Halvt i halvt, Fransk list, Fiber, ben placements. **Step
+  buttons stay numbers only** ("1 Bygg" …). A proposal page with drafts
+  of all icons was shown (not used). Lucide picks: Undo2/Redo2, Menu,
+  FilePlus, Printer, FileOutput/Input, ScanSearch (fit), Expand
+  (fullscreen), SlidersHorizontal, X, Ruler, Footprints (Steg för steg),
+  ScanEye (Röntgen), Eye/EyeOff, Focus (Visa bara), Lock/LockOpen,
+  Group/Ungroup, Move, RotateCw, FlipVertical2 (Spegla), FlipHorizontal
+  (Vänd på plats), Copy, Trash2, SquareDashedMousePointer (Markera
+  likadana), Repeat2 (Annan riktning), MoveHorizontal/Diagonal/Vertical
+  (mirror axes), WandSparkles (Smartast), ArrowUpDown, Palette, Pencil,
+  ArrowUp/Down, History (↺), Minus/Plus, Check, ChevronLeft/Right,
+  Crosshair (Visa i 3D), Info, ListOrdered (Steg tab), ClipboardCheck,
+  ClipboardList, Tag, Plus (Lägg till).
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
   were editable in the 3D view): the Del panel shows no position. Moving and turning happen in the 3D view (Bygg: arrows,
   rings, editable green gaps, Avancerat free gizmo).

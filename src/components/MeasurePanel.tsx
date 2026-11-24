@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Ic, L } from './Icons'
 import { Info } from './Info'
 import { matchGuides, offBy, seatsText, type GuideMatch, type MeasureKind } from '../lib/ergonomics'
 import { unionBox } from '../lib/joints'
@@ -77,14 +78,14 @@ export function MeasurePanel() {
   return (
     <div className="inspector measure-panel">
       <div className="inspector-head">
-        <strong className="selection-count">📏 Mät</strong>
+        <strong className="selection-count"><Ic i={L.measure} /> Mät</strong>
         {measurements.length > 0 && (
           <button className="link" onClick={clearMeasurements}>
             Rensa
           </button>
         )}
         <button className="icon bar-close" onClick={() => setMeasureMode(false)} aria-label="Stäng" title="Stäng">
-          ✕
+          <Ic i={L.close} />
         </button>
       </div>
       {measurements.length === 0 && <p className="hint small">Inga mått än — tryck på två ytor i 3D-vyn.</p>}
@@ -102,7 +103,7 @@ export function MeasurePanel() {
                   <span className="muted small">{KIND_LABEL[kind]}</span>
                 </button>
                 <button className="link" aria-label={`Ta bort mått ${i + 1}`} onClick={() => removeMeasurement(m.id)}>
-                  ✕
+                  <Ic i={L.close} />
                 </button>
               </div>
               {!isOpen && best && (

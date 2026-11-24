@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Ic, L } from './Icons'
 import { PHASES } from '../lib/phases'
 import { useStore } from '../lib/store'
 import type { Project } from '../lib/types'
@@ -26,10 +27,10 @@ export function Toolbar({ onPrint }: { onPrint: () => void }) {
       />
       <div className="group">
         <button className="icon" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
-          ↶
+          <Ic i={L.undo} />
         </button>
         <button className="icon" onClick={redo} disabled={!canRedo} title="Gör om (Ctrl+Y)" aria-label="Gör om">
-          ↷
+          <Ic i={L.redo} />
         </button>
         <Menu onPrint={onPrint} />
       </div>
@@ -110,7 +111,7 @@ function Menu({ onPrint }: { onPrint: () => void }) {
   return (
     <div className="menu" ref={ref}>
       <button className="icon" aria-label="Meny" aria-expanded={open} onClick={() => setOpen(!open)}>
-        ☰
+        <Ic i={L.menu} />
       </button>
       {open && (
         <div className="menu-pop" role="menu">

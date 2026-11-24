@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Ic, L } from './Icons'
 import { cutList, purchasePlan, totalCost } from '../lib/cutlist'
 import { formatKr } from '../lib/format'
 import { screwJoints, screwTotals } from '../lib/screws'
@@ -50,7 +51,7 @@ export function CutList({ onPrint }: { onPrint: () => void }) {
         <strong>{total !== null ? `≈ ${formatKr(total)}` : `${stock} st att köpa`}</strong>
         {usesExamples && <span className="warn-chip" title="Vissa priser är exempelpriser — inte riktiga butikspriser">exempelpris</span>}
         <button onClick={onPrint} title="Skriv ut eller spara som PDF">
-          🖨 PDF
+          <Ic i={L.print} /> PDF
         </button>
       </div>
       <Fold id="list-buy" title="Inköpslista" status={`${stock} st${total !== null ? ` · ${formatKr(total)}` : ''}`} defaultOpen>
