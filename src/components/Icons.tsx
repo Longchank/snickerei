@@ -173,3 +173,26 @@ export const IconScrew = () => (
     <path d="M10 9l4 1.5M10 12l4 1.5M10 15l4 1.5" />
   </Svg>
 )
+
+/**
+ * End cuts drawn for the owner (2026-11-24): a 45×45 board with its sawn end
+ * towards the viewer — Rak (cross cut), Gering (miter, across the width),
+ * Högkant (bevel, across the thickness). The sawn face is tinted and shows
+ * end grain. Thinner lines than Lucide on purpose (owner's choice).
+ */
+const CUT_PATHS = {
+  rak: { outline: 'M6.82 19.98 L6.82 14.99 L21.50 6.52 L21.50 11.50Z M2.50 12.50 L6.82 14.99 L21.50 6.52 L17.18 4.02Z', cut: 'M2.50 17.48 L6.82 19.98 L6.82 14.99 L2.50 12.50Z', rings: 'M4.44 18.01 L4.42 17.74 L4.37 17.45 L4.27 17.16 L4.14 16.87 L3.98 16.60 L3.80 16.34 L3.59 16.11 L3.37 15.92 L3.15 15.76 M5.52 18.63 L5.49 18.13 L5.38 17.61 L5.20 17.08 L4.97 16.55 L4.67 16.04 L4.34 15.57 L3.96 15.15 L3.56 14.80 L3.15 14.52' },
+  face: { outline: 'M10.55 17.48 L10.55 13.77 L21.50 7.44 L21.50 11.16Z M2.50 14.70 L10.55 13.77 L21.50 7.44 L18.28 5.59Z', cut: 'M2.50 18.41 L10.55 17.48 L10.55 13.77 L2.50 14.70Z', rings: 'M6.12 17.55 L6.09 17.36 L5.98 17.19 L5.80 17.03 L5.56 16.90 L5.26 16.79 L4.92 16.72 L4.53 16.69 L4.13 16.68 L3.71 16.71 M8.14 17.32 L8.07 16.97 L7.87 16.65 L7.54 16.36 L7.10 16.12 L6.55 15.93 L5.92 15.80 L5.22 15.73 L4.48 15.73 L3.71 15.78' },
+  edge: { outline: 'M5.83 19.41 L10.17 13.06 L21.50 6.52 L21.50 10.36Z M6.83 11.13 L10.17 13.06 L21.50 6.52 L18.17 4.59Z', cut: 'M2.50 17.48 L5.83 19.41 L10.17 13.06 L6.83 11.13Z', rings: 'M4.52 17.59 L4.73 17.25 L4.90 16.90 L5.04 16.56 L5.12 16.23 L5.16 15.92 L5.15 15.65 L5.08 15.42 L4.97 15.24 L4.82 15.11 M5.35 18.07 L5.74 17.45 L6.06 16.81 L6.30 16.18 L6.46 15.58 L6.52 15.02 L6.50 14.52 L6.39 14.09 L6.19 13.76 L5.90 13.52' },
+} as const
+
+export function CutIcon({ kind, size = 32 }: { kind: 'rak' | 'face' | 'edge'; size?: number }) {
+  const p = CUT_PATHS[kind]
+  return (
+    <svg className="ic cut-icon" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={0.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={p.outline} />
+      <path d={p.cut} fill="currentColor" fillOpacity={0.12} />
+      <path d={p.rings} strokeWidth={0.225} />
+    </svg>
+  )
+}

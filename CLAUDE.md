@@ -729,7 +729,12 @@ comments in English).
   bars), Skala ⇔, Byt stötfog ⇄, Ram under skivan ▦, Spegelkopia ⧉,
   Fyll i rekommenderade ✦, Skruva genom … ⇅, Byt diagonal ⟋/⟍, hörn mot ↔,
   ● Skruv i 3D chip, and the text-only Rak/Gering/Högkant, Kapa mot/
-  Urtag/Halvt i halvt, Fransk list, Fiber, ben placements. **Step
+  Urtag/Halvt i halvt, Fransk list, Fiber, ben placements. **Ändar
+  done** (owner's own drawing, redrawn as SVG 2026-11-24): `CutIcon`
+  (Icons.tsx, 32 px, icon only with title/aria-label) on the Rak / Gering
+  / Högkant buttons — a 45×45 board with its sawn end towards the viewer,
+  outline 0.8, the cut face tinted (`currentColor` 12 %) with end-grain
+  rings 0.225, no grain lines (owner's choices). **Step
   buttons stay numbers only** ("1 Bygg" …). A proposal page with drafts
   of all icons was shown (not used). Lucide picks: Undo2/Redo2, Menu,
   FilePlus, Printer, FileOutput/Input, ScanSearch (fit), Expand

@@ -3040,3 +3040,14 @@ button svg.ic + *,
 button > svg.ic:not(:only-child) {
   margin-right: 0.3em;
 }
+
+/* Ändar: Rak / Gering / Högkant as drawn cut icons */
+.segmented.small-seg button:has(.cut-icon) {
+  display: inline-grid;
+  place-items: center;
+  padding: 2px 6px;
+}
+.segmented.small-seg button svg.cut-icon {
+  margin: 0;
+  vertical-align: middle;
+}

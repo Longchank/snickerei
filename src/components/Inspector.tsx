@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Ic, L } from './Icons'
+import { Ic, L, CutIcon } from './Icons'
 import { zoomToParts } from './Viewport'
 import { getProfile, hasGrain } from '../lib/catalog'
 import { findCornerPartner } from '../lib/corner'
@@ -262,8 +262,10 @@ function Ends({ part }: { part: Part }) {
                   className={kind === k ? 'on' : ''}
                   aria-pressed={kind === k}
                   onClick={() => (k === 'rak' ? setEndCut(part.id, i, null) : set(k, angle, sign))}
+                  title={END_LABEL[k]}
+                  aria-label={END_LABEL[k]}
                 >
-                  {END_LABEL[k]}
+                  <CutIcon kind={k} />
                 </button>
               ))}
             </div>
