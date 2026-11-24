@@ -411,3 +411,30 @@ describe('older saves keep their screws', () => {
     expect(normalizeProject({ ...p, screwEdits: {} }).screwEdits).toEqual({})
   })
 })
+
+describe('planScrews (✦ Fyll i rekommenderade)', () => {
+  it('plans a table with legs without screws running into each other or needless end-grain joints', async () => {
+    const { buildFrame } = await import('./frame')
+    const { planScrews, screwClashes } = await import('./screws')
+    const sheet = { id: 's', name: 'Skiva', profileId: 'plywood-18', length: 1200, width: 600, position: [0, 700, 0], rotation: [0, 0, 0] } as Part
+    for (const placement of ['inside', 'merged', 'outside', 'under'] as const) {
+      const { sheet: sh, parts } = buildFrame(sheet, {
+        profileId: 'konstruktion-45x95',
+        joists: 1,
+        onEdge: true,
+        legs: { profileId: 'konstruktion-45x95', placement, height: 900 },
+      } as never)
+      const all = [{ ...sh, groupId: 'skiva' }, ...parts.map((p) => ({ ...p, groupId: p.name.startsWith('Ben') ? 'ben' : 'ram' }))]
+      // Before: every suggestion clashes somewhere
+      const before = screwClashes(joints(all, {}, { all: true }))
+      const edits = planScrews(all, {}, ['ram', 'ben', 'skiva'])
+      const after = joints(all, edits)
+      expect(screwClashes(after), placement).toEqual([])
+      // Every part is still held by at least one joint
+      for (const p of all) expect(after.some((j) => j.through.id === p.id || j.into.id === p.id), `${placement}: ${p.name}`).toBe(true)
+      // No top screwed down into the legs' end grain
+      expect(after.some((j) => j.through.name === 'Skiva' && j.into.name.startsWith('Ben')), placement).toBe(false)
+      if (placement === 'inside') expect(before.length).toBeGreaterThan(0)
+    }
+  })
+})

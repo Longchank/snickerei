@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { jointStep, RESET, SCREW_COLORS, screwJoints, suggestedJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
+import { jointStep, planScrews, RESET, SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, sizeOptions, type Joint } from '../lib/screws'
 import { useStore } from '../lib/store'
 import { Dot, MoreAboutScrews } from './ScrewList'
 import { Fold } from './Fold'
@@ -28,7 +28,11 @@ export function ScrewEditor() {
   const requestPanel = useStore((s) => s.requestPanel)
   const activeStep = useStore((s) => s.activeStep)
   const fillScrews = useStore((s) => s.fillScrews)
-  const suggestions = useMemo(() => suggestedJoints(parts, edits ?? {}), [parts, edits])
+  // What "✦ Fyll i" would add: planned as a whole (no screws into each other, no needless end-grain joints)
+  const planned = useMemo(
+    () => Object.keys(planScrews(parts, edits ?? {}, groups.map((g) => g.id), selection.length ? new Set(selection) : undefined)).length,
+    [parts, edits, groups, selection],
+  )
 
   if (parts.length < 2) return <p className="hint">Bygg något först — sedan kan du ändra skruvarna här.</p>
 
@@ -58,8 +62,8 @@ export function ScrewEditor() {
         </button>
       </div>
       {(() => {
-        // Suggested joints: for the selection if something is selected, else everywhere
-        const mine = selection.length ? suggestions.filter((j) => sel.has(j.through.id) || sel.has(j.into.id)) : suggestions
+        // Planned joints: for the selection if something is selected, else everywhere
+        const mine = { length: planned }
         return (
           <>
             {joints.length === 0 && (
@@ -105,8 +109,9 @@ export function ScrewEditor() {
           eller på fogens namn här, för att välja fogen och ändra den: antal, diagonal och skruv.
         </p>
         <p>
-          Ett nytt projekt har inga fogar — du lägger till dem. "✦ Fyll i rekommenderade" lägger in appens förslag på skruv i alla
-          fogar (eller det markerades). Skivor skruvas aldrig i kanten, den är för spröd.
+          Ett nytt projekt har inga fogar — du lägger till dem. "✦ Fyll i rekommenderade" planerar skruven för hela bygget (eller det
+          markerade) i byggordning: inga skruvar som går in i varandra, och inga onödiga skruvar ner i ändträ på delar som redan
+          sitter fast. Skivor skruvas aldrig i kanten, den är för spröd.
         </p>
         <p>
           "+ Ny fog": tryck på ytan där skruvarna ska in — delen bakom hittas själv. Skruvarna hamnar där du trycker; välj antal, diagonal och

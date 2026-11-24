@@ -36,7 +36,7 @@ import { isLyingSheet, joistSpacing, seamOffsets, splitSheet, validSeams } from 
 import { bestSeams, sheetPlanWith } from '../lib/seams'
 import { freeSizeAlong } from '../lib/resize'
 import { analyse, STATUS_COLOR } from '../lib/strength'
-import { jointStep, planJoint, RESET, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointPlan, countJointEdit, flipJointEdit } from '../lib/screws'
+import { jointStep, linesClash, planJoint, RESET, screwLines, SCREW_COLORS, SHORT_FRACTION, screwJoints, screwName, screwTotals, sizeOptions, type JointPlan, countJointEdit, flipJointEdit } from '../lib/screws'
 import { selectionOverlaps, unionBox } from '../lib/joints'
 import { moveToGap } from '../lib/move'
 import { freeSpace, measureValue, otherBoxes, pickPoint, type FreeSpace } from '../lib/measure'
@@ -1564,6 +1564,16 @@ function JointBar() {
     setJointDraft(null)
   }
   const status = plan ? biteStatus(plan) : null
+  // Would the new screws run into screws already in the build?
+  const clash = (() => {
+    if (!plan) return null
+    const mine = plan.points.map((p) => ({ key: plan.key, a: p, b: p.map((v, i) => v + plan.dir[i] * plan.screw.length) as Vec3, d: plan.screw.d }))
+    for (const j of screwJoints(parts, edits)) {
+      if (j.key === plan.key) continue
+      if (screwLines(j).some((l) => mine.some((m) => linesClash(l, m)))) return j
+    }
+    return null
+  })()
   return (
     <div className="measure-top place-top">
       <div className="place-banner move-bar joint-bar" role="toolbar" aria-label="Ny fog">
@@ -1621,6 +1631,11 @@ function JointBar() {
                 ))}
               </select>
             </div>
+            {clash && (
+              <p className="bar-hint small warn">
+                ⚠ Krockar med skruvarna i {clash.through.name} → {clash.into.name} — tryck en bit bort.
+              </p>
+            )}
             <button className="primary wide" onClick={confirm}>
               ✓ Lägg till {draft.count} skruv
             </button>

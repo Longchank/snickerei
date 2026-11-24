@@ -12,7 +12,7 @@ import { moveNextTo, moveToFloor } from './move'
 import { copyPlane, mirrorParts } from './mirror'
 import { toPhase } from './phases'
 import type { JointAnchor, ScrewEdit } from './screws'
-import { screwJoints, suggestedJoints } from './screws'
+import { planScrews, screwJoints } from './screws'
 import {
   halfLap,
   moveParts,
@@ -415,10 +415,9 @@ export const useStore = create<State>()(
         setPurpose: (purpose) => set((s) => ({ project: { ...s.project, purpose } })),
         fillScrews: (partIds) =>
           edit((snap) => {
-            const ids = partIds && new Set(partIds)
-            const next = { ...snap.screwEdits }
-            for (const j of suggestedJoints(snap.parts, snap.screwEdits ?? {}))
-              if (!ids || ids.has(j.through.id) || ids.has(j.into.id)) next[j.key] = { on: true }
+            // Planned as a whole: build order, no screws into each other, no needless end-grain joints
+            const plan = planScrews(snap.parts, snap.screwEdits ?? {}, snap.groups.map((g) => g.id), partIds && new Set(partIds))
+            const next = { ...snap.screwEdits, ...plan }
             return { ...snap, screwEdits: Object.keys(next).length ? next : undefined }
           }),
         setScrewEdit: (key, patch) =>

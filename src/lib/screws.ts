@@ -635,3 +635,161 @@ export function suggestedJoints(parts: Part[], edits: Record<string, ScrewEdit> 
 
 /** Back to the suggestion, keeping the joint in the build */
 export const RESET: Partial<ScrewEdit> = { count: undefined, d: undefined, length: undefined, points: undefined, flip: undefined, off: undefined }
+
+/* ---- Planning the whole build's screws (owner 2026-11-24: "not every pair
+   of touching pieces, but the best places so everything holds — today
+   screws often land in each other at assembly") ---- */
+
+/** A screw as a line in space: head → tip */
+export interface ScrewLine {
+  key: string
+  a: Vec3
+  b: Vec3
+  d: number
+}
+
+export function screwLines(j: Joint, points: Vec3[] = j.points): ScrewLine[] {
+  return points.map((p) => ({ key: j.key, a: p, b: p.map((v, i) => v + j.dir[i] * j.screw.length) as Vec3, d: j.screw.d }))
+}
+
+/** Shortest distance between two line segments */
+export function segmentDistance(p1: Vec3, q1: Vec3, p2: Vec3, q2: Vec3): number {
+  const sub = (a: Vec3, b: Vec3) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]] as Vec3
+  const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  const d1 = sub(q1, p1)
+  const d2 = sub(q2, p2)
+  const r = sub(p1, p2)
+  const a = dot(d1, d1)
+  const e = dot(d2, d2)
+  const f = dot(d2, r)
+  let s = 0
+  let t = 0
+  const clamp = (v: number) => Math.min(1, Math.max(0, v))
+  if (a < 1e-9 && e < 1e-9) return Math.sqrt(dot(r, r))
+  if (a < 1e-9) t = clamp(f / e)
+  else {
+    const c = dot(d1, r)
+    if (e < 1e-9) s = clamp(-c / a)
+    else {
+      const b = dot(d1, d2)
+      const denom = a * e - b * b
+      s = denom > 1e-9 ? clamp((b * f - c * e) / denom) : 0
+      t = (b * s + f) / e
+      if (t < 0) {
+        t = 0
+        s = clamp(-c / a)
+      } else if (t > 1) {
+        t = 1
+        s = clamp((b - c) / a)
+      }
+    }
+  }
+  const c1 = p1.map((v, i) => v + d1[i] * s) as Vec3
+  const c2 = p2.map((v, i) => v + d2[i] * t) as Vec3
+  const g = sub(c1, c2)
+  return Math.sqrt(dot(g, g))
+}
+
+/** Two screws too close: they'd hit each other or split the wood between them */
+export function linesClash(x: ScrewLine, y: ScrewLine): boolean {
+  return segmentDistance(x.a, x.b, y.a, y.b) < (x.d + y.d) / 2 + 6
+}
+
+/** Pairs of joints whose screws run into each other */
+export function screwClashes(joints: Joint[]): { a: Joint; b: Joint; at: Vec3 }[] {
+  const lines = joints.flatMap((j) => screwLines(j).map((l) => ({ l, j })))
+  const out: { a: Joint; b: Joint; at: Vec3 }[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < lines.length; i++)
+    for (let k = i + 1; k < lines.length; k++) {
+      const x = lines[i]
+      const y = lines[k]
+      if (x.j.key === y.j.key || !linesClash(x.l, y.l)) continue
+      const pair = [x.j.key, y.j.key].sort().join(' ')
+      if (seen.has(pair)) continue
+      seen.add(pair)
+      out.push({ a: x.j, b: y.j, at: x.l.a })
+    }
+  return out
+}
+
+/**
+ * "✦ Fyll i rekommenderade": the suggested joints to take in, planned as a
+ * whole. Joints go in build order (each group's own, in group order, then
+ * the assembly); a screw that would run into one already placed moves to
+ * the nearest free spot on its contact (10 mm steps, kept 15 mm from the
+ * contact's edges), or is left out. A joint into end grain is left out when
+ * the part screwed through is already held on its side grain and the part
+ * behind has other joints (e.g. a top screwed down into the legs' ends when
+ * it already sits on the rails).
+ * Returns the edits to add; joints already in the build are obstacles.
+ */
+export function planScrews(
+  parts: Part[],
+  edits: Record<string, ScrewEdit> = {},
+  groupOrder: string[] = [],
+  only?: Set<string>,
+): Record<string, ScrewEdit> {
+  const all = screwJoints(parts, edits, { all: true })
+  const taken = all.filter((j) => edits[j.key])
+  const lines: ScrewLine[] = taken.flatMap((j) => screwLines(j))
+  const rank = (j: Joint) => {
+    const s = jointStep(j)
+    const g = groupOrder.indexOf(s)
+    return s === 'montering' ? groupOrder.length : g < 0 ? groupOrder.length - 0.5 : g
+  }
+  const cands = all
+    .filter((j) => !edits[j.key] && j.count > 0 && (!only || only.has(j.through.id) || only.has(j.into.id)))
+    .sort((x, y) => rank(x) - rank(y) || Number(x.endGrain) - Number(y.endGrain))
+  // Parts held by a side-grain joint (in the build, or about to be), and how many joints each part has
+  const sideHeld = new Set<string>()
+  const jointsOf = new Map<string, number>()
+  for (const j of [...taken, ...cands]) {
+    if (!j.endGrain) [j.through.id, j.into.id].forEach((id) => sideHeld.add(id))
+    ;[j.through.id, j.into.id].forEach((id) => jointsOf.set(id, (jointsOf.get(id) ?? 0) + 1))
+  }
+  const out: Record<string, ScrewEdit> = {}
+  for (const j of cands) {
+    // Into end grain, from a part that's already held on its side grain, into a part held by other joints: not needed
+    if (j.endGrain && sideHeld.has(j.through.id) && (jointsOf.get(j.into.id) ?? 0) > 1) continue
+    const n = j.dir.findIndex((v) => v !== 0)
+    const [ua, va] = j.axes
+    const box = j.area
+    const margin = (i: number) => Math.min(15, (box.max[i] - box.min[i]) / 2)
+    const inside = (p: Vec3) => [ua, va].every((i) => p[i] >= box.min[i] + margin(i) - 0.01 && p[i] <= box.max[i] - margin(i) + 0.01)
+    const free = (p: Vec3, placed: ScrewLine[]) => {
+      const [line] = screwLines(j, [p])
+      return ![...lines, ...placed].some((l) => linesClash(l, line))
+    }
+    const steps = [0, 10, -10, 20, -20, 30, -30, 40, -40, 50, -50, 60, -60]
+    const placed: ScrewLine[] = []
+    const pts: Vec3[] = []
+    let moved = false
+    for (const p of j.points) {
+      let spot: Vec3 | null = null
+      search: for (const du of steps)
+        for (const dv of steps.slice(0, 7)) {
+          const q = [...p] as Vec3
+          q[ua] += du
+          q[va] += dv
+          q[n] = p[n]
+          if ((du || dv) && !inside(q)) continue
+          if (free(q, placed)) {
+            spot = q
+            break search
+          }
+        }
+      if (!spot) {
+        moved = true
+        continue
+      }
+      if (spot !== p && (spot[ua] !== p[ua] || spot[va] !== p[va])) moved = true
+      pts.push(spot)
+      placed.push(...screwLines(j, [spot]))
+    }
+    if (!pts.length) continue
+    lines.push(...placed)
+    out[j.key] = moved ? { on: true, points: pointOffsets(j, pts) } : { on: true }
+  }
+  return out
+}

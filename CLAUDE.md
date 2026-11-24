@@ -556,6 +556,23 @@ comments in English).
   (`worldAxisOf(rotation, 1)`) isn't the screw axis; such pairs are no
   suggestion, and Ny fog's `plan.sheetEdge` shows a red "Skivans kant är
   för spröd" with no Lägg till.
+  **Planned as a whole** (owner 2026-11-24: "not every pair of touching
+  pieces but the best places so everything holds — screws often ended up
+  in each other at assembly with several groups"): `fillScrews` uses
+  `planScrews(parts, edits, groupOrder, only?)` — suggestions in build
+  order (each group's own joints in group order, then Montering; side
+  grain before end grain), joints already in the build are obstacles; a
+  screw whose line (`screwLines`, head → tip) comes within (d1+d2)/2 + 6
+  mm of another (`segmentDistance`, `linesClash`) moves to the nearest
+  free spot on its contact (10 mm steps, 15 mm from its edges) or is left
+  out; an end-grain joint is skipped when the part screwed through is
+  held on side grain and the part behind has other joints (a top screwed
+  into the legs' ends). Moved/thinned joints store `points`. The button's
+  count is the planned joints. A test builds the table (legs inside /
+  merged / outside / under): no clashes, every part held, no top-into-
+  leg screws. `screwClashes(joints)` also feeds a Kontroll warning
+  "Skruvar krockar" (fix in Montering), and Ny fog warns "⚠ Krockar med
+  skruvarna i …" before adding.
 - **Steg för steg** (owner 2026-11-20: "I build groups first, then the
   whole; the step by step should only show the selected step",
   `src/lib/steps.ts`): each group with parts is a step (group order),

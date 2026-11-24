@@ -7,7 +7,7 @@ import { partBox, toAxisBox } from './geometry'
 import { overlapsOf, unionBox } from './joints'
 import type { PlanRow } from './cutlist'
 import { stockPieces } from './cutlist'
-import type { Joint } from './screws'
+import { screwClashes, type Joint } from './screws'
 import type { Analysis } from './strength'
 import type { Part, Phase, Vec3 } from './types'
 
@@ -149,6 +149,18 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
         fix: 'montering',
       })
   }
+
+  // Screws that run into each other (two joints in the same spot of wood)
+  for (const c of screwClashes(joints.filter((j) => j.count > 0)))
+    issues.push({
+      id: `krockskruv:${c.a.key}:${c.b.key}`,
+      severity: 'warn',
+      title: `Skruvar krockar: ${c.a.through.name} → ${c.a.into.name}`,
+      detail: `Går in i skruvarna i ${c.b.through.name} → ${c.b.into.name}. Flytta eller ta bort en av dem (tryck på skruven i Montering).`,
+      partIds: [...new Set([c.a.through.id, c.a.into.id, c.b.through.id, c.b.into.id])],
+      at: c.at,
+      fix: 'montering',
+    })
 
   // Buying: pieces the store doesn't sell that big, and missing prices
   const pieces = stockPieces(parts)
