@@ -74,6 +74,16 @@ const FIT_EVENT = 'snickerei:fit'
 /** Frame the shown model, or just this box (e.g. a joint) */
 export const fitView = (box?: { min: Vec3; max: Vec3 }) => window.dispatchEvent(new CustomEvent(FIT_EVENT, { detail: box }))
 
+/**
+ * Something picked in a list: the camera moves to it (owner 2026-11-24,
+ * "in every view"). Waits for the phone panel to settle, so the fit uses
+ * the free part of the view.
+ */
+export const zoomToParts = (ids: string[]) => {
+  if (!ids.length) return
+  setTimeout(() => window.dispatchEvent(new CustomEvent(FIT_EVENT, { detail: { ids } })), 350)
+}
+
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 /** How far (screen px) from a board a tap still counts as a tap on it */
 const FUZZY_PX = isTouch ? 36 : 16
@@ -838,7 +848,11 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   // Fit the model in view on request, and once at start-up
   useEffect(() => {
     const fit = (e?: Event) => {
-      const box = (e as CustomEvent | undefined)?.detail ?? unionBox(shownParts.length ? shownParts : parts)
+      const detail = (e as CustomEvent | undefined)?.detail as { min: Vec3; max: Vec3 } | { ids: string[] } | undefined
+      const box =
+        detail && 'ids' in detail
+          ? unionBox(parts.filter((p) => detail.ids.includes(p.id)))
+          : detail ?? unionBox(shownParts.length ? shownParts : parts)
       if (!box || !controls || !(camera instanceof PerspectiveCamera)) return
       // On phones the toolbar and panel float over the view: fit the model
       // into the visible gap between them, not behind them

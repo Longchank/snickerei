@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { getProfile, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
 import type { Part } from '../lib/types'
+import { zoomToParts } from './Viewport'
 
 /** A name field that saves on Enter or when leaving it (one undo step), Esc cancels */
 function NameInput({ value, label, onSave, className }: { value: string; label: string; onSave: (v: string) => void; className?: string }) {
@@ -93,7 +94,9 @@ export function GroupParts() {
         <ol className="group-part-list">
           {list.map((p, i) => (
             <li key={p.id}>
-              <span className="step-n">{i + 1}</span>
+              <button className="step-n" title="Visa delen i 3D" aria-label={`Visa ${p.name} i 3D`} onClick={() => zoomToParts([p.id])}>
+                {i + 1}
+              </button>
               <span className="group-part-main">
                 <NameInput label={`Namn, del ${i + 1}`} value={p.name} onSave={(name) => updatePart(p.id, { name })} />
                 <span className="muted small">{sizeOf(p)}</span>

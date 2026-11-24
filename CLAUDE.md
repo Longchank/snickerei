@@ -709,6 +709,14 @@ comments in English).
   (orange); dims and end labels are hidden meanwhile. Framed sheets are
   not rebuilt by it. **Klyvning** (French cleat rip) isn't shown for
   sheets.
+- **Picking from a list moves the camera** (owner 2026-11-24, "for all
+  views"): `zoomToParts(ids)` (Viewport.tsx) fires the fit event with
+  `{ ids }` 350 ms later (after the phone panel settles) and the fit
+  frames just those parts. Used by: Delar (Bygg; a part or a group
+  head), Montering's Delar (the row number zooms to the part without
+  changing the selection, so the list stays), Kontroll's ◎ and → N,
+  Analys rows (beams, floating parts, posts), the Del panel's group
+  chip. Steg (a step) and Skruv (a joint's name) already zoomed.
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
   were editable in the 3D view): the Del panel shows no position. Moving and turning happen in the 3D view (Bygg: arrows,
   rings, editable green gaps, Avancerat free gizmo).

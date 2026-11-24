@@ -1,4 +1,5 @@
 import { Info } from './Info'
+import { zoomToParts } from './Viewport'
 import { useEffect, useMemo, useState } from 'react'
 import { PURPOSES, STATUS_COLOR, STATUS_LABEL, analyse, type Status } from '../lib/strength'
 import { useSelectedParts, useStore } from '../lib/store'
@@ -123,7 +124,7 @@ export function Analysis() {
           <ul className="beam-list">
             {a.floating.map((id) => (
               <li key={id}>
-                <button onClick={() => select([id])}>
+                <button onClick={() => { select([id]); zoomToParts([id]) }}>
                   <span className="beam-name">
                     <Dot status="bad" /> {names.get(id)}
                   </span>
@@ -133,7 +134,7 @@ export function Analysis() {
             ))}
             {beams.map((b) => (
               <li key={b.partId}>
-                <button onClick={() => select([b.partId])}>
+                <button onClick={() => { select([b.partId]); zoomToParts([b.partId]) }}>
                   <span className="beam-name">
                     <Dot status={b.status} /> {b.name}
                   </span>
@@ -168,7 +169,7 @@ export function Analysis() {
               .sort((x, y) => y.utilisation - x.utilisation)
               .map((p) => (
                 <li key={p.partId}>
-                  <button onClick={() => select([p.partId])}>
+                  <button onClick={() => { select([p.partId]); zoomToParts([p.partId]) }}>
                     <span className="beam-name">
                       <Dot status={p.status} /> {p.name}
                     </span>

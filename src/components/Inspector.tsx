@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { zoomToParts } from './Viewport'
 import { getProfile, hasGrain } from '../lib/catalog'
 import { findCornerPartner } from '../lib/corner'
 import { endName } from '../lib/ends'
@@ -80,7 +81,11 @@ function SinglePart({ part }: { part: Part }) {
           <button
             className="chip group-chip"
             title={`Del av gruppen ${group.name} — tryck för att markera hela gruppen`}
-            onClick={() => select(parts.filter((p) => p.groupId === group.id).map((p) => p.id))}
+            onClick={() => {
+              const ids = parts.filter((p) => p.groupId === group.id).map((p) => p.id)
+              select(ids)
+              zoomToParts(ids)
+            }}
           >
             ▣ {group.name}
           </button>

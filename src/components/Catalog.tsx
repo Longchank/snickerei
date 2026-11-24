@@ -1,4 +1,5 @@
 import { Fold } from './Fold'
+import { zoomToParts } from './Viewport'
 import { Info } from './Info'
 import { CATEGORY_NAMES, getProfile, PROFILES, SHEET_CATEGORIES, shortName } from '../lib/catalog'
 import { useStore } from '../lib/store'
@@ -87,6 +88,7 @@ export function PartList() {
             // Toggle just this part, even inside a group
             select(selected.has(p.id) ? selection.filter((x) => x !== p.id) : [...selection, p.id])
           } else select([p.id])
+          zoomToParts([p.id])
         }}
       >
         <span>
@@ -108,7 +110,11 @@ export function PartList() {
           <div key={g.id} className="part-group">
             <button
               className={`group-head ${all ? 'active' : ''}`}
-              onClick={() => members[0] && tapPart(members[0].id, multiSelect)}
+              onClick={() => {
+                if (!members[0]) return
+                tapPart(members[0].id, multiSelect)
+                zoomToParts(members.map((m) => m.id))
+              }}
             >
               <span>▾ {g.name}</span>
               <span className="muted small">{members.length} delar</span>

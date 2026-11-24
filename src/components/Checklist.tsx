@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { zoomToParts } from './Viewport'
 import { Info } from './Info'
 import { runChecks, type Issue } from '../lib/checks'
 import { phaseInfo } from '../lib/phases'
@@ -86,6 +87,7 @@ export function Checklist() {
                     select(i.partIds)
                     // One window at a time: close the list so the parts are in view
                     requestPanel(false)
+                    zoomToParts(i.partIds)
                   }}
                 >
                   ◎
@@ -99,7 +101,10 @@ export function Checklist() {
                   aria-label={`Fixa i ${fix.n} ${fix.label}: ${i.title}`}
                   onClick={() => {
                     setMode(i.fix)
-                    if (i.partIds.length) select(i.fix === 'detaljer' ? i.partIds.slice(0, 1) : i.partIds)
+                    if (i.partIds.length) {
+                      select(i.fix === 'detaljer' ? i.partIds.slice(0, 1) : i.partIds)
+                      zoomToParts(i.partIds)
+                    }
                   }}
                 >
                   → {fix.n}

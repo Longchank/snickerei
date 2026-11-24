@@ -3030,3 +3030,11 @@ button.scale-start {
   flex: 1;
   min-width: 0;
 }
+button.step-n {
+  padding: 0;
+  border: none;
+  min-width: 40px;
+  min-height: 40px;
+  width: 40px;
+  height: 40px;
+}
