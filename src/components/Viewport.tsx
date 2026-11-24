@@ -1435,9 +1435,7 @@ function JointEditBar() {
       <div className="place-banner move-bar joint-bar joint-edit-bar" role="toolbar" aria-label="Fog">
         <BarHead icon={<span aria-hidden>🔩</span>} title={joint.manual ? 'Fog (egen)' : 'Fog'} hint="Ändra antal, diagonal och skruv" onDone={close} />
         <p className={`joint-reach small ${joint.off ? '' : status}`}>
-          <span className="joint-parts">
-            {joint.through.name} → {joint.into.name}
-          </span>
+          <JointNames through={joint.through.name} into={joint.into.name} />
           {!joint.off && (
             <span>
               {joint.screw.d.toFixed(1).replace('.', ',')}×{joint.screw.length} ·{' '}
@@ -1516,6 +1514,17 @@ function useJointPlan(): JointPlan | null | undefined {
   )
 }
 
+/** "A → B" where each name is cut with … on its own, so both always show */
+function JointNames({ through, into }: { through: string; into: string }) {
+  return (
+    <span className="joint-parts" title={`${through} → ${into}`}>
+      <span className="jp-name">{through}</span>
+      <span aria-hidden>→</span>
+      <span className="jp-name">{into}</span>
+    </span>
+  )
+}
+
 /** How well the screw bites: green = by the rule of thumb, amber = short, red = comes out the far side */
 function biteStatus(plan: JointPlan): 'ok' | 'short' | 'poke' {
   return plan.poke ? 'poke' : plan.bite < plan.wantBite * SHORT_FRACTION ? 'short' : 'ok'
@@ -1569,9 +1578,7 @@ function JointBar() {
         {plan && draft && !plan.sheetEdge && (
           <>
             <p className={`joint-reach small ${status}`}>
-              <span className="joint-parts">
-                {plan.through.name} → {plan.into.name}
-              </span>
+              <JointNames through={plan.through.name} into={plan.into.name} />
               <span>
                 {plan.screw.d.toFixed(1).replace('.', ',')}×{plan.screw.length} ·{' '}
                 {status === 'poke'

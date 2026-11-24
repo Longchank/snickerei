@@ -510,7 +510,7 @@ comments in English).
   (`pointOffsets`), clamped onto the contact. **Ny fog**: no Början/
   Mitten/Änden buttons any more — the screws centre on the tap (kept
   40 mm in from the face's ends, `anchor: 'tap'`); its bar and the joint
-  bar close with ✕ instead of Klar. **✕ on every bar** (owner 2026-11-23): `BarHead` (Flytta/Vrid/Spegla/Fog/Ny fog), the frame bar, the place banner and the Mät panel all close with a 40 px `button.bar-close` ✕ — no "Klar" buttons left.  `screwJoints(parts,
+  bar close with ✕ instead of Klar. **✕ on every bar** (owner 2026-11-23): `BarHead` (Flytta/Vrid/Spegla/Fog/Ny fog), the frame bar, the place banner and the Mät panel all close with a 40 px `button.bar-close` ✕ — no "Klar" buttons left. **Long names** (owner report 2026-11-24): on the phone `.place-banner` is `max-width: 100%` (was `none`, so a long part name pushed Ny fog off screen); bar rows have `min-width: 0`, the BarHead title ends in …, and the joint line is `JointNames` (each name cut with … on its own, "A… → B…") with the screw info wrapping to its own line. Checked every bar and panel with 60-character names on a Pixel 7.  `screwJoints(parts,
   edits)` everywhere (list, 3D dots, totals, Kontroll). `normalizeProject`
   also keeps `purpose` (it used to be dropped on reload). **Pre-drill** (`pilotBit`, ≈ 0.6 × d softwood,
   0.75 × d MDF, rounded to 0.5 mm) near an end (< 10 × d), into/through

@@ -1248,7 +1248,8 @@ button.primary {
   transform: none;
 }
 .app.mobile .place-banner {
-  max-width: none;
+  /* As wide as needed, never wider than the screen: long part names are cut with … (owner report 2026-11-24) */
+  max-width: 100%;
 }
 .app.mobile .place-top {
   top: auto;
@@ -2765,7 +2766,7 @@ details.info > summary::-webkit-details-marker {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.joint-reach span:last-child {
+.joint-reach > span:last-child {
   white-space: nowrap;
   font-weight: 600;
 }
@@ -2954,4 +2955,43 @@ button.fill-screws {
   color: var(--accent-strong);
   background: var(--accent-soft);
   font-weight: 600;
+}
+
+/* Floating bars never grow past their box because of a long name: rows
+   shrink and long texts end in … (owner report 2026-11-24, Ny fog with long part names) */
+.place-banner > *,
+.place-banner .joint-reach,
+.place-banner .bar-head {
+  min-width: 0;
+  max-width: 100%;
+}
+.bar-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Long names: the screw info wraps to its own line, the names get the full width */
+.joint-reach {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+.joint-reach .joint-parts {
+  flex: 1 1 100%;
+}
+.joint-reach > span:last-child:not(.joint-parts) {
+  margin-left: auto;
+}
+.joint-reach .joint-parts {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+.joint-reach .jp-name {
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
 }
