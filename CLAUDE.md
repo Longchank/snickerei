@@ -691,6 +691,24 @@ comments in English).
   sheet with `frame` gets its frame rebuilt from its settings
   (`rebuildFrame` → `buildFrame`, legs to the floor from the sheet's new
   height); joist count is kept, spacing follows.
+- **Skala** (owner 2026-11-24, Detaljer, `src/lib/scale.ts`): "⇔ Skala"
+  in the Del panel (under the header) → `scaleMode` (store, not
+  persisted; closes the phone panel, ends on panel open / leaving
+  Detaljer / ✕) + `ScaleBar`. A tap on the selected part picks the end
+  that grows (`scaleFace`: the tapped face if it can move, else the
+  nearest movable end — `nearestFace`, since end faces are a few px on a
+  phone); then a tap elsewhere is where it ends (`scaleTarget`: a face
+  parallel to the end → its plane; another part's side → its near face,
+  so the board reaches it; the floor → y 0 for a downward end, else the
+  tap) and `scaleTo` moves that face, the other end stays (≥ 10 mm). Floor
+  taps use the fuzzy ring pick like Flytta. "− N / + N" with the move
+  step (`scaleStep` → `scaleBy`). Each change is one undo step (no
+  re-pick, or the Del panel would reopen and end the mode). Only sizes
+  that may change (`freeSizeAlong`: board length, sheet length/width).
+  `ScaleFaces` tints the movable faces (violet) and the chosen one
+  (orange); dims and end labels are hidden meanwhile. Framed sheets are
+  not rebuilt by it. **Klyvning** (French cleat rip) isn't shown for
+  sheets.
 - **No X/Y/Z transform fields** (owner 2026-11-18, removed once gaps
   were editable in the 3D view): the Del panel shows no position. Moving and turning happen in the 3D view (Bygg: arrows,
   rings, editable green gaps, Avancerat free gizmo).

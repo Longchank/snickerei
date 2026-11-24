@@ -43,6 +43,8 @@ function Placement({ parts }: { parts: Part[] }) {
 }
 
 function SinglePart({ part }: { part: Part }) {
+  const setScaleMode = useStore((s) => s.setScaleMode)
+  const requestPanel = useStore((s) => s.requestPanel)
   const updatePart = useStore((s) => s.updatePart)
   const clearSelection = useStore((s) => s.clearSelection)
   const select = useStore((s) => s.select)
@@ -115,9 +117,20 @@ function SinglePart({ part }: { part: Part }) {
         </div>
       )}
 
+      <button
+        className="scale-start"
+        onClick={() => {
+          setScaleMode(true)
+          requestPanel(false)
+        }}
+        title="Tryck på änden som ska växa, sedan där den ska sluta"
+      >
+        ⇔ Skala — dra ut en ände till en annan del
+      </button>
       <Ends part={part} />
       <Joints part={part} />
-      <Rip part={part} />
+      {/* Sheets aren't ripped into French cleats (owner 2026-11-24) */}
+      {prof.kind !== 'sheet' && <Rip part={part} />}
       <Shortcuts />
     </div>
   )

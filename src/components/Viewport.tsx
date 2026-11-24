@@ -26,6 +26,7 @@ import { cutters, type Cutter } from '../lib/cuts'
 import { AXIS_BOARDS, switchButtJoints } from '../lib/corner'
 import { endName, endPoint } from '../lib/ends'
 import { reorientOptions, worldAxisOf } from '../lib/place'
+import { scaleFaces, sizeAlong } from '../lib/scale'
 import { buildSteps, isShown, type Step } from '../lib/steps'
 import { similarChoices } from '../lib/select'
 import { phaseInfo } from '../lib/phases'
@@ -161,6 +162,7 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
   const measureMode = useStore((s) => s.measureMode)
   const measureTap = useStore((s) => s.measureTap)
   const joining = useStore((s) => s.jointMode && s.settings.mode === 'montering')
+  const scaling = useStore((s) => s.scaleMode && s.settings.mode === 'detaljer')
   const placing = useStore((s) => s.placeProfile !== null)
   const placeTap = useStore((s) => s.placeTap)
   const snapTypes = useStore((s) => s.settings.snapTypes)
@@ -234,6 +236,14 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
             const options = snapOptions(e)
             if (options.length) measureTap(options[0], options)
             setHover(null)
+            return
+          }
+          if (scaling) {
+            // Skala: a tap on the selected part picks the face that grows; a tap elsewhere is where it ends
+            e.stopPropagation()
+            if (!e.face) return
+            const n = e.face.normal.clone().transformDirection(e.object.matrixWorld).toArray() as Vec3
+            useStore.getState().scaleTap({ partId: part.id, hit: e.point.toArray() as Vec3, normal: n })
             return
           }
           if (joining) {
@@ -778,6 +788,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const placing = useStore((s) => s.placeProfile !== null)
   const placeTap = useStore((s) => s.placeTap)
   const moveMode = useStore((s) => s.moveMode)
+  const scaleMode = useStore((s) => s.scaleMode)
   const moveTap = useStore((s) => s.moveTap)
   const rotateMode = useStore((s) => s.rotateMode)
   const { freeMove, mode } = useStore((s) => s.settings)
@@ -963,14 +974,15 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
 
       {moveMode && selBox && !capturing && <MoveArrows box={selBox} />}
       {rotateMode && selBox && !capturing && <RotateRings box={selBox} />}
-      {showDimensions && mode !== 'montering' && !capturing && dimBox && (
+      {showDimensions && mode !== 'montering' && !scaleMode && !capturing && dimBox && (
         <Dimensions box={dimBox} offset={selBox ? 60 : 120} axes={dimAxes} label={dimLabel} />
       )}
       {showDimensions && mode !== 'montering' && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
-      {!capturing && mode === 'detaljer' && selection.length === 1 && <EndLabels partId={selection[0]} />}
+      {!capturing && mode === 'detaljer' && !scaleMode && selection.length === 1 && <EndLabels partId={selection[0]} />}
       {!capturing && mode === 'inkop' && <CheckMarkers shown={shownIds} />}
       {!capturing && (screwView || mode === 'montering') && <ScrewDots parts={parts} shown={shownParts} />}
       {!capturing && mode === 'montering' && <JointPreview />}
+      {!capturing && mode === 'detaljer' && scaleMode && selection.length === 1 && <ScaleFaces partId={selection[0]} />}
       {shownParts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
       ))}
@@ -1011,7 +1023,14 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
         receiveShadow
         // Only a click target while measuring, so a tap on empty floor still deselects otherwise
         onClick={
-          moveMode
+          scaleMode && mode === 'detaljer'
+            ? (e) => {
+                e.stopPropagation()
+                // A tap that just misses a board counts as a tap on it (boards are thinner than a thumb)
+                const near = fuzzyPickRef.current?.(e.nativeEvent.clientX, e.nativeEvent.clientY, FUZZY_PX)
+                useStore.getState().scaleTap(near ?? { floor: [e.point.x, 0, e.point.z] })
+              }
+            : moveMode
             ? (e) => {
                 e.stopPropagation()
                 const near = fuzzyPickRef.current?.(e.nativeEvent.clientX, e.nativeEvent.clientY, FUZZY_PX)
@@ -1681,6 +1700,78 @@ function JointPreview() {
   )
 }
 
+/**
+ * Skala in 3D: the faces of the selected part that can move, faint; the
+ * one picked to grow, strong (orange). Drawn just outside the part's box.
+ */
+function ScaleFaces({ partId }: { partId: string }) {
+  const part = useStore((s) => s.project.parts.find((p) => p.id === partId))
+  const face = useStore((s) => s.scaleFace)
+  if (!part) return null
+  const b = toAxisBox(partBox(part))
+  return (
+    <>
+      {scaleFaces(part).map((f) => {
+        const on = face?.axis === f.axis && face.side === f.side
+        const size = [0, 1, 2].map((i) => (i === f.axis ? 1 : b.max[i] - b.min[i] + 4)) as Vec3
+        const at = [0, 1, 2].map((i) => (i === f.axis ? (f.side ? b.max[i] + 1.5 : b.min[i] - 1.5) : (b.min[i] + b.max[i]) / 2)) as Vec3
+        return (
+          <mesh key={`${f.axis}${f.side}`} position={at} renderOrder={5} raycast={() => null}>
+            <boxGeometry args={size} />
+            <meshBasicMaterial color={on ? '#f97316' : '#7c3aed'} transparent opacity={on ? 0.75 : 0.25} depthTest={false} depthWrite={false} />
+          </mesh>
+        )
+      })}
+    </>
+  )
+}
+
+/** Skala: pick the end that grows, then tap where it should end — or step it in and out */
+function ScaleBar() {
+  const on = useStore((s) => s.scaleMode)
+  const face = useStore((s) => s.scaleFace)
+  const setScaleMode = useStore((s) => s.setScaleMode)
+  const scaleStep = useStore((s) => s.scaleStep)
+  const step = useStore((s) => s.settings.moveStep)
+  const setSettings = useStore((s) => s.setSettings)
+  const part = useStore((s) => (s.selection.length === 1 ? s.project.parts.find((p) => p.id === s.selection[0]) : undefined))
+  if (!on) return null
+  const AXIS_NAME = ['sidled', 'höjd', 'djup']
+  return (
+    <div className="measure-top place-top">
+      <div className="place-banner move-bar scale-bar" role="toolbar" aria-label="Skala">
+        <BarHead icon={<span aria-hidden>⇔</span>} title="Skala" hint="Tryck på änden som ska växa, sedan där den ska sluta" onDone={() => setScaleMode(false)} />
+        {!part ? (
+          <p className="bar-hint small">Markera en del först.</p>
+        ) : !face ? (
+          <p className="bar-hint small">Tryck på delen nära änden som ska växa.</p>
+        ) : (
+          <>
+            <p className="bar-hint small">
+              {sizeAlong(part, face.axis)} mm i {AXIS_NAME[face.axis]} · tryck där änden ska sluta — en annan del eller golvet
+            </p>
+            <div className="scale-steps">
+              <button onClick={() => scaleStep(-step)} aria-label={`Kortare ${step} mm`}>
+                − {step}
+              </button>
+              <div className="move-steps" role="group" aria-label="Steg">
+                {STEPS.map((s) => (
+                  <button key={s} className={step === s ? 'on' : ''} aria-pressed={step === s} onClick={() => setSettings({ moveStep: s })}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => scaleStep(step)} aria-label={`Längre ${step} mm`}>
+                + {step}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const FRAME_PROFILES = PROFILES.filter(
   (p) => p.kind === 'board' && (p.category === 'konstruktion' || (p.category === 'hyvlat' && p.thickness >= 28)),
 )
@@ -2193,6 +2284,7 @@ export function Viewport({
     {mirrorMode && count > 0 && <MirrorBar />}
     {mode === 'montering' && <JointEditBar />}
     {mode === 'montering' && <JointBar />}
+    {mode === 'detaljer' && <ScaleBar />}
     {framing && <FrameBar />}
     {showActions && <ActionBar />}
     {measureMode && (

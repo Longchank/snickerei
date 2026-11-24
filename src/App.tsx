@@ -98,7 +98,13 @@ export function App() {
     if (st.frameSheet) st.closeFrame()
     if (st.screwFocus) st.focusScrew(null)
     if (st.jointMode) st.setJointMode(false)
+    if (st.scaleMode) st.setScaleMode(false)
   }, [sheetOpen, mobile])
+  // Skala: taps go to the model, so the panel closes; leaving Detaljer ends it
+  const scaleMode = useStore((s) => s.scaleMode)
+  useEffect(() => {
+    if (scaleMode && mobile) setSheetOpen(false)
+  }, [scaleMode, mobile])
   // "Ny fog": taps go to the model, so the panel closes; leaving Montering ends it
   const jointMode = useStore((s) => s.jointMode)
   useEffect(() => {
@@ -107,6 +113,7 @@ export function App() {
   const phaseNow = useStore((s) => s.settings.mode)
   useEffect(() => {
     if (phaseNow !== 'montering' && useStore.getState().jointMode) useStore.getState().setJointMode(false)
+    if (phaseNow !== 'detaljer' && useStore.getState().scaleMode) useStore.getState().setScaleMode(false)
   }, [phaseNow])
   // A screw tapped in 3D: its bar is the window now
   const screwFocus = useStore((s) => s.screwFocus)

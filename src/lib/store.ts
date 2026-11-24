@@ -13,6 +13,7 @@ import { copyPlane, mirrorParts } from './mirror'
 import { toPhase } from './phases'
 import type { JointAnchor, ScrewEdit } from './screws'
 import { planScrews, reverseEdits, screwJoints } from './screws'
+import { faceFromNormal, nearestFace, scaleBy, scaleTarget, scaleTo, type ScaleFace } from './scale'
 import {
   halfLap,
   moveParts,
@@ -77,6 +78,13 @@ interface State {
   /** The screw being edited in 3D (Montering): its joint and which screw */
   screwFocus: { key: string; index: number } | null
   focusScrew: (f: { key: string; index: number } | null) => void
+  /** Skala (Detaljer): taps pick the face of the selected part that grows, then where it ends */
+  scaleMode: boolean
+  scaleFace: ScaleFace | null
+  setScaleMode: (on: boolean) => void
+  setScaleFace: (f: ScaleFace | null) => void
+  scaleTap: (target: { partId: string; hit: Vec3; normal: Vec3 } | { floor: Vec3 }) => void
+  scaleStep: (delta: number) => void
   /** "Ny fog" (Montering): taps on the model start a joint there */
   jointMode: boolean
   jointDraft: JointDraft | null
@@ -397,6 +405,36 @@ export const useStore = create<State>()(
         focusCheck: (id) => set((s) => ({ checkFocus: { id, n: (s.checkFocus?.n ?? 0) + 1 } })),
         screwFocus: null,
         focusScrew: (screwFocus) => set({ screwFocus, ...(screwFocus ? { jointMode: false, jointDraft: null } : {}) }),
+        scaleMode: false,
+        scaleFace: null,
+        setScaleMode: (on) =>
+          set({
+            scaleMode: on,
+            scaleFace: null,
+            ...(on ? { moveMode: false, rotateMode: false, mirrorMode: false, measureMode: false, pendingPoint: null, placeProfile: null } : {}),
+          }),
+        setScaleFace: (scaleFace) => set({ scaleFace }),
+        scaleTap: (target) => {
+          const { scaleFace, selection, project } = get()
+          const part = project.parts.find((p) => p.id === selection[0])
+          if (!part) return
+          // A tap on the part itself picks the end that grows: the tapped end, or the nearest one
+          if ('partId' in target && target.partId === part.id) {
+            const f = faceFromNormal(part, target.normal) ?? nearestFace(part, target.hit)
+            if (f) set({ scaleFace: f })
+            return
+          }
+          if (!scaleFace) return
+          const other = 'partId' in target ? project.parts.find((p) => p.id === target.partId) ?? null : null
+          const coord =
+            'floor' in target ? scaleTarget(part, scaleFace, target.floor, null, null) : scaleTarget(part, scaleFace, target.hit, target.normal, other)
+          editParts((ps) => ps.map((p) => (p.id === part.id ? scaleTo(p, scaleFace, coord) : p)))
+        },
+        scaleStep: (delta) => {
+          const { scaleFace, selection } = get()
+          if (!scaleFace || selection.length !== 1) return
+          editParts((ps) => ps.map((p) => (p.id === selection[0] ? scaleBy(p, scaleFace, delta) : p)))
+        },
         jointMode: false,
         jointDraft: null,
         setJointMode: (on) =>
@@ -674,7 +712,7 @@ export const useStore = create<State>()(
         },
         setMeasureMode: (on) =>
           set({
-            ...(on ? { jointMode: false, jointDraft: null } : {}),
+            ...(on ? { jointMode: false, jointDraft: null, scaleMode: false, scaleFace: null } : {}),
             moveMode: false,
             rotateMode: false, mirrorMode: false,
             placeProfile: null,
