@@ -239,6 +239,12 @@ comments in English).
   shows a round "!" per issue (`CheckMarkers`, red = bad, amber = warn,
   drei `Html`); a tap sets `checkFocus` (store, not persisted), which opens
   the Kontroll tab and scrolls to and highlights that item.
+- **Mått på/av in the view** (owner 2026-11-25, `DimsToggle` in
+  Viewport.tsx): a button between ⛶ and the tool menu (Lucide
+  RulerDimensionLine, lit when on) toggles `settings.showDimensions` —
+  the same persisted setting as the menu's "Visa mått" — so size labels
+  and the green free-space numbers hide. Disabled in Montering (never
+  drawn there).
 - **View tool menu** (owner 2026-11-21, `ViewTools` in Viewport.tsx,
   icons in `components/Icons.tsx`): the right edge of the view has ⤢ (fit)
   and ⛶ (full screen), then a tool button that folds out the global 3D

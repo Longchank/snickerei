@@ -1226,6 +1226,30 @@ function ActionBar() {
 }
 
 /**
+ * Dimension labels on/off right in the view (owner 2026-11-25), same setting as the menu's
+ * "Visa mått". In Montering the sizes are never drawn, so it's disabled there.
+ */
+function DimsToggle() {
+  const on = useStore((s) => s.settings.showDimensions)
+  const mode = useStore((s) => s.settings.mode)
+  const setSettings = useStore((s) => s.setSettings)
+  const off = mode === 'montering'
+  const label = off ? 'Mått visas inte under Montering' : on ? 'Dölj måtten' : 'Visa måtten'
+  return (
+    <button
+      className={`icon dims-toggle ${on && !off ? 'on' : ''}`}
+      onClick={() => setSettings({ showDimensions: !on })}
+      disabled={off}
+      aria-pressed={on && !off}
+      title={label}
+      aria-label={label}
+    >
+      <Ic i={L.dims} size={22} />
+    </button>
+  )
+}
+
+/**
  * The view's tool menu (right side): a button that folds out the global 3D
  * tools — measure, step by step, X-ray, and hide / show only / lock for the
  * selection. Tools that are switched on, and "show hidden" / "unlock" when
@@ -2290,6 +2314,7 @@ export function Viewport({
           <Ic i={L.fullscreen} size={22} />
         </button>
       )}
+      <DimsToggle />
       <ViewTools />
     </div>
     {activeStep && <StepBar steps={steps} />}
