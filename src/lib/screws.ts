@@ -382,6 +382,7 @@ export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}
       if (!c) continue
       const n = c.axis
       // Screw through the part that's thinner along the screw, never along a board's length
+      const isSheet = (p: Part) => getProfile(p.profileId).kind === 'sheet'
       const alongLength = (p: Part) => getProfile(p.profileId).kind === 'board' && worldAxisOf(p.rotation, 0) === n
       const cand = [a, b].filter((p) => !alongLength(p))
       if (!cand.length) continue // two boards end to end: not a screwed joint
@@ -390,7 +391,8 @@ export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}
       // A joint already in the build keeps the direction it was given (its key); a new one is
       // screwed from the outside in (owner 2026-11-24: easier to reach) — the part whose free
       // side is on the outside of its group (own joints) or of the build (assembly);
-      // otherwise (both or neither outside) the thinner part
+      // otherwise (both or neither outside) the thinner part. A sheet against a board is always
+      // screwed through the sheet into the board (owner 2026-11-25: into the frame, not the sheet)
       const keyed = cand.find((t) => edits[jointKey(t, t === a ? b : a)])
       const outer = (a.groupId && a.groupId === b.groupId ? groupBox.get(a.groupId) : whole)!
       const ab = boxes.get(a.id)!
@@ -399,7 +401,7 @@ export function screwJoints(parts: Part[], edits: Record<string, ScrewEdit> = {}
       const toOutside = (p: Part) => (p === a) === aBelow ? boxes.get(p.id)!.min[n] - outer.min[n] : outer.max[n] - boxes.get(p.id)!.max[n]
       const through =
         keyed ??
-        cand.sort((x, y) => Number(toOutside(x) > 1) - Number(toOutside(y) > 1) || size(boxes.get(x.id)!, n) - size(boxes.get(y.id)!, n))[0]
+        cand.sort((x, y) => Number(!isSheet(x)) - Number(!isSheet(y)) || Number(toOutside(x) > 1) - Number(toOutside(y) > 1) || size(boxes.get(x.id)!, n) - size(boxes.get(y.id)!, n))[0]
       const into = through === a ? b : a
       const edit = edits[jointKey(through, into)]
       if (!opts.all && !edit) continue // a suggestion, not taken in

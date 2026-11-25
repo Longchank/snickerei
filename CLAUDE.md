@@ -584,6 +584,9 @@ comments in English).
   through part is the one whose free side lies on the outside of its
   group's box (joints inside a group) or of the whole build (assembly
   joints); if both or neither are outside, the thinner one (as before).
+  **A sheet against a board is always screwed through the sheet into the
+  board** (owner 2026-11-25: "better to screw into the frame than into
+  the sheets") — this comes before the outside rule.
   A joint already in the build keeps its direction: the edit's key
   ("through|into") decides, checked in both orders, so older saves are
   unchanged. **"⇅ Skruva genom X i stället"** in the joint editor
