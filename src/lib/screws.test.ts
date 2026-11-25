@@ -437,6 +437,28 @@ describe('planScrews (✦ Fyll i rekommenderade)', () => {
       if (placement === 'inside') expect(before.length).toBeGreaterThan(0)
     }
   })
+
+  it('screws the frame board to board first, the sheet last (one group: sheet + frame)', async () => {
+    const { buildFrame } = await import('./frame')
+    const { planScrews } = await import('./screws')
+    const sheet = { id: 's', name: 'Skiva', profileId: 'plywood-18', length: 1200, width: 600, position: [0, 700, 0], rotation: [0, 0, 0] } as Part
+    const { sheet: sh, parts } = buildFrame(sheet, { profileId: 'konstruktion-45x70', joists: 1, onEdge: true } as never)
+    const all = [{ ...sh, groupId: 'g' }, ...parts.map((p) => ({ ...p, groupId: 'g' }))]
+    const edits = planScrews(all, {}, ['g'])
+    const after = joints(all, edits)
+    const isSheet = (j: { through: Part; into: Part }) => [j.through.id, j.into.id].includes(sh.id)
+    // Every board-to-board contact of the frame is screwed (rails into the end and joists' ends)
+    const frameSuggested = joints(all, {}, { all: true }).filter((j) => !isSheet(j))
+    expect(frameSuggested.length).toBeGreaterThan(0)
+    for (const j of frameSuggested) expect(after.some((a) => a.key === j.key), j.key).toBe(true)
+    // …and the sheet onto the frame, through the sheet
+    expect(after.filter(isSheet).every((j) => j.through.id === sh.id)).toBe(true)
+    expect(after.some(isSheet)).toBe(true)
+    // Boards first in the plan's order, sheets last
+    const order = Object.keys(edits)
+    const firstSheet = order.findIndex((k) => k.includes(sh.id))
+    expect(order.slice(firstSheet).every((k) => k.includes(sh.id))).toBe(true)
+  })
 })
 
 describe('screws go in from the outside', () => {

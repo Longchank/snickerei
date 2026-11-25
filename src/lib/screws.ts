@@ -752,6 +752,9 @@ export function screwClashes(joints: Joint[]): { a: Joint; b: Joint; at: Vec3 }[
  * it already sits on the rails).
  * Returns the edits to add; joints already in the build are obstacles.
  */
+const isSheetPart = (p: Part) => getProfile(p.profileId).kind === 'sheet'
+const sheetJoint = (j: Joint) => isSheetPart(j.through) || isSheetPart(j.into)
+
 export function planScrews(
   parts: Part[],
   edits: Record<string, ScrewEdit> = {},
@@ -768,7 +771,9 @@ export function planScrews(
   }
   const cands = all
     .filter((j) => !edits[j.key] && j.count > 0 && (!only || only.has(j.through.id) || only.has(j.into.id)))
-    .sort((x, y) => rank(x) - rank(y) || Number(x.endGrain) - Number(y.endGrain))
+    // Boards first, from the outside in, in build order; screws through a sheet last (owner
+    // 2026-11-25: "screw all the boards first, the sheets last")
+    .sort((x, y) => Number(sheetJoint(x)) - Number(sheetJoint(y)) || rank(x) - rank(y) || Number(x.endGrain) - Number(y.endGrain))
   // Parts held by a side-grain joint (in the build, or about to be), and how many joints each part has
   const sideHeld = new Set<string>()
   const jointsOf = new Map<string, number>()
@@ -778,8 +783,10 @@ export function planScrews(
   }
   const out: Record<string, ScrewEdit> = {}
   for (const j of cands) {
-    // Into end grain, from a part that's already held on its side grain, into a part held by other joints: not needed
-    if (j.endGrain && sideHeld.has(j.through.id) && (jointsOf.get(j.into.id) ?? 0) > 1) continue
+    // A sheet into end grain (a top into the legs' ends), when the sheet is already held on side
+    // grain and the part behind by other joints: not needed. Board to board end grain (a joist
+    // into a rail) is how a frame is held, so it always stays.
+    if (j.endGrain && isSheetPart(j.through) && sideHeld.has(j.through.id) && (jointsOf.get(j.into.id) ?? 0) > 1) continue
     const n = j.dir.findIndex((v) => v !== 0)
     const [ua, va] = j.axes
     const box = j.area

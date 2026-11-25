@@ -571,9 +571,14 @@ comments in English).
   screw whose line (`screwLines`, head → tip) comes within (d1+d2)/2 + 6
   mm of another (`segmentDistance`, `linesClash`) moves to the nearest
   free spot on its contact (10 mm steps, 15 mm from its edges) or is left
-  out; an end-grain joint is skipped when the part screwed through is
-  held on side grain and the part behind has other joints (a top screwed
-  into the legs' ends). Moved/thinned joints store `points`. The button's
+  out; an end-grain joint is skipped only when a **sheet** is screwed
+  into end grain while it's held on side grain and the part behind has
+  other joints (a top screwed into the legs' ends) — board-to-board end
+  grain (a rail into a joist's end) always stays: it holds the frame
+  (owner 2026-11-25: the sheet screws had made every frame joint look
+  "not needed", so only the sheet got screws). **Order: board joints
+  first (build order, from the outside in), sheet joints last**, so the
+  sheet's screws move around the frame's, not the other way round. Moved/thinned joints store `points`. The button's
   count is the planned joints. A test builds the table (legs inside /
   merged / outside / under): no clashes, every part held, no top-into-
   leg screws. `screwClashes(joints)` also feeds a Kontroll warning
