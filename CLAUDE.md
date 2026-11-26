@@ -112,6 +112,32 @@ comments in English).
 - Boards: `packCuts` tries each stock length as bin size with first-fit and
   a subset-sum "best fill", then gives each board its cheapest fitting
   length; keeps the cheapest total (without prices: least timber).
+- **Steps reordered** (owner 2026-11-26, after a UX review: follow how
+  you actually build): **1 Skissa · 2 Detaljer · 3 Handla · 4 Verkstad**
+  (ids `skissa`/`detaljer`/`handla`/`verkstad`; `toPhase` maps old saves
+  bygg→skissa, redigera→detaljer, montering→verkstad, inkop→handla).
+  Tabs: Skissa = Lägg till · Delar; Detaljer = Del · **Fogar** (the
+  `ScrewEditor`, label was "Skruv") · Analys; Handla = Kontroll ·
+  **Inköp** (`ShopList`: inköpslista + skruv to buy) · Priser; Verkstad =
+  **Kapa** (`CutPanel`: the cut list) · **Montera** (`StepList`) · Delar
+  (`GroupParts`). Everything screw-editing moved from Montering to
+  Detaljer: Ny fog / JointBar / JointEditBar / JointPreview, tappable
+  screws (not while Skala), screws always drawn; Skala and Ny fog switch
+  each other off. Verkstad = old Montering for viewing: no dims, screws
+  drawn read-only, a tap picks a group. In Detaljer a pick stays on Fogar
+  if that tab is open (else Del). Check `fix` steps follow (screw issues →
+  detaljer). Below, older notes still say Bygg/Montering/Inköp: read them
+  as Skissa/Verkstad (or Detaljer for screws)/Handla.
+  **Decided next steps** (owner 2026-11-26, sketch page "Snickerei
+  stegordning"): (1) **Verkstad locks the model** while cutting: going
+  back to edit warns that the model must be unlocked, and unlocking
+  empties the cut checklist. (2) **Check-offs saved per project**, in the
+  inköpslista and in Kapa/Montera. (3) **Start screen** with a project
+  list and **templates Bänk and Bord** (built on Ram under skivan + Ben;
+  ask only outer size; set purpose and groups). (4) Warning counts on the
+  step buttons + a "Fortsätt till …" button. (5) Hide expert tools
+  behind Avancerat. "Fyll i rekommenderade" is **not** run automatically
+  on entering Detaljer ("something we'll test").
 - **Four steps of a build** (owner 2026-11-20, replaced "Bygg | Redigera";
   `settings.mode: Phase`, `src/lib/phases.ts`): **1 Bygg** (big picture:
   add, move, turn, mirror, groups, frames) · **2 Detaljer** (lengths, ends,
@@ -243,7 +269,7 @@ comments in English).
   Viewport.tsx): a button between ⛶ and the tool menu (Lucide
   RulerDimensionLine, lit when on) toggles `settings.showDimensions` —
   the same persisted setting as the menu's "Visa mått" — so size labels
-  and the green free-space numbers hide. Disabled in Montering (never
+  and the green free-space numbers hide. Disabled in Verkstad (never
   drawn there).
 - **View tool menu** (owner 2026-11-21, `ViewTools` in Viewport.tsx,
   icons in `components/Icons.tsx`): the right edge of the view has ⤢ (fit)

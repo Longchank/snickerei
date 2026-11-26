@@ -18,7 +18,7 @@ function partSummary(parts: Part[]): string {
 }
 
 /**
- * Montering → Steg (owner 2026-11-22: "only the steps needed for assembly,
+ * Verkstad → Montera (owner 2026-11-22; was Montering → Steg: "only the steps needed for assembly,
  * no screw info, and the order can be changed"): each group is a step, then
  * Montering puts it all together. ↑ ↓ change the order (the groups' order,
  * so Steg för steg and the screw lists follow); tapping a step shows only
@@ -72,7 +72,7 @@ export function StepList() {
   return (
     <div className="step-panel">
       {groupSteps.length === 0 && (
-        <p className="hint small">Gruppera delar i Bygg (t.ex. Ram, Ben) så blir varje grupp ett eget steg. Nu monteras allt i ett steg.</p>
+        <p className="hint small">Gruppera delar i Skissa (t.ex. Ram, Ben) så blir varje grupp ett eget steg. Nu monteras allt i ett steg.</p>
       )}
       <ol className="step-list">
         {steps.map((s, i) => {
@@ -111,7 +111,7 @@ export function StepList() {
         <p>
           Varje grupp är ett steg som byggs för sig, sist sätts allt ihop. Ändra ordningen med ↑ ↓ — Steg för steg och skruvlistorna följer
           den. Tryck på ett steg för att zooma in på bara det i 3D, tryck igen för att se allt. ✎ öppnar gruppen under
-          Delar, där du byter namn och ordning på delarna. Skruvarna ändrar du under Skruv.
+          Delar, där du byter namn och ordning på delarna. Skruvarna ändrar du under Detaljer → Fogar.
         </p>
       </Info>
     </div>

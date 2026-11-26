@@ -44,7 +44,7 @@ const sizeOf = (p: Part) => {
 }
 
 /**
- * Montering → Delar (owner 2026-11-22): what's selected, as a group — its
+ * Verkstad → Delar (owner 2026-11-22): what's selected, as a group — its
  * name as the header and its parts below, in build order. Rename the group
  * and its parts, change the order of the parts. Nothing selected: nothing
  * here. One part: shown the same way, on its own. With Steg för steg on a
@@ -63,7 +63,7 @@ export function GroupParts() {
   const stepGroup = groups.find((g) => g.id === activeStep && parts.some((p) => p.groupId === g.id))
   const sel = new Set(stepGroup ? parts.filter((p) => p.groupId === stepGroup.id).map((p) => p.id) : selection)
   const chosen = parts.filter((p) => sel.has(p.id))
-  if (!chosen.length) return <p className="hint">Markera en grupp i 3D — eller tryck ✎ under Steg.</p>
+  if (!chosen.length) return <p className="hint">Markera en grupp i 3D — eller tryck ✎ under Montera.</p>
 
   // One group (all of the selection in it): that group
   const groupIds = new Set(chosen.map((p) => p.groupId))

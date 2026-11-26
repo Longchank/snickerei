@@ -44,7 +44,7 @@ export type Vec3 = [number, number, number]
 /** The four steps of a build: build, details, assembly, purchase */
 import type { ScrewEdit } from './screws'
 
-export type Phase = 'bygg' | 'detaljer' | 'montering' | 'inkop'
+export type Phase = 'skissa' | 'detaljer' | 'handla' | 'verkstad'
 
 export interface Part {
   /** Hidden in the 3D view (still counted in lists, screws and analysis) */
@@ -215,7 +215,7 @@ export interface Settings {
   snapToParts: boolean
   /** Which features to snap to, when moving parts and when measuring */
   snapTypes: SnapTypes
-  /** The step of the build (see phases.ts): Bygg picks whole groups, Detaljer one part, … */
+  /** The step of the build (see phases.ts): Skissa picks whole groups, Detaljer one part, … */
   mode: Phase
   /** Advanced: the free 3D drag gizmo (off by default) */
   freeMove: boolean

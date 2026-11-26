@@ -14,13 +14,13 @@ function at(id: string, length: number, rotation: Part['rotation'], min: Vec3, p
 const check = (parts: Part[]) => runChecks(parts, analyse(parts, 'forvaring'), screwJoints(parts, {}, { all: true }), purchasePlan(parts, [], 3))
 
 describe('runChecks', () => {
-  it('finds a collision, with a marker inside the overlap and a fix in Bygg', () => {
+  it('finds a collision, with a marker inside the overlap and a fix in Skissa', () => {
     const a = at('A', 1000, [0, 0, 0], [0, 0, 0])
     const b = at('B', 1000, [0, 0, 0], [500, 0, 50])
     const k = check([a, b]).find((i) => i.id.startsWith('krock'))!
     expect(k.severity).toBe('bad')
     expect(k.partIds.sort()).toEqual(['A', 'B'])
-    expect(k.fix).toBe('bygg')
+    expect(k.fix).toBe('skissa')
     expect(k.at![0]).toBeGreaterThan(500)
   })
 

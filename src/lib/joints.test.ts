@@ -175,7 +175,7 @@ describe('store: modes', () => {
 
   it('Bygg adds each tapped group to the selection; Redigera picks one part', () => {
     const s = useStore.getState
-    s().setMode('bygg')
+    s().setMode('skissa')
     for (let i = 0; i < 3; i++) s().addPart('konstruktion-45x70')
     const [a, b, c] = s().project.parts
     s().select([a.id, b.id])
@@ -195,7 +195,7 @@ describe('store: modes', () => {
 
   it('moves the selection next to a tapped board', () => {
     const s = useStore.getState
-    s().setMode('bygg')
+    s().setMode('skissa')
     s().addPart('konstruktion-45x95')
     s().addPart('konstruktion-45x95')
     const [sill, other] = s().project.parts

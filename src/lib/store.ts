@@ -75,7 +75,7 @@ interface State {
   /** The checklist item to show (a "!" in 3D was tapped); n changes on every tap */
   checkFocus: { id: string; n: number } | null
   focusCheck: (id: string) => void
-  /** The screw being edited in 3D (Montering): its joint and which screw */
+  /** The screw being edited in 3D (Detaljer): its joint and which screw */
   screwFocus: { key: string; index: number } | null
   focusScrew: (f: { key: string; index: number } | null) => void
   /** Skala (Detaljer): taps pick the face of the selected part that grows, then where it ends */
@@ -85,7 +85,7 @@ interface State {
   setScaleFace: (f: ScaleFace | null) => void
   scaleTap: (target: { partId: string; hit: Vec3; normal: Vec3 } | { floor: Vec3 }) => void
   scaleStep: (delta: number) => void
-  /** "Ny fog" (Montering): taps on the model start a joint there */
+  /** "Ny fog" (Detaljer): taps on the model start a joint there */
   jointMode: boolean
   jointDraft: JointDraft | null
   setJointMode: (on: boolean) => void
@@ -154,7 +154,7 @@ interface State {
   select: (ids: string[]) => void
   clearSelection: () => void
   setMultiSelect: (on: boolean) => void
-  /** A tap on a part in the view, by step: Bygg toggles its group, Montering picks its group, Detaljer/Inköp just it */
+  /** A tap on a part in the view, by step: Skissa toggles its group, Verkstad picks its group, Detaljer/Handla just it */
   pickPart: (id: string, modifier?: boolean) => void
   setMode: (mode: Settings['mode']) => void
   setMoveMode: (on: boolean) => void
@@ -262,7 +262,7 @@ const DEFAULT_SETTINGS: Settings = {
   showDimensions: true,
   snapToParts: true,
   snapTypes: DEFAULT_SNAP_TYPES,
-  mode: 'bygg',
+  mode: 'skissa',
   freeMove: false,
   moveStep: 10,
 }
@@ -411,7 +411,8 @@ export const useStore = create<State>()(
           set({
             scaleMode: on,
             scaleFace: null,
-            ...(on ? { moveMode: false, rotateMode: false, mirrorMode: false, measureMode: false, pendingPoint: null, placeProfile: null } : {}),
+            // Skala and Ny fog both live in Detaljer and both take the taps: one at a time
+            ...(on ? { jointMode: false, jointDraft: null, screwFocus: null, moveMode: false, rotateMode: false, mirrorMode: false, measureMode: false, pendingPoint: null, placeProfile: null } : {}),
           }),
         setScaleFace: (scaleFace) => set({ scaleFace }),
         scaleTap: (target) => {
@@ -441,7 +442,7 @@ export const useStore = create<State>()(
           set({
             jointMode: on,
             jointDraft: null,
-            ...(on ? { screwFocus: null, measureMode: false, pendingPoint: null, moveMode: false, rotateMode: false, mirrorMode: false, placeProfile: null } : {}),
+            ...(on ? { scaleMode: false, scaleFace: null, screwFocus: null, measureMode: false, pendingPoint: null, moveMode: false, rotateMode: false, mirrorMode: false, placeProfile: null } : {}),
           }),
         setJointDraft: (jointDraft) => set({ jointDraft }),
         panelRequest: null,
@@ -569,9 +570,9 @@ export const useStore = create<State>()(
         clearSelection: () => set({ selection: [] }),
         pickPart: (id, modifier = false) => {
           const mode = get().settings.mode
-          if (mode === 'bygg') return get().tapPart(id, true)
-          // Montering: a tap shows one group (its screws); modifier adds more
-          if (mode === 'montering') return get().tapPart(id, modifier)
+          if (mode === 'skissa') return get().tapPart(id, true)
+          // Verkstad: a tap shows one group (a build step); modifier adds more
+          if (mode === 'verkstad') return get().tapPart(id, modifier)
           if (modifier) return get().tapPart(id, true)
           if (!unlocked([id]).length) return
           set((s) => ({ selection: [id], pickCount: s.pickCount + 1 }))
@@ -608,7 +609,7 @@ export const useStore = create<State>()(
             moveMode: false,
             rotateMode: false, mirrorMode: false,
             // Placing is building
-            ...(placeProfile && s.settings.mode !== 'bygg' ? { settings: { ...s.settings, mode: 'bygg' as const } } : {}),
+            ...(placeProfile && s.settings.mode !== 'skissa' ? { settings: { ...s.settings, mode: 'skissa' as const } } : {}),
             placeNote: null,
             placeChoice: null,
             sheetCorner: null,

@@ -1,5 +1,6 @@
 /**
- * The four steps of a build (owner 2026-11-20). Each step is a way of working:
+ * The four steps of a build (owner 2026-11-20; reordered 2026-11-26 to follow
+ * how you actually build: sketch → details → shop → workshop). Each step is a way of working:
  * what a tap in 3D does, which panels there are, and a colour that tints the
  * whole app so it's always clear which step you're in. Steps are views, not
  * gates — the model can be changed in any of them. Add a step by adding an
@@ -20,14 +21,15 @@ export interface PhaseInfo {
 }
 
 export const PHASES: PhaseInfo[] = [
-  { id: 'bygg', n: 1, label: 'Bygg', hint: 'Lägg till virke och skivor, flytta, vrid, gruppera', color: '#2563eb', strong: '#1d4ed8', soft: '#e6eefe' },
-  { id: 'detaljer', n: 2, label: 'Detaljer', hint: 'Längder, ändar, urtag — och håller det?', color: '#7c3aed', strong: '#6d28d9', soft: '#f1eafe' },
-  { id: 'montering', n: 3, label: 'Montering', hint: 'Steg för steg och skruv', color: '#0f766e', strong: '#115e59', soft: '#ddf3f0' },
-  { id: 'inkop', n: 4, label: 'Inköp', hint: 'Såglista, inköpslista och priser', color: '#be185d', strong: '#9d174d', soft: '#fce7f1' },
+  { id: 'skissa', n: 1, label: 'Skissa', hint: 'Lägg till virke och skivor, flytta, vrid, gruppera', color: '#2563eb', strong: '#1d4ed8', soft: '#e6eefe' },
+  { id: 'detaljer', n: 2, label: 'Detaljer', hint: 'Ändar, fogar och skruv — och håller det?', color: '#7c3aed', strong: '#6d28d9', soft: '#f1eafe' },
+  { id: 'handla', n: 3, label: 'Handla', hint: 'Kontroll, inköpslista och priser', color: '#be185d', strong: '#9d174d', soft: '#fce7f1' },
+  { id: 'verkstad', n: 4, label: 'Verkstad', hint: 'Kapa och montera, steg för steg', color: '#0f766e', strong: '#115e59', soft: '#ddf3f0' },
 ]
 
 export const phaseInfo = (id: Phase) => PHASES.find((p) => p.id === id) ?? PHASES[0]
 
-/** Saved settings from before the steps had 'redigera' */
+/** Saved settings from earlier step names: Bygg/Redigera/Montering/Inköp */
+const OLD: Record<string, Phase> = { bygg: 'skissa', redigera: 'detaljer', montering: 'verkstad', inkop: 'handla' }
 export const toPhase = (mode: string | undefined): Phase =>
-  mode === 'redigera' ? 'detaljer' : PHASES.some((p) => p.id === mode) ? (mode as Phase) : 'bygg'
+  PHASES.some((p) => p.id === mode) ? (mode as Phase) : (OLD[mode ?? ''] ?? 'skissa')

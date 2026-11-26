@@ -22,7 +22,7 @@ export function useChecks(): Issue[] {
 }
 
 /**
- * The checklist in Inköp. Each item can be shown in 3D (its parts selected)
+ * The checklist in Handla. Each item can be shown in 3D (its parts selected)
  * or taken to the step where it's fixed. A tap on a "!" in 3D lands here
  * on that item.
  */
@@ -94,7 +94,7 @@ export function Checklist() {
                   <Ic i={L.showIn3d} />
                 </button>
               )}
-              {i.fix !== 'inkop' && (
+              {i.fix !== 'handla' && (
                 <button
                   className="check-act fix-in"
                   style={{ background: fix.color, borderColor: fix.color }}

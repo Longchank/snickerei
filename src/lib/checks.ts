@@ -1,5 +1,5 @@
 /**
- * The checklist before buying (step 4 Inköp): everything the app already
+ * The checklist before buying (step 3 Handla): everything the app already
  * detects, gathered in one place. Each issue says what's wrong, which parts,
  * where in 3D (for the "!" marker) and which step it's fixed in.
  */
@@ -52,7 +52,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
         detail: 'Delarna går in i varandra. Flytta en av dem, kapa den eller gör ett urtag.',
         partIds: [p.id, o.other.id],
         at: centre(o.box),
-        fix: 'bygg',
+        fix: 'skissa',
       })
     }
 
@@ -67,7 +67,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
       detail: 'Den vilar inte på något. Flytta ner den eller sätt något under.',
       partIds: [id],
       at: above(boxOf(p)),
-      fix: 'bygg',
+      fix: 'skissa',
     })
   }
 
@@ -110,7 +110,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
       detail: `Det räcker med ca ${Math.round(analysis.tip.pushKg)} kg tryck upptill. Bredare fot, fäst i väggen eller tyngre nertill.`,
       partIds: [],
       at: above(all),
-      fix: 'bygg',
+      fix: 'skissa',
     })
   if (analysis.rack && analysis.rack.status !== 'ok' && all)
     issues.push({
@@ -120,7 +120,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
       detail: `Inget stagar ${analysis.rack.unbraced.join(' och ')}. En stående skiva (t.ex. en rygg) gör det stabilt.`,
       partIds: [],
       at: centre(all),
-      fix: 'bygg',
+      fix: 'skissa',
     })
 
   // Screws
@@ -136,7 +136,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
         detail: `${j.blockedBy} täcker sidan där skruven ska in. Skruva före ${j.blockedBy} sätts dit, snedskruva eller använd vinkeljärn.`,
         partIds: [j.through.id, j.into.id],
         at,
-        fix: 'montering',
+        fix: 'detaljer',
       })
     if (j.short)
       issues.push({
@@ -146,7 +146,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
         detail: 'Delen bakom är tunn, så skruven blir kortare än tumregeln. Överväg vinkeljärn.',
         partIds: [j.through.id, j.into.id],
         at,
-        fix: 'montering',
+        fix: 'detaljer',
       })
   }
 
@@ -156,10 +156,10 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
       id: `krockskruv:${c.a.key}:${c.b.key}`,
       severity: 'warn',
       title: `Skruvar krockar: ${c.a.through.name} → ${c.a.into.name}`,
-      detail: `Går in i skruvarna i ${c.b.through.name} → ${c.b.into.name}. Flytta eller ta bort en av dem (tryck på skruven i Montering).`,
+      detail: `Går in i skruvarna i ${c.b.through.name} → ${c.b.into.name}. Flytta eller ta bort en av dem (tryck på skruven i Detaljer).`,
       partIds: [...new Set([c.a.through.id, c.a.into.id, c.b.through.id, c.b.into.id])],
       at: c.at,
-      fix: 'montering',
+      fix: 'detaljer',
     })
 
   // Buying: pieces the store doesn't sell that big, and missing prices
@@ -208,7 +208,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
         detail: 'Lägg in ett eget pris under Priser, annars räknas totalen utan det.',
         partIds: [],
         at: null,
-        fix: 'inkop',
+        fix: 'handla',
       })
     else if (row.items.some((i) => i.offer?.supplier === 'Exempel'))
       issues.push({
@@ -218,7 +218,7 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
         detail: 'Priset är ett påhittat exempel, inte ett riktigt butikspris. Lägg in vad det kostar i din butik.',
         partIds: [],
         at: null,
-        fix: 'inkop',
+        fix: 'handla',
       })
   }
   return issues.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'bad' ? -1 : 1))

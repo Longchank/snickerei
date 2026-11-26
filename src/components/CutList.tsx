@@ -32,7 +32,8 @@ export function usePlan() {
   return { rows, plan, usesExamples }
 }
 
-export function CutList({ onPrint }: { onPrint: () => void }) {
+/** Handla → Inköp: what to buy (boards and sheets, screws), with the total */
+export function ShopList({ onPrint }: { onPrint: () => void }) {
   const { rows, plan, usesExamples } = usePlan()
   const kerf = useStore((s) => s.settings.kerf)
   const setSettings = useStore((s) => s.setSettings)
@@ -40,9 +41,8 @@ export function CutList({ onPrint }: { onPrint: () => void }) {
   const counts = useStore((s) => s.project.screwEdits)
   const screwCount = useMemo(() => screwTotals(screwJoints(parts, counts)).reduce((n, t) => n + t.toBuy, 0), [parts, counts])
 
-  if (rows.length === 0) return <p className="hint">Lägg till delar så räknas såglistan ut här.</p>
+  if (rows.length === 0) return <p className="hint">Lägg till delar så räknas inköpslistan ut här.</p>
   const total = totalCost(plan)
-  const pieces = rows.reduce((n, r) => n + r.count, 0)
   const stock = plan.reduce((n, r) => n + r.items.reduce((m, i) => m + i.count, 0), 0)
 
   return (
@@ -61,12 +61,27 @@ export function CutList({ onPrint }: { onPrint: () => void }) {
           <NumberField value={kerf} min={0} suffix="mm" onCommit={(v) => setSettings({ kerf: v })} />
         </label>
       </Fold>
-      <Fold id="list-cut" title="Såglista" status={`${pieces} bitar`}>
-        <CutTable rows={rows} />
-      </Fold>
       <Fold id="list-screws" title="Skruv" status={screwCount ? `${screwCount} st` : '–'}>
         <ScrewList buyOnly />
       </Fold>
+    </div>
+  )
+}
+
+/** Verkstad → Kapa: the pieces to saw (owner 2026-11-26: cutting is its own step, in the workshop) */
+export function CutPanel({ onPrint }: { onPrint: () => void }) {
+  const { rows } = usePlan()
+  if (rows.length === 0) return <p className="hint">Lägg till delar så räknas såglistan ut här.</p>
+  const pieces = rows.reduce((n, r) => n + r.count, 0)
+  return (
+    <div className="lists">
+      <div className="list-summary">
+        <strong>{pieces} bitar att kapa</strong>
+        <button onClick={onPrint} title="Skriv ut eller spara som PDF">
+          <Ic i={L.print} /> PDF
+        </button>
+      </div>
+      <CutTable rows={rows} />
     </div>
   )
 }

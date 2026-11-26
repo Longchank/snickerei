@@ -93,12 +93,12 @@ export function ScrewList({ print = false, buyOnly = false }: { print?: boolean;
   const steps = useMemo(() => buildSteps(parts, groups), [parts, groups])
   const shownSections = print || !activeStep ? sections : sections.filter((sec) => sec.step === activeStep)
   if (!joints.length) return <p className="hint small">Inga delar ligger an mot varandra än — då behövs inga skruvar.</p>
-  // Inköp: just what to buy; the joints and steps are under Montering
+  // Handla: just what to buy; the joints are under Detaljer → Fogar
   if (buyOnly)
     return (
       <div className="screw-list">
         <TotalsTable totals={totals} colorOf={colorOf} />
-        <p className="hint small">"Köp" har ca 10 % extra. Fog för fog och förborrning finns under 3 Montering.</p>
+        <p className="hint small">"Köp" har ca 10 % extra. Fog för fog och förborrning finns under 2 Detaljer → Fogar.</p>
       </div>
     )
   return (

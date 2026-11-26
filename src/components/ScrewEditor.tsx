@@ -11,7 +11,7 @@ import type { Vec3 } from '../lib/types'
 const mm = (v: number) => v.toFixed(1).replace('.', ',')
 
 /**
- * Montering → Skruv: editing the screws, joint by joint (owner 2026-11-22,
+ * Detaljer → Fogar (was Montering → Skruv): editing the screws, joint by joint (owner 2026-11-22,
  * "crud style"). Read: every joint by build step, or only the selection's.
  * Update: count and size. Delete: switch a joint's screws off (or remove one
  * added by hand). Create: "Ny fog" — tap a face in 3D (JointBar).

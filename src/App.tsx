@@ -6,7 +6,7 @@ import { StepList } from './components/StepList'
 import { GroupParts } from './components/GroupParts'
 import { ScrewEditor } from './components/ScrewEditor'
 import { Checklist } from './components/Checklist'
-import { CutList } from './components/CutList'
+import { CutPanel, ShopList } from './components/CutList'
 import { Inspector } from './components/Inspector'
 import { Analysis } from './components/Analysis'
 import { PriceList } from './components/PriceList'
@@ -17,26 +17,27 @@ import { phaseInfo } from './lib/phases'
 import { useStore } from './lib/store'
 import type { Phase } from './lib/types'
 
-type Tab = 'lagg' | 'delar' | 'del' | 'analys' | 'steg' | 'skruv' | 'koll' | 'lista' | 'priser'
+type Tab = 'lagg' | 'delar' | 'del' | 'analys' | 'steg' | 'skruv' | 'koll' | 'lista' | 'priser' | 'kapa'
 
 const TAB_INFO: Record<Tab, { label: string; icon: ReactNode; desktop: string }> = {
   lagg: { label: 'Lägg till', icon: <Ic i={L.add} />, desktop: 'Lägg till' },
   delar: { label: 'Delar', icon: '▤', desktop: 'Delar och grupper' },
   del: { label: 'Del', icon: '✎', desktop: 'Egenskaper' },
   analys: { label: 'Analys', icon: '◎', desktop: 'Analys' },
-  steg: { label: 'Steg', icon: <Ic i={L.steps} />, desktop: 'Steg för steg' },
-  skruv: { label: 'Skruv', icon: '🔩', desktop: 'Ändra skruv' },
+  steg: { label: 'Montera', icon: <Ic i={L.steps} />, desktop: 'Montera steg för steg' },
+  skruv: { label: 'Fogar', icon: '🔩', desktop: 'Fogar och skruv' },
   koll: { label: 'Kontroll', icon: <Ic i={L.check} />, desktop: 'Kontroll' },
-  lista: { label: 'Listor', icon: <Ic i={L.lists} />, desktop: 'Såg- och inköpslista' },
+  lista: { label: 'Inköp', icon: <Ic i={L.lists} />, desktop: 'Inköpslista' },
+  kapa: { label: 'Kapa', icon: <Ic i={L.cut} />, desktop: 'Kapa' },
   priser: { label: 'Priser', icon: <Ic i={L.prices} />, desktop: 'Priser' },
 }
 
 /** The panels of each step of the build (phases.ts) */
 const PHASE_TABS: Record<Phase, Tab[]> = {
-  bygg: ['lagg', 'delar'],
-  detaljer: ['del', 'analys'],
-  montering: ['steg', 'skruv', 'delar'],
-  inkop: ['koll', 'lista', 'priser'],
+  skissa: ['lagg', 'delar'],
+  detaljer: ['del', 'skruv', 'analys'],
+  handla: ['koll', 'lista', 'priser'],
+  verkstad: ['kapa', 'steg', 'delar'],
 }
 
 function useMediaQuery(query: string) {
@@ -107,14 +108,14 @@ export function App() {
   useEffect(() => {
     if (scaleMode && mobile) setSheetOpen(false)
   }, [scaleMode, mobile])
-  // "Ny fog": taps go to the model, so the panel closes; leaving Montering ends it
+  // "Ny fog": taps go to the model, so the panel closes; leaving Detaljer ends it
   const jointMode = useStore((s) => s.jointMode)
   useEffect(() => {
     if (jointMode && mobile) setSheetOpen(false)
   }, [jointMode, mobile])
   const phaseNow = useStore((s) => s.settings.mode)
   useEffect(() => {
-    if (phaseNow !== 'montering' && useStore.getState().jointMode) useStore.getState().setJointMode(false)
+    if (phaseNow !== 'detaljer' && useStore.getState().jointMode) useStore.getState().setJointMode(false)
     if (phaseNow !== 'detaljer' && useStore.getState().scaleMode) useStore.getState().setScaleMode(false)
   }, [phaseNow])
   // A screw tapped in 3D: its bar is the window now
@@ -136,9 +137,9 @@ export function App() {
     if (partCount > lastCount.current && mobile && tab === 'lagg') setSheetOpen(false)
     lastCount.current = partCount
   }, [partCount, mobile, tab])
-  // Switching step: Bygg shows the model and its action bar, so the panel
-  // closes; Detaljer opens the details of what's selected; Montering and
-  // Inköp open their lists
+  // Switching step: Skissa shows the model and its action bar, so the panel
+  // closes; Detaljer opens the details of what's selected; Handla and
+  // Verkstad open their lists
   const mode = useStore((s) => s.settings.mode)
   const firstMode = useRef(true)
   useEffect(() => {
@@ -148,7 +149,7 @@ export function App() {
     }
     setTab(PHASE_TABS[mode][0])
     useStore.getState().focusScrew(null)
-    if (mode === 'bygg') {
+    if (mode === 'skissa') {
       if (mobile) setSheetOpen(false)
     } else if (mode === 'detaljer') {
       setSheetOpen(useStore.getState().selection.length > 0 || !mobile)
@@ -170,12 +171,13 @@ export function App() {
   useEffect(() => {
     const st = useStore.getState()
     // Not while picking several parts or placing boards: keep the view clear
-    // In Bygg the action bar handles the selection; Redigera opens the details
+    // In Skissa the action bar handles the selection; Detaljer opens the details
     if (hasSelection && st.settings.mode === 'detaljer' && !st.placeProfile && !st.moveMode && !st.rotateMode) {
-      setTab('del')
+      // On Fogar the list follows the pick (that part's joints); otherwise its details
+      setTab(tabRef.current === 'skruv' ? 'skruv' : 'del')
       setSheetOpen(true)
-    } else if (mobile && hasSelection && (st.settings.mode === 'bygg' || (tabRef.current === 'delar' && st.settings.mode !== 'montering'))) {
-      // One window at a time: picked from a list (or in Bygg, where the
+    } else if (mobile && hasSelection && (st.settings.mode === 'skissa' || (tabRef.current === 'delar' && st.settings.mode !== 'verkstad'))) {
+      // One window at a time: picked from a list (or in Skissa, where the
       // action bar takes over) — the list closes so what was picked is in view
       setSheetOpen(false)
     }
@@ -209,13 +211,14 @@ export function App() {
   const content = (
     <>
       {activeTab === 'lagg' && <Catalog parts={false} />}
-      {activeTab === 'delar' && (mode === 'montering' ? <GroupParts /> : <PartList />)}
+      {activeTab === 'delar' && (mode === 'verkstad' ? <GroupParts /> : <PartList />)}
       {activeTab === 'steg' && <StepList />}
       {activeTab === 'skruv' && <ScrewEditor />}
       {activeTab === 'koll' && <Checklist />}
       {activeTab === 'del' && <Inspector />}
       {activeTab === 'analys' && <Analysis />}
-      {activeTab === 'lista' && <CutList onPrint={print} />}
+      {activeTab === 'lista' && <ShopList onPrint={print} />}
+      {activeTab === 'kapa' && <CutPanel onPrint={print} />}
       {activeTab === 'priser' && <PriceList />}
     </>
   )

@@ -172,7 +172,7 @@ function PartMesh({ part, selected, register, tint }: { part: Part; selected: bo
   const moveTap = useStore((s) => s.moveTap)
   const measureMode = useStore((s) => s.measureMode)
   const measureTap = useStore((s) => s.measureTap)
-  const joining = useStore((s) => s.jointMode && s.settings.mode === 'montering')
+  const joining = useStore((s) => s.jointMode && s.settings.mode === 'detaljer')
   const scaling = useStore((s) => s.scaleMode && s.settings.mode === 'detaljer')
   const placing = useStore((s) => s.placeProfile !== null)
   const placeTap = useStore((s) => s.placeTap)
@@ -607,7 +607,7 @@ function EndLabels({ partId }: { partId: string }) {
   )
 }
 
-/** Inköp: a "!" in 3D for each checklist item; a tap shows it in the list */
+/** Handla: a "!" in 3D for each checklist item; a tap shows it in the list */
 function CheckMarkers({ shown }: { shown: Set<string> }) {
   // Issues about parts that are hidden (or outside the step) get no marker
   const issues = useChecks().filter((i) => !i.partIds.length || i.partIds.some((id) => shown.has(id)))
@@ -964,8 +964,8 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
 
       <primitive object={pivot} />
       {/* The free 3D drag gizmo is an advanced option (off by default), only in
-          Bygg mode and never while placing, measuring or using the move arrows */}
-      {selBox && freeMove && mode === 'bygg' && !placing && !moveMode && !rotateMode && !measureMode && (
+          Skissa and never while placing, measuring or using the move arrows */}
+      {selBox && freeMove && mode === 'skissa' && !placing && !moveMode && !rotateMode && !measureMode && (
         <TransformControls
           ref={(c: unknown) => {
             ;(tc as React.MutableRefObject<unknown>).current = c
@@ -989,14 +989,14 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
 
       {moveMode && selBox && !capturing && <MoveArrows box={selBox} />}
       {rotateMode && selBox && !capturing && <RotateRings box={selBox} />}
-      {showDimensions && mode !== 'montering' && !scaleMode && !capturing && dimBox && (
+      {showDimensions && mode !== 'verkstad' && !scaleMode && !capturing && dimBox && (
         <Dimensions box={dimBox} offset={selBox ? 60 : 120} axes={dimAxes} label={dimLabel} />
       )}
-      {showDimensions && mode !== 'montering' && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
+      {showDimensions && mode !== 'verkstad' && !capturing && !delta && <FreeSpaceLines spaces={spaces} />}
       {!capturing && mode === 'detaljer' && !scaleMode && selection.length === 1 && <EndLabels partId={selection[0]} />}
-      {!capturing && mode === 'inkop' && <CheckMarkers shown={shownIds} />}
-      {!capturing && (screwView || mode === 'montering') && <ScrewDots parts={parts} shown={shownParts} />}
-      {!capturing && mode === 'montering' && <JointPreview />}
+      {!capturing && mode === 'handla' && <CheckMarkers shown={shownIds} />}
+      {!capturing && (screwView || mode === 'detaljer' || mode === 'verkstad') && <ScrewDots parts={parts} shown={shownParts} />}
+      {!capturing && mode === 'detaljer' && <JointPreview />}
       {!capturing && mode === 'detaljer' && scaleMode && selection.length === 1 && <ScaleFaces partId={selection[0]} />}
       {shownParts.filter((p) => p.frame?.seams?.length).map((p) => (
         <SeamLines key={p.id} part={p} />
@@ -1093,7 +1093,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   )
 }
 
-/** Bygg mode: what to do with the selection. */
+/** Skissa: what to do with the selection. */
 function ActionBar() {
   const selection = useStore((s) => s.selection)
   const parts = useStore((s) => s.project.parts)
@@ -1227,14 +1227,14 @@ function ActionBar() {
 
 /**
  * Dimension labels on/off right in the view (owner 2026-11-25), same setting as the menu's
- * "Visa mått". In Montering the sizes are never drawn, so it's disabled there.
+ * "Visa mått". In Verkstad the sizes are never drawn, so it's disabled there.
  */
 function DimsToggle() {
   const on = useStore((s) => s.settings.showDimensions)
   const mode = useStore((s) => s.settings.mode)
   const setSettings = useStore((s) => s.setSettings)
-  const off = mode === 'montering'
-  const label = off ? 'Mått visas inte under Montering' : on ? 'Dölj måtten' : 'Visa måtten'
+  const off = mode === 'verkstad'
+  const label = off ? 'Mått visas inte i Verkstad' : on ? 'Dölj måtten' : 'Visa måtten'
   return (
     <button
       className={`icon dims-toggle ${on && !off ? 'on' : ''}`}
@@ -1275,7 +1275,7 @@ function ViewTools() {
   const showAllParts = useStore((s) => s.showAllParts)
   const screwView = useStore((s) => s.screwView)
   const setScrewView = useStore((s) => s.setScrewView)
-  const montering = useStore((s) => s.settings.mode === 'montering')
+  const screwsAlways = useStore((s) => s.settings.mode === 'detaljer' || s.settings.mode === 'verkstad')
   const hidden = parts.filter((p) => p.hidden).length
   const locked = parts.filter((p) => p.locked).length
   const none = selection.length === 0
@@ -1305,14 +1305,14 @@ function ViewTools() {
       run: () => setMeasureMode(!measureMode),
     },
     { key: 'steg', icon: <IconSteps />, label: 'Steg för steg', on: !!activeStep, show: true, run: () => setActiveStep(activeStep ? null : buildSteps(parts, groups)[0]?.id ?? null) },
-    // Screws in 3D: a choice in every step, always on in Montering
+    // Screws in 3D: a choice in every step, always on in Detaljer and Verkstad
     {
       key: 'skruv',
       icon: <IconScrew />,
-      label: montering ? 'Skruv i 3D (alltid i Montering)' : 'Skruv i 3D',
-      on: screwView || montering,
-      quiet: montering,
-      disabled: montering,
+      label: screwsAlways ? 'Skruv i 3D (alltid på här)' : 'Skruv i 3D',
+      on: screwView || screwsAlways,
+      quiet: screwsAlways,
+      disabled: screwsAlways,
       show: true,
       run: () => setScrewView(!screwView),
     },
@@ -1470,7 +1470,7 @@ function MirrorBar() {
 }
 
 /**
- * A joint, edited in 3D (Montering: tap one of its screws, or its name in
+ * A joint, edited in 3D (Detaljer: tap one of its screws, or its name in
  * Skruv): how many screws, which diagonal, which screw — like "Ny fog" —
  * and how far they bite. 🗑 takes the screws out (or the joint, if it was
  * added by hand).
@@ -1598,7 +1598,7 @@ function biteStatus(plan: JointPlan): 'ok' | 'short' | 'poke' {
 }
 
 /**
- * "Ny fog" (Montering → Skruv): tap the face where the screws go in; the part
+ * "Ny fog" (Detaljer → Fogar): tap the face where the screws go in; the part
  * behind is found by itself, and the tap guesses start / centre / end. The bar
  * then sets where on the face, how many, which diagonal and the screw size,
  * and shows how far the screws reach into the part behind.
@@ -1912,8 +1912,8 @@ function ScrewDots({ parts, shown }: { parts: Part[]; shown: Part[] }) {
     () => new Map(screwTotals(all).map((t, i) => [screwName(t.screw), SCREW_COLORS[i % SCREW_COLORS.length]])),
     [all],
   )
-  // Montering: tap a screw to edit it on its own (ScrewBar)
-  const editable = useStore((s) => s.settings.mode === 'montering' && !s.jointMode)
+  // Detaljer: tap a screw to edit its joint
+  const editable = useStore((s) => s.settings.mode === 'detaljer' && !s.jointMode && !s.scaleMode)
   const focus = useStore((s) => s.screwFocus)
   const focusScrew = useStore((s) => s.focusScrew)
   // Each screw as a line, like "Ny fog": grey through the first part, green
@@ -2296,7 +2296,7 @@ export function Viewport({
   const groups = useStore((s) => s.project.groups)
   const steps = useMemo(() => buildSteps(parts, groups), [parts, groups])
   const activeStep = useStore((s) => s.activeStep)
-  const showActions = mode === 'bygg' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode && !mirrorMode && !framing
+  const showActions = mode === 'skissa' && count > 0 && !placeProfile && !measureMode && !moveMode && !rotateMode && !mirrorMode && !framing
 
   return (
     <>
@@ -2322,8 +2322,8 @@ export function Viewport({
     {moveMode && count > 0 && <MoveBar />}
     {rotateMode && count > 0 && <RotateBar />}
     {mirrorMode && count > 0 && <MirrorBar />}
-    {mode === 'montering' && <JointEditBar />}
-    {mode === 'montering' && <JointBar />}
+    {mode === 'detaljer' && <JointEditBar />}
+    {mode === 'detaljer' && <JointBar />}
     {mode === 'detaljer' && <ScaleBar />}
     {framing && <FrameBar />}
     {showActions && <ActionBar />}
