@@ -3239,3 +3239,150 @@ button.cut-main {
 button.cut-main:hover:not(:disabled) {
   background: none;
 }
+
+/* ---- Start page (owner 2026-11-26): projects and templates ---- */
+.home {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  box-sizing: border-box;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(20px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  display: grid;
+  align-content: start;
+  gap: 24px;
+}
+.home-head h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+.home-head p {
+  margin: 4px 0 0;
+}
+.home-section {
+  display: grid;
+  gap: 10px;
+}
+.home-section h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.project-list li {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+}
+.project-open {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 8px 10px;
+  min-height: 52px;
+}
+.project-open strong {
+  font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-list .icon {
+  width: 44px;
+  min-height: 44px;
+  align-self: center;
+}
+.project-confirm {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+}
+.project-confirm span {
+  flex: 1 1 100%;
+}
+.project-confirm button {
+  min-height: 40px;
+  padding: 0 14px;
+}
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.template {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 12px;
+  background: var(--panel);
+  text-align: center;
+}
+.template.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.template-pic {
+  width: 64px;
+  height: 36px;
+  color: var(--accent);
+}
+.template-form {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.template-form input {
+  font-size: 16px;
+  min-height: 40px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.template-form .with-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.template-form button.primary {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.home-section > button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}

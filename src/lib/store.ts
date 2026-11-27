@@ -230,6 +230,22 @@ interface State {
   redo: () => void
   setProjectName: (name: string) => void
   newProject: () => void
+  /** Saved projects on this device (start page), by id; the open one is `project`, saved here when you leave it */
+  library: Record<string, SavedProject>
+  /** Id of the open project in `library` (null = never saved) */
+  currentId: string | null
+  /** The start page is showing (not persisted: every start begins there) */
+  home: boolean
+  /** Save the open project to the list and show the start page */
+  goHome: () => void
+  /** Back to the open project from the start page */
+  resume: () => void
+  /** Save the open project, then open another from the list */
+  openProject: (id: string) => void
+  /** Save the open project, then start a new one (empty or from a template) */
+  createProject: (project: Project) => void
+  /** Remove a project from the list (the open one: an empty project takes its place) */
+  deleteProject: (id: string) => void
   loadProject: (project: Project) => void
   setSettings: (patch: Partial<Settings>) => void
   /** kr per running metre for boards, kr per sheet for sheets */
@@ -277,6 +293,14 @@ const DEFAULT_SETTINGS: Settings = {
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10)
+
+export interface SavedProject {
+  project: Project
+  /** When it was last left (ms) */
+  updatedAt: number
+  /** The step it was left in */
+  mode: Settings['mode']
+}
 
 const emptyProject = (): Project => ({ name: 'Nytt projekt', parts: [], groups: [], measurements: [], screwsByHand: true })
 
@@ -327,6 +351,34 @@ function pruneGroups(snap: Snapshot): Snapshot {
     parts: snap.parts.map((p) => (p.groupId && !keep.has(p.groupId) ? { ...p, groupId: undefined } : p)),
   }
 }
+
+/** A project worth keeping in the list: it has parts, or a name of its own */
+const worthSaving = (p: Project) => p.parts.length > 0 || p.name !== 'Nytt projekt'
+
+/** The open project written into the list (given an id the first time) */
+function saveCurrent(s: State): Pick<State, 'library' | 'currentId'> {
+  if (!worthSaving(s.project)) return { library: s.library, currentId: s.currentId }
+  const id = s.currentId ?? uid()
+  return { currentId: id, library: { ...s.library, [id]: { project: s.project, updatedAt: Date.now(), mode: s.settings.mode } } }
+}
+
+/** Leaving a project: no selection, history or open tools carry over */
+const leaveModes = (): Partial<State> => ({
+  selection: [],
+  past: [],
+  future: [],
+  moveMode: false,
+  rotateMode: false,
+  mirrorMode: false,
+  measureMode: false,
+  placeProfile: null,
+  frameSheet: null,
+  activeStep: null,
+  screwFocus: null,
+  jointMode: false,
+  scaleMode: false,
+  lockPrompt: null,
+})
 
 export const useStore = create<State>()(
   persist(
@@ -1019,6 +1071,41 @@ export const useStore = create<State>()(
 
         newProject: () => set({ project: emptyProject(), selection: [], past: [], future: [] }),
 
+        library: {},
+        currentId: null,
+        home: true,
+        goHome: () => set((s) => ({ ...saveCurrent(s), home: true, toolsOpen: false })),
+        resume: () => set({ home: false }),
+        openProject: (id) =>
+          set((s) => {
+            const saved = saveCurrent(s)
+            const entry = saved.library[id]
+            if (!entry) return s
+            return {
+              ...saved,
+              ...leaveModes(),
+              currentId: id,
+              project: normalizeProject(entry.project),
+              settings: { ...s.settings, mode: entry.mode },
+              home: false,
+            }
+          }),
+        createProject: (project) =>
+          set((s) => ({
+            ...saveCurrent(s),
+            ...leaveModes(),
+            currentId: uid(),
+            project: normalizeProject(project),
+            settings: { ...s.settings, mode: 'skissa' as const },
+            home: false,
+          })),
+        deleteProject: (id) =>
+          set((s) => {
+            const library = { ...s.library }
+            delete library[id]
+            return id === s.currentId ? { library, currentId: null, project: emptyProject(), ...leaveModes() } : { library }
+          }),
+
         loadProject: (project) => set({ project: normalizeProject(project), selection: [], past: [], future: [] }),
 
         setSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -1068,10 +1155,15 @@ export const useStore = create<State>()(
       // Settings and project fields added in later versions get their defaults
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>
+        const project = normalizeProject(p.project)
         return {
           ...current,
           ...p,
-          project: normalizeProject(p.project),
+          // Saved before the start page: the project you had gets an id, so it's in the list
+          currentId: p.currentId ?? (project.parts.length ? uid() : null),
+          library: p.library ?? {},
+          home: true,
+          project,
           settings: {
             ...DEFAULT_SETTINGS,
             ...p.settings,
@@ -1083,6 +1175,8 @@ export const useStore = create<State>()(
       // Undo history and selection are session-only
       partialize: (s) => ({
         project: s.project,
+        library: s.library,
+        currentId: s.currentId,
         settings: s.settings,
         ownPrices: s.ownPrices,
         useExamplePrices: s.useExamplePrices,

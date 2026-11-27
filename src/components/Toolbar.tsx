@@ -66,8 +66,8 @@ function Menu({ onPrint }: { onPrint: () => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
-  const newProject = useStore((s) => s.newProject)
-  const loadProject = useStore((s) => s.loadProject)
+  const goHome = useStore((s) => s.goHome)
+  const createProject = useStore((s) => s.createProject)
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
 
@@ -97,7 +97,7 @@ function Menu({ onPrint }: { onPrint: () => void }) {
       const data = JSON.parse(await file.text())
       const project: Project | undefined = data?.project
       if (!project || !Array.isArray(project.parts)) throw new Error('fel format')
-      loadProject(project)
+      createProject(project)
     } catch {
       alert('Kunde inte läsa filen. Är det en Snickerei-projektfil?')
     }
@@ -115,14 +115,8 @@ function Menu({ onPrint }: { onPrint: () => void }) {
       </button>
       {open && (
         <div className="menu-pop" role="menu">
-          <button
-            role="menuitem"
-            onClick={act(() => {
-              if (confirm('Börja ett nytt projekt? Det nuvarande försvinner om du inte har exporterat det.'))
-                newProject()
-            })}
-          >
-            Nytt projekt
+          <button role="menuitem" onClick={act(goHome)}>
+            Mina projekt
           </button>
           <button role="menuitem" onClick={act(onPrint)}>
             Skriv ut / spara PDF

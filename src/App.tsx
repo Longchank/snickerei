@@ -70,6 +70,10 @@ export function App() {
   const hasSelection = useStore((s) => s.selection.length > 0)
   const pickCount = useStore((s) => s.pickCount)
   useKeyboardShortcuts()
+  // Opened from the start page: frame the model once the view is up
+  useEffect(() => {
+    if (useStore.getState().project.parts.length) setTimeout(() => fitView(), 400)
+  }, [])
 
   // Selecting or adding a part shows its properties
   // (except while picking several parts, so the list stays open)

@@ -159,9 +159,27 @@ comments in English).
   Selecting, measuring and checking off still work while locked.
   **Decided next steps** (owner 2026-11-26, sketch page "Snickerei
   stegordning"): (1) ~~Verkstad locks the model~~ done. (2) ~~Check-offs
-  saved per project~~ done. (3) **Start screen** with a project
-  list and **templates Bänk and Bord** (built on Ram under skivan + Ben;
-  ask only outer size; set purpose and groups). (4) Warning counts on the
+  saved per project~~ done. (3) ~~Start screen~~ **done 2026-11-27**:
+  `components/Home.tsx`, shown by `Root` (main.tsx) while `home` (store,
+  not persisted — every start begins there). Projects on this device:
+  `library: Record<id, SavedProject {project, updatedAt, mode}>` +
+  `currentId` (both persisted); the open project stays in `project` and
+  is written to the library when you leave it (`saveCurrent`: only if it
+  has parts or its own name). Actions `goHome` (menu "Mina projekt",
+  replaced "Nytt projekt"), `resume`, `openProject(id)` (restores the
+  step it was left in), `createProject(project)`, `deleteProject(id)`
+  (inline "Ta bort? Det går inte att ångra"); switching resets selection,
+  undo history and open tools (`leaveModes`). Old saves: the project you
+  had gets an id in `merge`. Import (start page and menu) creates a new
+  project instead of replacing the open one. **Templates**
+  (`lib/templates.ts`): Bänk 1200×400×450 and Bord 1200×800×750 (plus
+  "Tomt projekt"); the form asks name + outer length/depth/height
+  (`clampSize`: 300–3000 / 200–1200 / 200–1200). `buildTemplate` = a
+  plywood-18 top with `buildFrame` (45×70 on edge, `defaultJoists`, legs
+  inside: bench 45×70, table 45×95, height = H), groups **Ram** (rails,
+  joists) and **Ben**, the top loose (goes on in Montering), purpose
+  bank/bord. The top keeps its `frame`, so Ram under skivan still edits
+  it. (4) Warning counts on the
   step buttons + a "Fortsätt till …" button. (5) Hide expert tools
   behind Avancerat. "Fyll i rekommenderade" is **not** run automatically
   on entering Detaljer ("something we'll test").
