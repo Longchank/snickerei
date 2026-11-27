@@ -3,6 +3,7 @@ import type { CutRow, PlanItem, PlanRow } from '../lib/cutlist'
 import { priceDates, totalCost } from '../lib/cutlist'
 import { ageInDays, formatAge, formatDate, formatKr, formatM, STALE_DAYS } from '../lib/format'
 import { BoardBar, SheetDiagram } from './Diagrams'
+import { BuyItem, BuyScope } from './Checks'
 
 export function CutTable({ rows }: { rows: CutRow[] }) {
   return (
@@ -43,7 +44,8 @@ export function PurchaseList({ plan, expanded = false }: { plan: PlanRow[]; expa
   return (
     <>
       {plan.map((r) => (
-        <div key={r.profile.id} className="plan">
+        <BuyScope key={r.profile.id} value={r.profile.id}>
+        <div className="plan">
           <div className="plan-head">
             <strong>
               {r.profile.name}{' '}
@@ -53,6 +55,7 @@ export function PurchaseList({ plan, expanded = false }: { plan: PlanRow[]; expa
           </div>
           {r.kind === 'board' ? <BoardPlanBody r={r} expanded={expanded} /> : <SheetPlanBody r={r} expanded={expanded} />}
         </div>
+        </BuyScope>
       ))}
       <div className="total">
         <span>Totalt</span>
@@ -87,7 +90,9 @@ function ItemList({ items, label }: { items: PlanItem[]; label: (i: PlanItem) =>
     <ul className="items">
       {items.map((i) => (
         <li key={`${i.length}x${i.width}`}>
-          <span>{label(i)}</span>
+          <BuyItem id={`${i.length}x${i.width}`} label={label(i)}>
+            <span>{label(i)}</span>
+          </BuyItem>
           {i.offer && (
             <span className="muted small">
               {formatKr(i.offer.price)}/st ·{' '}

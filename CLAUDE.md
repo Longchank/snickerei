@@ -128,11 +128,27 @@ comments in English).
   if that tab is open (else Del). Check `fix` steps follow (screw issues →
   detaljer). Below, older notes still say Bygg/Montering/Inköp: read them
   as Skissa/Verkstad (or Detaljer for screws)/Handla.
+  **Check-offs and the lock — done 2026-11-27** (`src/lib/progress.ts`,
+  `components/Checks.tsx`): `project.checks = { buy, cut, steps }` (key
+  lists, persisted with the project, kept by `normalizeProject`, **not**
+  in undo; `toggleCheck(list, key)`). Keys: buy = `<profileId>|<len>x<w>`
+  per shopping line (`BuyItem` inside `BuyChecks`/`BuyScope`, so the
+  printout's lists stay plain) and `skruv|<screwName>`; cut = one per
+  piece, `cutRowKey(row)#i` (`pieceKeys`); steps = step id. Kapa
+  (`CutPanel`) is now a checklist, one line per piece (size big, profile,
+  part name, ✂ notes, "i/N"), header "N av M kapade"; Montera has a check
+  per step. **Lock**: `isLocked` = any cut piece checked. While locked,
+  `edit` (so every undoable change), undo/redo, `applyFrame`,
+  `cyclePlacement`, `reorientSelection` are blocked via `blocked()`,
+  which opens `LockDialog` (`lockPrompt`, not persisted): "Lås upp och
+  töm kaplistan" (`unlockModel` clears only `checks.cut`) / Avbryt.
+  `setMode` to Skissa/Detaljer while locked asks too, with a third
+  choice "Bara titta" (`setMode(mode, true)`); Handla/Verkstad switch
+  freely. Kapa shows "Modellen är låst medan du kapar · Lås upp".
+  Selecting, measuring and checking off still work while locked.
   **Decided next steps** (owner 2026-11-26, sketch page "Snickerei
-  stegordning"): (1) **Verkstad locks the model** while cutting: going
-  back to edit warns that the model must be unlocked, and unlocking
-  empties the cut checklist. (2) **Check-offs saved per project**, in the
-  inköpslista and in Kapa/Montera. (3) **Start screen** with a project
+  stegordning"): (1) ~~Verkstad locks the model~~ done. (2) ~~Check-offs
+  saved per project~~ done. (3) **Start screen** with a project
   list and **templates Bänk and Bord** (built on Ram under skivan + Ben;
   ask only outer size; set purpose and groups). (4) Warning counts on the
   step buttons + a "Fortsätt till …" button. (5) Hide expert tools

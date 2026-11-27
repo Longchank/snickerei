@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { BuyItem } from './Checks'
 import { Fold } from './Fold'
 import { Info } from './Info'
 import { SCREW_COLORS, screwJoints, screwName, screwSections, screwTotals, type Joint, type ScrewTotal } from '../lib/screws'
@@ -27,8 +28,12 @@ function TotalsTable({ totals, colorOf }: { totals: ScrewTotal[]; colorOf: Map<s
         {totals.map((t) => (
           <tr key={screwName(t.screw)}>
             <td>
-              <Dot color={colorOf.get(screwName(t.screw))} />
-              {screwName(t.screw)}
+              <BuyItem id={`skruv|${screwName(t.screw)}`} label={`${t.toBuy} st ${screwName(t.screw)}`}>
+                <span>
+                  <Dot color={colorOf.get(screwName(t.screw))} />
+                  {screwName(t.screw)}
+                </span>
+              </BuyItem>
             </td>
             <td className="num">{t.count}</td>
             <td className="num">{t.toBuy}</td>

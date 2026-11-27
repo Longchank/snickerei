@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isLocked, toggleCheck, type CheckList } from './progress'
 import { persist } from 'zustand/middleware'
 import { EXAMPLE_PRICES, getProfile } from './catalog'
 import { useMemo } from 'react'
@@ -156,7 +157,15 @@ interface State {
   setMultiSelect: (on: boolean) => void
   /** A tap on a part in the view, by step: Skissa toggles its group, Verkstad picks its group, Detaljer/Handla just it */
   pickPart: (id: string, modifier?: boolean) => void
-  setMode: (mode: Settings['mode']) => void
+  /** `force`: switch even while the model is locked (just looking) */
+  setMode: (mode: Settings['mode'], force?: boolean) => void
+  /** The model is locked (pieces checked off as cut) and something tried to change it, or a step to draw in was picked */
+  lockPrompt: { mode?: Settings['mode'] } | null
+  closeLockPrompt: () => void
+  /** Empty the cut checklist, which unlocks the model */
+  unlockModel: () => void
+  /** Check off (or back) something bought, cut or built */
+  toggleCheck: (list: CheckList, key: string) => void
   setMoveMode: (on: boolean) => void
   /** A tap while moving: next to a board's face, or onto the floor */
   moveTap: (target: { partId: string; hit: Vec3; normal: Vec3 } | { floor: Vec3 }) => void
@@ -302,6 +311,7 @@ export function normalizeProject(p: Partial<Project> | undefined): Project {
     screwsByHand: true,
     ...(p?.purpose ? { purpose: p.purpose } : {}),
     ...(edits ? { screwEdits: edits } : {}),
+    ...(p?.checks ? { checks: p.checks } : {}),
   }
 }
 
@@ -320,8 +330,15 @@ function pruneGroups(snap: Snapshot): Snapshot {
 export const useStore = create<State>()(
   persist(
     (set, get) => {
+      /** While pieces are checked off as cut the model is locked: ask to unlock instead */
+      const blocked = () => {
+        if (!isLocked(get().project)) return false
+        set({ lockPrompt: {} })
+        return true
+      }
       /** Apply a change to parts/groups and record it for undo. */
       const edit = (fn: (snap: Snapshot) => Snapshot, selection?: string[]) =>
+        !blocked() &&
         set((s) => {
           const before: Snapshot = { parts: s.project.parts, groups: s.project.groups, screwEdits: s.project.screwEdits }
           const after = pruneGroups(fn(before))
@@ -502,6 +519,7 @@ export const useStore = create<State>()(
           )
         },
         applyFrame: (f) => {
+          if (blocked()) return
           const fs = get().frameSheet
           if (!fs) return
           const { base: original, groupId } = fs
@@ -577,8 +595,16 @@ export const useStore = create<State>()(
           if (!unlocked([id]).length) return
           set((s) => ({ selection: [id], pickCount: s.pickCount + 1 }))
         },
-        setMode: (mode) =>
-          set((s) => ({
+        lockPrompt: null,
+        closeLockPrompt: () => set({ lockPrompt: null }),
+        unlockModel: () => set((s) => ({ project: { ...s.project, checks: { ...s.project.checks, cut: [] } }, lockPrompt: null })),
+        toggleCheck: (list, key) => set((s) => ({ project: { ...s.project, checks: toggleCheck(s.project.checks, list, key) } })),
+        setMode: (mode, force = false) =>
+          // Back to drawing while the model is locked: ask first
+          !force && (mode === 'skissa' || mode === 'detaljer') && isLocked(get().project)
+            ? set({ lockPrompt: { mode } })
+            : set((s) => ({
+            lockPrompt: null,
             settings: { ...s.settings, mode },
             moveMode: false,
             rotateMode: false, mirrorMode: false,
@@ -677,6 +703,7 @@ export const useStore = create<State>()(
           set({ placeNote: describePlacement(options[0]), placeChoice: { partId: part.id, options, index: 0 } })
         },
         cyclePlacement: () => {
+          if (blocked()) return
           const c = get().placeChoice
           if (!c || c.options.length < 2) return
           const index = (c.index + 1) % c.options.length
@@ -693,6 +720,7 @@ export const useStore = create<State>()(
           }))
         },
         reorientSelection: () => {
+          if (blocked()) return
           const { selection, project, placeChoice: c } = get()
           if (selection.length !== 1) return
           const id = selection[0]
@@ -963,6 +991,7 @@ export const useStore = create<State>()(
         },
 
         undo: () =>
+          !blocked() &&
           set((s) => {
             const prev = s.past[s.past.length - 1]
             if (!prev) return s
@@ -974,6 +1003,7 @@ export const useStore = create<State>()(
           }),
 
         redo: () =>
+          !blocked() &&
           set((s) => {
             const next = s.future[0]
             if (!next) return s

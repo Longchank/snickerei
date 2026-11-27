@@ -6,6 +6,7 @@ import { StepList } from './components/StepList'
 import { GroupParts } from './components/GroupParts'
 import { ScrewEditor } from './components/ScrewEditor'
 import { Checklist } from './components/Checklist'
+import { LockDialog } from './components/Checks'
 import { CutPanel, ShopList } from './components/CutList'
 import { Inspector } from './components/Inspector'
 import { Analysis } from './components/Analysis'
@@ -233,6 +234,7 @@ export function App() {
         }`}
       >
         {!immersive && <Toolbar onPrint={print} />}
+        <LockDialog />
         {!mobile && !immersive && (
           <aside className="panel left">
             <Catalog parts={false} />

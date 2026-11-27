@@ -163,6 +163,8 @@ export interface Project {
   screwsByHand?: boolean
   /** What it's for (Analys); unset = Förvaring */
   purpose?: Purpose
+  /** Check-offs in the shop and the workshop (progress.ts); not part of undo */
+  checks?: Partial<Record<'buy' | 'cut' | 'steps', string[]>>
 }
 
 /** A point picked on a surface (or the floor) and which way that surface faces. */

@@ -3051,3 +3051,135 @@ button > svg.ic:not(:only-child) {
   margin: 0;
   vertical-align: middle;
 }
+
+/* ---- Check-offs and the model lock (owner 2026-11-26) ---- */
+.check-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+.check-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.check-btn.done,
+.check-btn.done:hover:not(:disabled) {
+  background: var(--accent);
+}
+.cut-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.cut-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.cut-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.cut-size {
+  font-size: 1.2em;
+  font-variant-numeric: tabular-nums;
+}
+.cut-n {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.cut-checklist li.done .cut-main,
+.cut-checklist li.done .cut-n,
+.step-list li.done .step-main,
+.buy-item.done .buy-text {
+  opacity: 0.55;
+}
+.cut-checklist li.done .cut-size,
+.step-list li.done .step-main strong,
+.buy-item.done .buy-text {
+  text-decoration: line-through;
+}
+.buy-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.buy-item .check-btn {
+  width: 32px;
+  height: 32px;
+}
+.lock-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.lock-note span {
+  flex: 1;
+  min-width: 0;
+}
+.lock-note button {
+  min-height: 40px;
+}
+.lock-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+.lock-dialog {
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 18px;
+  max-width: 420px;
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.lock-dialog h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lock-dialog p {
+  margin: 0;
+}
+.lock-actions {
+  display: grid;
+  gap: 8px;
+}
+.lock-actions button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+@media print {
+  .check-btn {
+    display: none;
+  }
+}

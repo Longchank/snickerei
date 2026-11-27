@@ -6,6 +6,7 @@ import { useStore } from '../lib/store'
 import { fitView } from './Viewport'
 import type { Part } from '../lib/types'
 import { Info } from './Info'
+import { CheckButton, useChecks } from './Checks'
 
 /** "4 × 45×95 · 1 × 18 mm": what a step is built from */
 function partSummary(parts: Part[]): string {
@@ -34,6 +35,7 @@ export function StepList() {
   const select = useStore((s) => s.select)
   const clearSelection = useStore((s) => s.clearSelection)
   const steps = useMemo(() => buildSteps(parts, groups), [parts, groups])
+  const { done, toggle } = useChecks('steps')
 
   if (!parts.length) return <p className="hint">Bygg något först — sedan visas monteringsstegen här.</p>
 
@@ -84,7 +86,8 @@ export function StepList() {
                 .filter(Boolean)
                 .join(' · ')
           return (
-            <li key={s.id} className={activeStep === s.id ? 'on' : ''}>
+            <li key={s.id} className={`${activeStep === s.id ? 'on' : ''} ${done(s.id) ? 'done' : ''}`}>
+              <CheckButton done={done(s.id)} label={`${done(s.id) ? 'Klart' : 'Bocka av'}: steg ${i + 1}, ${s.title}`} onToggle={() => toggle(s.id)} />
               <span className="step-n">{i + 1}</span>
               <button className="step-main" onClick={() => show(s.id)} title="Visa bara det här steget i 3D" aria-pressed={activeStep === s.id}>
                 <strong>{s.title}</strong>
@@ -110,8 +113,9 @@ export function StepList() {
       <Info label="Hur funkar stegen?">
         <p>
           Varje grupp är ett steg som byggs för sig, sist sätts allt ihop. Ändra ordningen med ↑ ↓ — Steg för steg och skruvlistorna följer
-          den. Tryck på ett steg för att zooma in på bara det i 3D, tryck igen för att se allt. ✎ öppnar gruppen under
-          Delar, där du byter namn och ordning på delarna. Skruvarna ändrar du under Detaljer → Fogar.
+          den. Tryck på ett steg för att zooma in på bara det i 3D, tryck igen för att se allt. Bocka av ett steg när det är
+          byggt — bockarna sparas i projektet. ✎ öppnar gruppen under Delar, där du byter namn och ordning på delarna.
+          Skruvarna ändrar du under Detaljer → Fogar.
         </p>
       </Info>
     </div>
