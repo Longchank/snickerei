@@ -7,6 +7,7 @@ import { GroupParts } from './components/GroupParts'
 import { ScrewEditor } from './components/ScrewEditor'
 import { Checklist } from './components/Checklist'
 import { LockDialog } from './components/Checks'
+import { NextStep } from './components/NextStep'
 import { CutPanel, ShopList } from './components/CutList'
 import { Inspector } from './components/Inspector'
 import { Analysis } from './components/Analysis'
@@ -255,6 +256,9 @@ export function App() {
                 {content}
               </div>
             )}
+            {sheetOpen && (
+              <NextStep onShow={() => setSheetOpen(false)} />
+            )}
             <nav className="tabbar" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
               {tabs.map((t) => (
                 <button
@@ -284,6 +288,7 @@ export function App() {
               ))}
             </nav>
             {content}
+            <NextStep onShow={() => {}} />
           </aside>
         )}
       </div>

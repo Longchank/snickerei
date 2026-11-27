@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Ic, L } from './Icons'
 import { zoomToParts } from './Viewport'
 import { Info } from './Info'
-import { runChecks, type Issue } from '../lib/checks'
+import { runChecks, stepWarnings, type Issue } from '../lib/checks'
 import { phaseInfo } from '../lib/phases'
 import { screwJoints } from '../lib/screws'
 import { useStore } from '../lib/store'
@@ -19,6 +19,12 @@ export function useChecks(): Issue[] {
     if (!parts.length) return []
     return runChecks(parts, analyse(parts, purpose), screwJoints(parts, counts), plan)
   }, [parts, purpose, plan, counts])
+}
+
+/** The warnings per step (badges on the step buttons, "⚠ N att rätta här") */
+export function useStepWarnings() {
+  const issues = useChecks()
+  return useMemo(() => stepWarnings(issues), [issues])
 }
 
 /**

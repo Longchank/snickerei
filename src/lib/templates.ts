@@ -85,5 +85,5 @@ export function buildTemplate(id: TemplateId, size: number[], name?: string): Pr
     ...built.parts.map((p) => ({ ...p, groupId: p.name.startsWith('Ben') ? ben.id : ram.id })),
     { ...built.sheet, groupId: undefined },
   ]
-  return normalizeProject({ name: name?.trim() || t.name, parts, groups: [ram, ben], measurements: [], purpose: t.purpose })
+  return normalizeProject({ name: name?.trim() || t.name, parts, groups: [ram, ben], measurements: [], purpose: t.purpose, screwsByHand: true })
 }

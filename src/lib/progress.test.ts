@@ -87,3 +87,15 @@ describe('cutSchedule', () => {
     expect(sec.oversize).toEqual([])
   })
 })
+
+describe('stepWarnings', () => {
+  it('sorts issues to the step where they are fixed, without example prices', async () => {
+    const { stepWarnings } = await import('./checks')
+    const issue = (id: string, fix: 'skissa' | 'detaljer' | 'handla') => ({ id, fix, severity: 'warn', title: id, detail: '', partIds: [], at: null }) as never
+    const w = stepWarnings([issue('krock:a|b', 'skissa'), issue('vinglar', 'skissa'), issue('pris:x', 'handla'), issue('exempel:y', 'handla'), issue('kort:j', 'detaljer')])
+    expect(w.skissa).toHaveLength(1)
+    expect(w.detaljer).toHaveLength(1)
+    expect(w.handla.map((i: { id: string }) => i.id)).toEqual(['pris:x'])
+    expect(w.verkstad).toEqual([])
+  })
+})

@@ -179,8 +179,21 @@ comments in English).
   inside: bench 45×70, table 45×95, height = H), groups **Ram** (rails,
   joists) and **Ben**, the top loose (goes on in Montering), purpose
   bank/bord. The top keeps its `frame`, so Ram under skivan still edits
-  it. (4) Warning counts on the
-  step buttons + a "Fortsätt till …" button. (5) Hide expert tools
+  it. Templates start with no screw joints (`screwsByHand: true`; without
+  it `normalizeProject` took every suggestion in and a new bench showed 20
+  screw clashes). (4) ~~Warning counts + Fortsätt~~ **done 2026-11-27**:
+  `stepWarnings(issues)` (checks.ts) = Kontroll's issues by `fix` step,
+  without `exempel:` prices and `vinglar` (they'd always show — the model
+  has no diagonal braces); `useStepWarnings()` (Checklist.tsx). Badges on
+  the step buttons (`.phase-badge`, red if any is bad, amber otherwise).
+  `NextStep` (components/NextStep.tsx) at the foot of the step's panel
+  (phone: above the tab bar while the panel is open; desktop: bottom of
+  the right panel): "⚠ N att rätta här" folds out the step's warnings
+  (title, detail, "Visa i 3D" = select + `zoomToParts` + close panel when
+  they have parts) or "✓ Inget att rätta här", and "Fortsätt till
+  <next> ›" in the next step's colour; hidden in Verkstad when there's
+  nothing to show, and with no parts. A fresh Bänk shows one red "Kan
+  tippa bakåt" (a light, empty bench at 450 mm really tips at ~4 kg). (5) Hide expert tools
   behind Avancerat. "Fyll i rekommenderade" is **not** run automatically
   on entering Detaljer ("something we'll test").
 - **Four steps of a build** (owner 2026-11-20, replaced "Bygg | Redigera";

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useStepWarnings } from './Checklist'
 import { Ic, L } from './Icons'
 import { PHASES } from '../lib/phases'
 import { useStore } from '../lib/store'
@@ -43,6 +44,7 @@ export function Toolbar({ onPrint }: { onPrint: () => void }) {
 function PhaseBar() {
   const mode = useStore((s) => s.settings.mode)
   const setMode = useStore((s) => s.setMode)
+  const warnings = useStepWarnings()
   return (
     <nav className="phase-bar" aria-label="Steg i bygget">
       {PHASES.map((p) => (
@@ -53,9 +55,15 @@ function PhaseBar() {
           style={{ '--c': p.color, '--c-soft': p.soft } as CSSProperties}
           onClick={() => setMode(p.id)}
           title={p.hint}
+          aria-label={`${p.n} ${p.label}${warnings[p.id].length ? `, ${warnings[p.id].length} att rätta` : ''}`}
         >
           <span className="phase-n">{p.n}</span>
           <span className="phase-label">{p.label}</span>
+          {warnings[p.id].length > 0 && (
+            <span className={`phase-badge ${warnings[p.id].some((i) => i.severity === 'bad') ? 'bad' : ''}`} aria-hidden>
+              {warnings[p.id].length}
+            </span>
+          )}
         </button>
       ))}
     </nav>

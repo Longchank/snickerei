@@ -223,3 +223,15 @@ export function runChecks(parts: Part[], analysis: Analysis, joints: Joint[], pl
   }
   return issues.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'bad' ? -1 : 1))
 }
+
+/**
+ * What to fix in each step (owner 2026-11-26: warnings show on the step where
+ * they're fixed, not only in Kontroll). Left out, as they'd always show:
+ * example prices (until real prices are entered) and wobble (the model has
+ * no diagonal braces, so every table and bench "kan vingla").
+ */
+export function stepWarnings(issues: Issue[]): Record<Phase, Issue[]> {
+  const out: Record<Phase, Issue[]> = { skissa: [], detaljer: [], handla: [], verkstad: [] }
+  for (const i of issues) if (!i.id.startsWith('exempel:') && i.id !== 'vinglar') out[i.fix].push(i)
+  return out
+}

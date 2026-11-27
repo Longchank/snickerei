@@ -23,6 +23,8 @@ describe('templates', () => {
     const top = p.parts.find((x) => x.name === 'Skiva')!
     expect(top.groupId).toBeUndefined()
     expect(top.frame).toBeDefined()
+    // Starts without screws (joints are opt-in), so nothing to fix in Detaljer
+    expect(p.screwEdits).toBeUndefined()
     // Nothing goes below the floor
     expect(Math.min(...p.parts.map((x) => boxOf(x).min[1]))).toBeGreaterThanOrEqual(0)
   })
