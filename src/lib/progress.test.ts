@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { countDone, cutRowKey, isLocked, pieceKeys, toggleCheck } from './progress'
-import type { CutRow } from './cutlist'
-
-const row = { profile: { id: 'konstruktion-45x95' }, length: 812, count: 3, names: [], notes: ['Gering 45°'] } as unknown as CutRow
+import { countDone, isLocked, toggleCheck } from './progress'
 
 describe('workshop progress', () => {
-  it('gives every piece its own key and counts what is done', () => {
-    const keys = pieceKeys(row)
-    expect(keys).toHaveLength(3)
-    expect(keys[0]).toBe(`${cutRowKey(row)}#0`)
+  it('checks off and counts what is done', () => {
+    const keys = ['a', 'b', 'c']
     let c = toggleCheck(undefined, 'cut', keys[1])
     expect(countDone(c, 'cut', keys)).toBe(1)
     c = toggleCheck(c, 'cut', keys[1])
@@ -55,5 +50,40 @@ describe('store: the model is locked while cutting', () => {
     expect(s().project.checks).toEqual({ buy: ['x'], cut: [] })
     s().updatePart(id, { length: 500 })
     expect(s().project.parts[0].length).toBe(500)
+  })
+})
+
+describe('old cut checks', () => {
+  it('are dropped on load, so they cannot lock the model', async () => {
+    const { normalizeProject } = await import('./store')
+    const p = normalizeProject({ parts: [], checks: { cut: ['konstruktion-45x95|812||#0', 'a'], buy: ['x|1'] } } as never)
+    expect(p.checks).toEqual({ cut: ['a'], buy: ['x|1'] })
+  })
+})
+
+describe('cutSchedule', () => {
+  it('ties every cut in the diagram to a piece of the model', async () => {
+    const { cutSchedule, purchasePlan } = await import('./cutlist')
+    const at = (id: string, length: number, extra = {}) =>
+      ({ id, name: id, profileId: 'konstruktion-45x95', length, position: [0, 0, 0], rotation: [0, 0, 0], ...extra }) as never
+    const parts = [at('a', 1200), at('b', 1200), at('c', 420), at('d', 420), at('long', 9000)]
+    const plan = purchasePlan(parts, [], 3)
+    const [sec] = cutSchedule(parts, plan)
+    const placed = sec.stocks.flatMap((s) => s.pieces)
+    expect(placed.map((p) => p.key).sort()).toEqual(['a', 'b', 'c', 'd'])
+    // Each stock board's pieces follow its cuts
+    for (const s of sec.stocks) expect(s.pieces.map((p) => p.length)).toEqual(s.board!.cuts)
+    expect(sec.oversize.map((p) => p.key)).toEqual(['long'])
+    expect(placed.find((p) => p.key === 'c')!.partIds).toEqual(['c'])
+  })
+
+  it('matches sheet pieces whichever way they were turned on the sheet', async () => {
+    const { cutSchedule, purchasePlan } = await import('./cutlist')
+    const sheet = (id: string, length: number, width: number) =>
+      ({ id, name: id, profileId: 'plywood-18', length, width, position: [0, 0, 0], rotation: [0, 0, 0] }) as never
+    const parts = [sheet('top', 1200, 600), sheet('side', 400, 700)]
+    const [sec] = cutSchedule(parts, purchasePlan(parts, [], 3))
+    expect(sec.stocks.flatMap((s) => s.pieces.map((p) => p.key)).sort()).toEqual(['side', 'top'])
+    expect(sec.oversize).toEqual([])
   })
 })

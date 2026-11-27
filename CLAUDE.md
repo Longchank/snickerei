@@ -134,10 +134,21 @@ comments in English).
   in undo; `toggleCheck(list, key)`). Keys: buy = `<profileId>|<len>x<w>`
   per shopping line (`BuyItem` inside `BuyChecks`/`BuyScope`, so the
   printout's lists stay plain) and `skruv|<screwName>`; cut = one per
-  piece, `cutRowKey(row)#i` (`pieceKeys`); steps = step id. Kapa
-  (`CutPanel`) is now a checklist, one line per piece (size big, profile,
-  part name, ✂ notes, "i/N"), header "N av M kapade"; Montera has a check
-  per step. **Lock**: `isLocked` = any cut piece checked. While locked,
+  piece = the piece's id (part id, `<sheet>#n` for a split sheet, one
+  rip half for a cleat pair; first-version row keys with '|' are dropped
+  in `normalizeProject`); steps = step id. **Kapa = the cutting schedule**
+  (owner 2026-11-27: "the kapschema in Inköp belongs in Kapa; a check
+  shows in the schema and in 3D"): `cutSchedule(parts, plan)` (cutlist.ts)
+  ties every cut of the purchase plan's boards/sheets to a piece of the
+  model (packers work on sizes only, so same-size pieces are matched in
+  model order; leftovers = `oversize`). `CutPanel`: per profile, per stock
+  board/sheet a card "Bräda 1 av 3 · 3,6 m · 2/4" with `BoardBar` /
+  `SheetDiagram` (`done` flags: green `#7fc493`, ✓) and the pieces as
+  check rows (tap the text = `zoomToParts`). In Verkstad parts whose
+  pieces are all checked are tinted green in 3D (`CUT_COLOR`, the
+  `tints` map). Inköp no longer shows the diagrams (`PurchaseList
+  schema={false}`); the printout still does. Montera has a check per
+  step. **Lock**: `isLocked` = any cut piece checked. While locked,
   `edit` (so every undoable change), undo/redo, `applyFrame`,
   `cyclePlacement`, `reorientSelection` are blocked via `blocked()`,
   which opens `LockDialog` (`lockPrompt`, not persisted): "Lås upp och

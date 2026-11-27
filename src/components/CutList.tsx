@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Ic, L } from './Icons'
-import { cutList, purchasePlan, totalCost } from '../lib/cutlist'
+import { cutList, cutSchedule, purchasePlan, totalCost, type CutPiece } from '../lib/cutlist'
 import { formatKr } from '../lib/format'
 import { screwJoints, screwTotals } from '../lib/screws'
 import { Fold } from './Fold'
@@ -10,7 +10,10 @@ import { PurchaseList } from './PlanView'
 import { ScrewList } from './ScrewList'
 import { BuyChecks, CheckButton, useChecks } from './Checks'
 import { CATEGORY_NAMES } from '../lib/catalog'
-import { countDone, isLocked, pieceKeys } from '../lib/progress'
+import { countDone, isLocked } from '../lib/progress'
+import { BoardBar, SheetDiagram } from './Diagrams'
+import { zoomToParts } from './Viewport'
+import { formatM } from '../lib/format'
 
 export function usePlan() {
   const parts = useStore((s) => s.project.parts)
@@ -59,7 +62,7 @@ export function ShopList({ onPrint }: { onPrint: () => void }) {
         </button>
       </div>
       <Fold id="list-buy" title="Inköpslista" status={`${stock} st${total !== null ? ` · ${formatKr(total)}` : ''}`} defaultOpen>
-        <PurchaseList plan={plan} />
+        <PurchaseList plan={plan} schema={false} />
         <label className="field inline compact-field">
           <span>Sågblad</span>
           <NumberField value={kerf} min={0} suffix="mm" onCommit={(v) => setSettings({ kerf: v })} />
@@ -75,23 +78,47 @@ export function ShopList({ onPrint }: { onPrint: () => void }) {
 }
 
 /**
- * Verkstad → Kapa (owner 2026-11-26): the pieces to saw as a checklist, one
- * line per piece. Checking one off locks the model (progress.ts).
+ * Verkstad → Kapa (owner 2026-11-26/27): the cutting schedule — each stock
+ * board or sheet with its diagram and the pieces to saw from it, one check
+ * per piece. A checked piece shows in the diagram and, in 3D, its part turns
+ * green. Checking one off locks the model (progress.ts).
  */
 export function CutPanel({ onPrint }: { onPrint: () => void }) {
-  const { rows } = usePlan()
+  const { plan } = usePlan()
+  const parts = useStore((s) => s.project.parts)
   const checks = useStore((s) => s.project.checks)
   const { done, toggle } = useChecks('cut')
+  const schedule = useMemo(() => cutSchedule(parts, plan), [parts, plan])
   const locked = isLocked({ checks })
   const askUnlock = () => useStore.setState({ lockPrompt: {} })
-  if (rows.length === 0) return <p className="hint">Lägg till delar så räknas såglistan ut här.</p>
-  const keys = rows.flatMap(pieceKeys)
-  const pieces = keys.length
+  const all = schedule.flatMap((sec) => [...sec.stocks.flatMap((st) => st.pieces), ...sec.oversize])
+  if (all.length === 0) return <p className="hint">Lägg till delar så räknas kapschemat ut här.</p>
+  const keys = all.map((p) => p.key)
   const cut = countDone(checks, 'cut', keys)
+
+  const pieceRow = (p: CutPiece) => {
+    const isDone = done(p.key)
+    const size = p.width === undefined ? `${p.length} mm` : `${p.length} × ${p.width} mm`
+    return (
+      <li key={p.key} className={isDone ? 'done' : ''}>
+        <CheckButton done={isDone} label={`${isDone ? 'Kapad' : 'Bocka av'}: ${p.name || size}`} onToggle={() => toggle(p.key)} />
+        <button className="cut-main" onClick={() => p.partIds.length && zoomToParts(p.partIds)} title="Visa delen i 3D">
+          <strong className="cut-size">{size}</strong>
+          {p.name && <span className="muted small">{p.name}</span>}
+          {p.notes.map((n, j) => (
+            <span key={j} className="cut-note small">
+              ✂ {n}
+            </span>
+          ))}
+        </button>
+      </li>
+    )
+  }
+
   return (
     <div className="lists">
       <div className="list-summary">
-        <strong>{cut ? `${cut} av ${pieces} kapade` : `${pieces} bitar att kapa`}</strong>
+        <strong>{cut ? `${cut} av ${keys.length} kapade` : `${keys.length} bitar att kapa`}</strong>
         <button onClick={onPrint} title="Skriv ut eller spara som PDF">
           <Ic i={L.print} /> PDF
         </button>
@@ -103,36 +130,39 @@ export function CutPanel({ onPrint }: { onPrint: () => void }) {
           <button onClick={askUnlock}>Lås upp</button>
         </div>
       ) : (
-        <p className="hint small">Bocka av varje bit när den är kapad. Då låses modellen, så att listan inte ändras under tiden.</p>
+        <p className="hint small">Bocka av varje bit när den är kapad – den blir grön i 3D. Då låses modellen, så att listan inte ändras under tiden.</p>
       )}
-      <ul className="cut-checklist">
-        {rows.map((r) =>
-          pieceKeys(r).map((key, i) => {
-            const isDone = done(key)
-            const size = r.width === undefined ? `${r.length} mm` : `${r.length} × ${r.width} mm`
+      {schedule.map((sec) => (
+        <section key={sec.profile.id} className="cut-section">
+          <h4>
+            {sec.profile.name}{' '}
+            <span className="muted small">{sec.profile.kind === 'sheet' ? 'Skiva' : CATEGORY_NAMES[sec.profile.category]}</span>
+          </h4>
+          {sec.stocks.map((st, n) => {
+            const flags = st.pieces.map((p) => done(p.key))
+            const left = flags.filter((f) => !f).length
+            const title = st.board
+              ? `Bräda ${n + 1} av ${sec.stocks.length} · ${formatM(st.board.length)}`
+              : `Skiva ${n + 1} av ${sec.stocks.length} · ${st.sheet!.length} × ${st.sheet!.width}`
             return (
-              <li key={key} className={isDone ? 'done' : ''}>
-                <CheckButton done={isDone} label={`${isDone ? 'Kapad' : 'Bocka av'}: ${r.profile.name} ${size}`} onToggle={() => toggle(key)} />
-                <span className="cut-main">
-                  <strong className="cut-size">{size}</strong>
-                  <span className="muted small">
-                    {r.profile.name} · {r.profile.kind === 'sheet' ? 'Skiva' : CATEGORY_NAMES[r.profile.category]}
-                    {r.names[i] ? ` · ${r.names[i]}` : ''}
-                  </span>
-                  {r.notes.map((n, j) => (
-                    <span key={j} className="cut-note small">
-                      ✂ {n}
-                    </span>
-                  ))}
-                </span>
-                <span className="muted small cut-n">
-                  {i + 1}/{r.count}
-                </span>
-              </li>
+              <div key={n} className={`cut-stock ${left === 0 ? 'done' : ''}`}>
+                <div className="cut-stock-head">
+                  <strong>{title}</strong>
+                  <span className="muted small">{left === 0 ? '✓ klar' : `${flags.length - left}/${flags.length}`}</span>
+                </div>
+                {st.board ? <BoardBar board={st.board} done={flags} /> : <SheetDiagram sheet={st.sheet!} done={flags} />}
+                <ul className="cut-checklist">{st.pieces.map(pieceRow)}</ul>
+              </div>
             )
-          }),
-        )}
-      </ul>
+          })}
+          {sec.oversize.length > 0 && (
+            <div className="cut-stock">
+              <p className="warn small">Ryms inte i butikens längder eller skivor – skarva eller köp större:</p>
+              <ul className="cut-checklist">{sec.oversize.map(pieceRow)}</ul>
+            </div>
+          )}
+        </section>
+      ))}
     </div>
   )
 }

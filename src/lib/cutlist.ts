@@ -43,6 +43,17 @@ function ripNote(part: Part, parts: Part[]): string | null {
     : `Klyvs på längden i ${angle}°, ena halvan används`
 }
 
+/** What's done to a piece after cutting it to length: grain, end cuts, notches, rip */
+function pieceNotes(part: Part, parts: Part[]): string[] {
+  const profile = getProfile(part.profileId)
+  return [
+    ...(hasGrain(profile) && part.grain ? [`Fiberriktning ${part.grain === 'length' ? 'längs' : 'tvärs'} delens längd`] : []),
+    ...describeCuts(part),
+    ...(part.notches ?? []).map((n) => describeNotch(part, n)),
+    ...[ripNote(part, parts)].filter((n): n is string => n !== null),
+  ]
+}
+
 /** Parts grouped by material and size, largest first. */
 export function cutList(parts: Part[]): CutRow[] {
   const rows = new Map<string, CutRow>()
@@ -50,14 +61,7 @@ export function cutList(parts: Part[]): CutRow[] {
     const profile = getProfile(part.profileId)
     const width = partWidth(part, profile)
     // Parts with different joints and cuts are different pieces in the workshop
-    const notes = [
-      ...(hasGrain(profile) && part.grain
-        ? [`Fiberriktning ${part.grain === 'length' ? 'längs' : 'tvärs'} delens längd`]
-        : []),
-      ...describeCuts(part),
-      ...(part.notches ?? []).map((n) => describeNotch(part, n)),
-      ...[ripNote(part, parts)].filter((n): n is string => n !== null),
-    ]
+    const notes = pieceNotes(part, parts)
     const key = `${part.profileId}|${part.length}|${width ?? ''}|${notes.join(';')}`
     let row = rows.get(key)
     if (!row) {
@@ -475,4 +479,80 @@ export function priceDates(plan: PlanRow[]): { supplier: string; fetchedAt: stri
 
 export function totalCost(plan: PlanRow[]): number | null {
   return plan.every((r) => r.cost !== null) ? plan.reduce((s, r) => s + (r.cost ?? 0), 0) : null
+}
+
+// ---------------------------------------------------------------- cutting schedule
+
+/** One piece to saw, tied to the part(s) it becomes (owner 2026-11-27: check it off, see it in 3D) */
+export interface CutPiece {
+  /** Stable per piece: the part id, or `<sheet>#n` for a piece of a split sheet */
+  key: string
+  /** The parts in the model it becomes (both halves of a ripped board) */
+  partIds: string[]
+  name: string
+  length: number
+  width?: number
+  notes: string[]
+}
+/** One stock board or sheet and the pieces cut from it, in the cutting diagram's order */
+export interface CutStock {
+  board?: StockBoard
+  sheet?: StockSheet
+  pieces: CutPiece[]
+}
+export interface CutSection {
+  profile: Profile
+  stocks: CutStock[]
+  /** Pieces that don't fit any stock length or sheet */
+  oversize: CutPiece[]
+}
+
+/**
+ * The cutting schedule: the purchase plan's boards and sheets with each cut
+ * tied to a piece of the model. The packers work on sizes only, so pieces of
+ * the same size are matched to cuts in model order (they're interchangeable).
+ */
+export function cutSchedule(parts: Part[], plan: PlanRow[]): CutSection[] {
+  const pieces = stockPieces(parts).map((p): CutPiece & { profileId: string } => {
+    const profile = getProfile(p.profileId)
+    const base = p.id.split('#')[0]
+    return {
+      key: p.id,
+      partIds: p.rip ? parts.filter((q) => q.rip?.id === p.rip!.id).map((q) => q.id) : [base],
+      name: p.name,
+      length: p.length,
+      width: partWidth(p, profile),
+      notes: pieceNotes(p, parts),
+      profileId: p.profileId,
+    }
+  })
+  return plan.map((r) => {
+    const pool = pieces.filter((p) => p.profileId === r.profile.id)
+    const take = (fits: (p: CutPiece) => boolean, fallback: CutPiece): CutPiece => {
+      const i = pool.findIndex(fits)
+      if (i < 0) return fallback
+      const [p] = pool.splice(i, 1)
+      const { profileId: _drop, ...piece } = p as CutPiece & { profileId: string }
+      return piece
+    }
+    const stocks: CutStock[] =
+      r.kind === 'board'
+        ? r.boards.map((board, b) => ({
+            board,
+            pieces: board.cuts.map((c, i) =>
+              take((p) => p.length === c, { key: `${r.profile.id}|b${b}|${i}`, partIds: [], name: '', length: c, notes: [] }),
+            ),
+          }))
+        : r.sheets.map((sheet, b) => ({
+            sheet,
+            pieces: sheet.pieces.map((pl, i) =>
+              take(
+                (p) => (p.length === pl.w && p.width === pl.h) || (p.length === pl.h && p.width === pl.w),
+                { key: `${r.profile.id}|s${b}|${i}`, partIds: [], name: '', length: pl.w, width: pl.h, notes: [] },
+              ),
+            ),
+          }))
+    const oversize = pool.map(({ profileId: _drop, ...p }) => p)
+    return { profile: r.profile, stocks, oversize }
+  })
 }

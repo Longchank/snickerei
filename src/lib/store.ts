@@ -311,7 +311,8 @@ export function normalizeProject(p: Partial<Project> | undefined): Project {
     screwsByHand: true,
     ...(p?.purpose ? { purpose: p.purpose } : {}),
     ...(edits ? { screwEdits: edits } : {}),
-    ...(p?.checks ? { checks: p.checks } : {}),
+    // Cut checks from the first version (2026-11-26, keyed by cut-list row with '|') don't match any piece any more
+    ...(p?.checks ? { checks: { ...p.checks, ...(p.checks.cut ? { cut: p.checks.cut.filter((k) => !k.includes('|')) } : {}) } } : {}),
   }
 }
 

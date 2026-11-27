@@ -3183,3 +3183,59 @@ button > svg.ic:not(:only-child) {
     display: none;
   }
 }
+
+/* Verkstad → Kapa: the cutting schedule (owner 2026-11-27); cut pieces in the
+   same green as in 3D */
+.board-bar span.done {
+  background: #7fc493;
+  font-weight: 600;
+}
+.sheet-piece.done {
+  fill: #7fc493;
+}
+.cut-section {
+  display: grid;
+  gap: 10px;
+}
+.cut-section h4 {
+  margin: 8px 0 0;
+}
+.cut-stock {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.cut-stock .board-bar {
+  height: 26px;
+}
+.cut-stock .board-bar span {
+  font-size: 12px;
+  line-height: 26px;
+}
+.cut-stock-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.cut-stock.done .cut-stock-head strong {
+  color: var(--muted);
+}
+.cut-stock .cut-checklist li {
+  border: none;
+  padding: 2px 0;
+}
+button.cut-main {
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  min-height: 40px;
+}
+button.cut-main:hover:not(:disabled) {
+  background: none;
+}

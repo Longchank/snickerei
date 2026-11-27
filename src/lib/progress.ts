@@ -1,22 +1,16 @@
 /**
  * Progress in the workshop (owner 2026-11-26): check-offs saved per project —
- * what's bought (Handla → Inköp), which pieces are cut (Verkstad → Kapa) and
+ * what's bought (Handla → Inköp), which pieces are cut (Verkstad → Kapa, keyed
+ * by the piece's part id — `cutSchedule` in cutlist.ts) and
  * which build steps are done (Verkstad → Montera). Not part of undo.
  *
  * Once a piece is checked off as cut, the model is locked: changing it would
  * make the cut list wrong. Unlocking empties the cut checklist.
  */
-import type { CutRow } from './cutlist'
 import type { Project } from './types'
 
 export type CheckList = 'buy' | 'cut' | 'steps'
 export type Checks = Partial<Record<CheckList, string[]>>
-
-/** One cut-list row: same material, size and machining */
-export const cutRowKey = (r: CutRow) => `${r.profile.id}|${r.length}|${r.width ?? ''}|${r.notes.join(';')}`
-
-/** One key per piece to cut */
-export const pieceKeys = (r: CutRow) => Array.from({ length: r.count }, (_, i) => `${cutRowKey(r)}#${i}`)
 
 /** The model is locked while any piece is checked off as cut */
 export const isLocked = (p: Pick<Project, 'checks'>) => (p.checks?.cut?.length ?? 0) > 0

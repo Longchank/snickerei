@@ -1,4 +1,5 @@
 import { Edges, GizmoHelper, GizmoViewport, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
+import { stockPieces } from '../lib/cutlist'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import {
   BoxGeometry,
@@ -165,6 +166,9 @@ function useGrainTexture(part: Part, size: Vec3): CanvasTexture | null {
   useEffect(() => () => texture?.dispose(), [texture])
   return texture
 }
+
+/** A part that's been cut (Verkstad → Kapa) */
+const CUT_COLOR = '#a8e2b8'
 
 function PartMesh({ part, selected, register, tint }: { part: Part; selected: boolean; register: Register; tint?: string }) {
   const pickPart = useStore((s) => s.pickPart)
@@ -823,7 +827,21 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   // Analys → "Visa i 3D": colour horizontal parts by how they hold up
   const analysisView = useStore((s) => s.analysisView)
   const purpose = useStore((s) => s.project.purpose ?? 'forvaring')
+  // Verkstad: parts whose pieces are all checked off as cut turn green (owner 2026-11-27)
+  const cutKeys = useStore((s) => s.project.checks?.cut)
+  const inWorkshop = useStore((s) => s.settings.mode === 'verkstad')
   const tints = useMemo(() => {
+    if (!analysisView && inWorkshop && cutKeys?.length) {
+      const done = new Set(cutKeys)
+      const pieces = new Map<string, boolean>()
+      for (const piece of stockPieces(parts)) {
+        const ids = piece.rip ? parts.filter((q) => q.rip?.id === piece.rip!.id).map((q) => q.id) : [piece.id.split('#')[0]]
+        for (const id of ids) pieces.set(id, (pieces.get(id) ?? true) && done.has(piece.id))
+      }
+      const m = new Map<string, string>()
+      for (const [id, all] of pieces) if (all) m.set(id, CUT_COLOR)
+      return m
+    }
     if (!analysisView) return null
     const a = analyse(parts, purpose)
     const m = new Map<string, string>(parts.map((p) => [p.id, '#d6d3d1']))
@@ -831,7 +849,7 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
     for (const p of a.posts) m.set(p.partId, STATUS_COLOR[p.status])
     for (const id of a.floating) m.set(id, STATUS_COLOR.bad)
     return m
-  }, [analysisView, parts, purpose])
+  }, [analysisView, parts, purpose, inWorkshop, cutKeys])
   const spaces = useMemo(
     () => (selBox ? freeSpace(selBox, otherBoxes(parts, new Set(selection))).filter((f) => f.gap <= 3000) : []),
     [selBox, parts, selection],

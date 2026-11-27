@@ -1,11 +1,13 @@
 import type { StockBoard, StockSheet } from '../lib/cutlist'
 
 /** One stock board as a bar: cuts in wood colour, waste hatched. */
-export function BoardBar({ board }: { board: StockBoard }) {
+/** `done`: per cut, already sawn (Verkstad → Kapa) */
+export function BoardBar({ board, done }: { board: StockBoard; done?: boolean[] }) {
   return (
     <div className="board-bar">
       {board.cuts.map((c, j) => (
-        <span key={j} style={{ flexGrow: c }} title={`${c} mm`}>
+        <span key={j} className={done?.[j] ? 'done' : undefined} style={{ flexGrow: c }} title={`${c} mm${done?.[j] ? ' · kapad' : ''}`}>
+          {done?.[j] ? '✓ ' : ''}
           {c}
         </span>
       ))}
@@ -15,7 +17,7 @@ export function BoardBar({ board }: { board: StockBoard }) {
 }
 
 /** A stock sheet seen from above with the pieces nested on it. */
-export function SheetDiagram({ sheet }: { sheet: StockSheet }) {
+export function SheetDiagram({ sheet, done }: { sheet: StockSheet; done?: boolean[] }) {
   const label = (w: number, h: number) => `${w}×${h}`
   return (
     <svg
@@ -37,15 +39,16 @@ export function SheetDiagram({ sheet }: { sheet: StockSheet }) {
         return (
           <g key={i}>
             <rect
-              className="sheet-piece"
+              className={`sheet-piece${done?.[i] ? ' done' : ''}`}
               x={p.x}
               y={p.y}
               width={p.w}
               height={p.h}
-              style={p.grainLocked ? { fill: 'url(#grain)' } : undefined}
+              style={p.grainLocked && !done?.[i] ? { fill: 'url(#grain)' } : undefined}
             />
             {fontSize > 25 && (
               <text x={p.x + p.w / 2} y={p.y + p.h / 2} fontSize={fontSize} textAnchor="middle" dominantBaseline="central">
+                {done?.[i] ? '✓ ' : ''}
                 {label(p.w, p.h)}
               </text>
             )}

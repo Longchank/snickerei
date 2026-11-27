@@ -39,7 +39,8 @@ export function CutTable({ rows }: { rows: CutRow[] }) {
 }
 
 /** Shopping list: stock boards/sheets to buy, with cutting diagrams. */
-export function PurchaseList({ plan, expanded = false }: { plan: PlanRow[]; expanded?: boolean }) {
+/** `schema`: with the cutting diagrams (the printout); the app shows them under Verkstad → Kapa */
+export function PurchaseList({ plan, expanded = false, schema = true }: { plan: PlanRow[]; expanded?: boolean; schema?: boolean }) {
   const total = totalCost(plan)
   return (
     <>
@@ -53,7 +54,7 @@ export function PurchaseList({ plan, expanded = false }: { plan: PlanRow[]; expa
             </strong>
             <span>{r.cost === null ? 'Pris saknas' : formatKr(r.cost)}</span>
           </div>
-          {r.kind === 'board' ? <BoardPlanBody r={r} expanded={expanded} /> : <SheetPlanBody r={r} expanded={expanded} />}
+          {r.kind === 'board' ? <BoardPlanBody r={r} expanded={expanded} schema={schema} /> : <SheetPlanBody r={r} expanded={expanded} schema={schema} />}
         </div>
         </BuyScope>
       ))}
@@ -120,12 +121,12 @@ function Diagram({ expanded, summary, children }: { expanded: boolean; summary: 
   )
 }
 
-function BoardPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'board' }>; expanded: boolean }) {
+function BoardPlanBody({ r, expanded, schema }: { r: Extract<PlanRow, { kind: 'board' }>; expanded: boolean; schema: boolean }) {
   const waste = r.boards.reduce((s, b) => s + b.waste, 0)
   return (
     <>
       <ItemList items={r.items} label={(i) => `${i.count} st × ${formatM(i.length)}`} />
-      <Diagram expanded={expanded} summary={`Kapschema · spill ${formatM(waste)}`}>
+      {schema && <Diagram expanded={expanded} summary={`Kapschema · spill ${formatM(waste)}`}>
         <ol className="boards">
           {r.boards.map((b, i) => (
             <li key={i}>
@@ -134,7 +135,7 @@ function BoardPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'board' }>
             </li>
           ))}
         </ol>
-      </Diagram>
+      </Diagram>}
       {r.tooLong.length > 0 && (
         <p className="warn">
           {r.tooLong.length} del(ar) är längre än längsta saluförda längd (
@@ -145,7 +146,7 @@ function BoardPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'board' }>
   )
 }
 
-function SheetPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'sheet' }>; expanded: boolean }) {
+function SheetPlanBody({ r, expanded, schema }: { r: Extract<PlanRow, { kind: 'sheet' }>; expanded: boolean; schema: boolean }) {
   const usage = r.sheets.length ? r.sheets.reduce((s, x) => s + x.usage, 0) / r.sheets.length : 0
   return (
     <>
@@ -153,7 +154,7 @@ function SheetPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'sheet' }>
         items={r.items}
         label={(i) => `${i.count} skiv${i.count === 1 ? 'a' : 'or'} ${i.length} × ${i.width} mm`}
       />
-      <Diagram
+      {schema && <Diagram
         expanded={expanded}
         summary={`Skärschema · utnyttjande ${Math.round(usage * 100)} %`}
       >
@@ -165,7 +166,7 @@ function SheetPlanBody({ r, expanded }: { r: Extract<PlanRow, { kind: 'sheet' }>
         {r.sheets.some((s) => s.pieces.some((p) => p.grainLocked)) && (
           <p className="hint small">Randade delar har låst fiberriktning, längs skivans långsida.</p>
         )}
-      </Diagram>
+      </Diagram>}
       {r.tooLarge.length > 0 && (
         <p className="warn">
           {r.tooLarge.length} del(ar) är större än skivan ({r.sheetSize.join(' × ')} mm):{' '}
