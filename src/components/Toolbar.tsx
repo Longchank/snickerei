@@ -144,6 +144,17 @@ function Menu({ onPrint }: { onPrint: () => void }) {
             />
             Visa mått
           </label>
+          <label className="check">
+            <input
+              id="menu-advanced"
+              type="checkbox"
+              checked={settings.advanced}
+              onChange={(e) => setSettings({ advanced: e.target.checked })}
+            />
+            Avancerat läge
+          </label>
+          {settings.advanced && (
+          <>
           <hr />
           <span className="menu-heading">Avancerat</span>
           <label className="check">
@@ -194,6 +205,8 @@ function Menu({ onPrint }: { onPrint: () => void }) {
               ))}
             </select>
           </label>
+          </>
+          )}
         </div>
       )}
       <input

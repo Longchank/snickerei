@@ -289,6 +289,7 @@ const DEFAULT_SETTINGS: Settings = {
   snapTypes: DEFAULT_SNAP_TYPES,
   mode: 'skissa',
   freeMove: false,
+  advanced: false,
   moveStep: 10,
 }
 

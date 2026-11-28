@@ -806,7 +806,9 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
   const scaleMode = useStore((s) => s.scaleMode)
   const moveTap = useStore((s) => s.moveTap)
   const rotateMode = useStore((s) => s.rotateMode)
-  const { freeMove, mode } = useStore((s) => s.settings)
+  const { freeMove: freeMoveSetting, mode, advanced } = useStore((s) => s.settings)
+  // The free drag gizmo is an expert tool: only in Avancerat läge
+  const freeMove = freeMoveSetting && advanced
   const pendingPoint = useStore((s) => s.pendingPoint)
   const sheetCorner = useStore((s) => s.sheetCorner)
   const screwView = useStore((s) => s.screwView)
@@ -1113,6 +1115,8 @@ function Scene({ lastDrag, capturing }: { lastDrag: React.MutableRefObject<numbe
 
 /** Skissa: what to do with the selection. */
 function ActionBar() {
+  // Avancerat läge: Spegla and Byt stötfog are expert tools
+  const advanced = useStore((s) => s.settings.advanced)
   const selection = useStore((s) => s.selection)
   const parts = useStore((s) => s.project.parts)
   const groups = useStore((s) => s.project.groups)
@@ -1198,10 +1202,12 @@ function ActionBar() {
             <IconRotate />
             <span>Vrid</span>
           </button>
-          <button className="act" onClick={() => setMirrorMode(true)} title="Spegelkopia eller vänd på plats">
-            <IconMirror />
-            <span>Spegla</span>
-          </button>
+          {advanced && (
+            <button className="act" onClick={() => setMirrorMode(true)} title="Spegelkopia eller vänd på plats">
+              <IconMirror />
+              <span>Spegla</span>
+            </button>
+          )}
           <button className="act" onClick={duplicateSelection} title="Kopiera">
             <IconCopy />
             <span>Kopiera</span>
@@ -1211,7 +1217,7 @@ function ActionBar() {
             <span>Ta bort</span>
           </button>
         </div>
-        {butt && (
+        {butt && advanced && (
           <button
             className="switch-butt"
             onClick={switchButt}
@@ -1294,6 +1300,8 @@ function ViewTools() {
   const screwView = useStore((s) => s.screwView)
   const setScrewView = useStore((s) => s.setScrewView)
   const screwsAlways = useStore((s) => s.settings.mode === 'detaljer' || s.settings.mode === 'verkstad')
+  // Avancerat läge: Röntgen, Visa bara and Lås are expert tools (still shown while in use)
+  const advanced = useStore((s) => s.settings.advanced)
   const hidden = parts.filter((p) => p.hidden).length
   const locked = parts.filter((p) => p.locked).length
   const none = selection.length === 0
@@ -1334,10 +1342,10 @@ function ViewTools() {
       show: true,
       run: () => setScrewView(!screwView),
     },
-    { key: 'xray', icon: <IconXray />, label: 'Röntgen', on: xray, show: true, run: () => setXray(!xray) },
+    { key: 'xray', icon: <IconXray />, label: 'Röntgen', on: xray, show: advanced || xray, run: () => setXray(!xray) },
     { key: 'dolj', icon: <IconHide />, label: none ? 'Dölj (markera något)' : 'Dölj markerat', show: true, disabled: none, run: () => hideParts(selection) },
-    { key: 'bara', icon: <IconIsolate />, label: none ? 'Visa bara (markera något)' : 'Visa bara markerat', show: true, disabled: none, run: () => isolateParts(selection) },
-    { key: 'las', icon: <IconLock />, label: none ? 'Lås (markera något)' : 'Lås markerat', show: true, disabled: none, run: () => lockParts(selection) },
+    { key: 'bara', icon: <IconIsolate />, label: none ? 'Visa bara (markera något)' : 'Visa bara markerat', show: advanced, disabled: none, run: () => isolateParts(selection) },
+    { key: 'las', icon: <IconLock />, label: none ? 'Lås (markera något)' : 'Lås markerat', show: advanced, disabled: none, run: () => lockParts(selection) },
     { key: 'visa', icon: <IconShow />, label: `Visa ${hidden} dolda`, badge: hidden, show: hidden > 0, run: showAllParts },
     { key: 'upp', icon: <IconUnlock />, label: `Lås upp ${locked}`, badge: locked, show: locked > 0, run: () => unlockParts() },
   ]

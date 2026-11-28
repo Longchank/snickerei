@@ -221,6 +221,8 @@ export interface Settings {
   mode: Phase
   /** Advanced: the free 3D drag gizmo (off by default) */
   freeMove: boolean
+  /** Avancerat läge: show the expert tools (owner 2026-11-26; off by default) */
+  advanced: boolean
   /** How far one tap on a move arrow moves the selection, mm */
   moveStep: number
 }

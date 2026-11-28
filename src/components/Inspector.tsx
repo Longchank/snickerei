@@ -45,6 +45,7 @@ function Placement({ parts }: { parts: Part[] }) {
 }
 
 function SinglePart({ part }: { part: Part }) {
+  const advanced = useStore((s) => s.settings.advanced)
   const setScaleMode = useStore((s) => s.setScaleMode)
   const requestPanel = useStore((s) => s.requestPanel)
   const updatePart = useStore((s) => s.updatePart)
@@ -136,7 +137,8 @@ function SinglePart({ part }: { part: Part }) {
       <Ends part={part} />
       <Joints part={part} />
       {/* Sheets aren't ripped into French cleats (owner 2026-11-24) */}
-      {prof.kind !== 'sheet' && <Rip part={part} />}
+      {/* Klyvning (French cleat) is an expert tool; a part that is ripped still shows it */}
+      {prof.kind !== 'sheet' && (advanced || part.rip) && <Rip part={part} />}
       <Shortcuts />
     </div>
   )

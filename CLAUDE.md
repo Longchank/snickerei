@@ -193,8 +193,16 @@ comments in English).
   they have parts) or "✓ Inget att rätta här", and "Fortsätt till
   <next> ›" in the next step's colour; hidden in Verkstad when there's
   nothing to show, and with no parts. A fresh Bänk shows one red "Kan
-  tippa bakåt" (a light, empty bench at 450 mm really tips at ~4 kg). (5) Hide expert tools
-  behind Avancerat. "Fyll i rekommenderade" is **not** run automatically
+  tippa bakåt" (a light, empty bench at 450 mm really tips at ~4 kg). (5)
+  ~~Avancerat~~ **done 2026-11-28**: `settings.advanced` (persisted, off
+  by default), menu checkbox "Avancerat läge" (`#menu-advanced`); the
+  menu's Avancerat section (fri flytt, fäst mot, rutnät) shows only with
+  it, and the free gizmo needs it (`freeMove && advanced`). Hidden when
+  off: Röntgen (unless on), Visa bara and Lås in the view tool menu
+  ("Visa N dolda" / "Lås upp N" always show), Spegla in the Skissa action
+  bar, "⇄ Byt stötfog", and Klyvning in the Del panel (unless the part is
+  already ripped). Everything else stays (Dölj, Skala, Annan riktning,
+  Markera likadana, Ny fog …). "Fyll i rekommenderade" is **not** run automatically
   on entering Detaljer ("something we'll test").
 - **Four steps of a build** (owner 2026-11-20, replaced "Bygg | Redigera";
   `settings.mode: Phase`, `src/lib/phases.ts`): **1 Bygg** (big picture:
